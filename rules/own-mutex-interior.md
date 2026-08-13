@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-When you need shared mutable state across threads, `Mutex<T>` provides safe interior mutability with synchronization. Unlike `RefCell`, `Mutex` is `Send + Sync` and uses OS-level locking to ensure only one thread can access the data at a time.
+When you need shared mutable state across threads, `Mutex<T>` serializes access
+through a guard. `Mutex<T>` is `Send` and `Sync` when `T: Send`; it does not
+make a thread-affine value transferable. The standard library intentionally
+does not promise a particular locking implementation, size, fairness policy,
+or contention cost.
 
 ## Bad
 
@@ -32,16 +36,19 @@ let shared = Arc::new(Mutex::new(vec![]));
 let handles: Vec<_> = (0..10).map(|i| {
     let shared = shared.clone();
     std::thread::spawn(move || {
-        let mut data = shared.lock().unwrap();
+        let mut data = shared.lock().expect("shared vector mutex poisoned");
         data.push(i);
     })
 }).collect();
 
 for handle in handles {
-    handle.join().unwrap();
+    handle.join().expect("worker thread panicked");
 }
 
-println!("{:?}", shared.lock().unwrap()); // All values present
+println!(
+    "{:?}",
+    shared.lock().expect("shared vector mutex poisoned")
+);
 ```
 
 ## Mutex Poisoning
@@ -53,11 +60,11 @@ use std::sync::{Arc, Mutex};
 
 let mutex = Arc::new(Mutex::new(0));
 
-// Handle poisoning gracefully
+// Recover only if the protected value's invariant is known to remain valid.
 match mutex.lock() {
     Ok(guard) => println!("Value: {}", *guard),
     Err(poisoned) => {
-        // Recover the data anyway
+        // This application has an explicit invariant-repair path.
         let guard = poisoned.into_inner();
         println!("Recovered value: {}", *guard);
     }
@@ -67,9 +74,11 @@ match mutex.lock() {
 let guard = mutex.lock().unwrap_or_else(|e| e.into_inner());
 ```
 
-## Prefer parking_lot::Mutex
+## Consider parking_lot::Mutex Deliberately
 
-For better performance, consider `parking_lot::Mutex`:
+`parking_lot::Mutex` has different poisoning, fairness, size, and performance
+trade-offs. Choose it only when those semantics are desired and representative
+contention measurements justify another dependency:
 
 ```rust
 use parking_lot::Mutex;
@@ -83,10 +92,10 @@ data.push(42);
 // Lock automatically released when guard drops
 ```
 
-Benefits of `parking_lot`:
+Characteristics of `parking_lot`:
 - No poisoning (returns guard directly)
-- Smaller size (1 byte vs 40+ bytes)
-- Better performance under contention
+- Object size depends on target and crate version
+- Contention performance depends on workload and platform
 - Fair locking option available
 
 ## When to Use What
@@ -96,7 +105,7 @@ Benefits of `parking_lot`:
 | `RefCell<T>` | Single | Minimal | Interior mutability, same thread |
 | `Mutex<T>` | Multi | Locking | Shared mutable state across threads |
 | `RwLock<T>` | Multi | Locking | Many readers, few writers |
-| `parking_lot::Mutex` | Multi | Less | Drop-in std::Mutex replacement |
+| `parking_lot::Mutex` | Multi | Locking | Explicit non-poisoning/fairness choice |
 
 ## See Also
 

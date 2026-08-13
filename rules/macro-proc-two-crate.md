@@ -6,6 +6,10 @@
 
 A crate marked `proc-macro = true` in `Cargo.toml` compiles for the host (the build machine) and can **only** export procedural macros — no regular types, traits, or functions. If your library needs both a derive/attribute macro and ordinary APIs, you must split into two crates: a `mycrate-derive` (or `mycrate-macros`) proc-macro crate and a `mycrate` facade crate that re-exports everything.
 
+The two-crate split is the minimum. When parsing and token transformation are
+more than a thin derive, add a third regular library crate for that logic and
+its tests; keep the `proc-macro` crate as a shim.
+
 The facade approach ensures:
 - Users add only `mycrate` as a dependency.
 - Generated code refers to types through `::mycrate::__private::...`, so the impl crate version is invisible.
@@ -134,6 +138,43 @@ pub fn derive_greet(input: TokenStream) -> TokenStream {
     .into()
 }
 ```
+
+## Extract Non-Trivial Transformation Logic
+
+Use three roles when the macro has logic worth testing directly:
+
+```text
+mycrate/              # public facade; users depend on this
+mycrate-derive/       # proc-macro shim; converts proc_macro tokens
+mycrate-derive-impl/  # regular library; parsing and token transformation
+```
+
+```rust
+// mycrate-derive/src/lib.rs
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Greet)]
+pub fn derive_greet(input: TokenStream) -> TokenStream {
+    mycrate_derive_impl::expand_greet(input.into()).into()
+}
+```
+
+The implementation crate accepts and returns `proc_macro2::TokenStream`, so
+ordinary unit tests and snapshot tests can call it without the compiler's
+proc-macro entry environment. Add `trybuild` tests through `mycrate` for valid
+uses, rejected syntax, and diagnostic spans.
+
+## Keep One Supported Entry Path
+
+Generated code should name the public facade (`::mycrate::__private::...`),
+not the derive or implementation crate. Do not advertise direct use of
+`mycrate-derive` or `mycrate-derive-impl`; supporting every technical crate
+creates competing re-export graphs.
+
+Choose and document how renamed dependencies behave. The simplest contract is
+that generated absolute paths require the facade's canonical dependency name.
+If renaming is a supported product requirement, resolve it deliberately in the
+shim rather than probing several crate paths in generated code.
 
 ## See Also
 

@@ -4,7 +4,13 @@
 
 ## Why It Matters
 
-A generic parameter `F: Fn(…) -> …` (or `impl Fn`) monomorphizes at each call site: the compiler emits a specialized copy of the function, enabling inlining and zero-cost dispatch. The trade-off is binary bloat when many different closure types are substituted. `&dyn Fn`/`Box<dyn Fn>` share a single compiled copy via a vtable, which reduces code size and is the only option for storing heterogeneous closures (e.g. an event handler registry). Choose by profiling requirements, not habit.
+A generic parameter `F: Fn(…) -> …` (or `impl Fn`) monomorphizes for each
+concrete closure type, enabling static dispatch and possible inlining. That can
+increase code size. `&dyn Fn` or `Box<dyn Fn>` erases closure types behind a
+vtable and may reduce duplicated code. Dynamic dispatch is one way to store an
+open heterogeneous set; a closed enum or one homogeneous generic field is
+another. Choose from substitution, ownership, lifetime, code-size, and measured
+hot-path requirements.
 
 ## Bad
 
@@ -73,7 +79,7 @@ fn demo() {
 | Callback stored in a struct field | `Box<dyn Fn>` |
 | Collection of mixed closures | `Vec<Box<dyn Fn(…)>>` |
 | Pass-through, one level deep, not stored | `&dyn Fn` (avoids allocation) |
-| Called across an `await` point | `Box<dyn Fn + Send>` |
+| Stored across an `await` point | Generic, enum, or `Box<dyn Fn + Send>` according to ownership |
 
 **Note:** `&dyn Fn` is useful to avoid an allocation when you only need to borrow the closure for one call and do not store it. Pass `&closure` (reference to a stack-allocated closure) rather than boxing.
 

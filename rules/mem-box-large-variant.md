@@ -156,3 +156,4 @@ fn handle_ref(event: &Event) {
 - [own-move-large](./own-move-large.md) - Boxing large types for cheap moves
 - [mem-smallvec](./mem-smallvec.md) - Alternative for inline small collections
 - [lint-deny-correctness](./lint-deny-correctness.md) - Enabling clippy lints
+- [async-future-size](./async-future-size.md) - box the large branch of a hot future the same way

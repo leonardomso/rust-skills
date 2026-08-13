@@ -4,7 +4,13 @@
 
 ## Why It Matters
 
-`println!` and `eprintln!` have no concept of log levels, targets, or structured data — they cannot be silenced, filtered, or parsed by observability pipelines. The `log` facade improves this but emits only flat strings and has no notion of spans. `tracing` records both *events* (point-in-time observations) and *spans* (contextual scopes that automatically follow execution across `.await` points and threads), with structured key-value fields, level filtering, and target routing. It is also interoperable with the `log` ecosystem via `tracing`'s `log` feature flag.
+`println!` and `eprintln!` have no log level, target, or structured fields. The
+`log` facade adds levels and targets but not spans. `tracing` records events
+and contextual spans with structured fields. Context does not automatically
+jump into every spawned task or thread: instrument the future/task explicitly
+and propagate trace context across process boundaries. A library that emits no
+diagnostics does not need a tracing dependency; libraries that do emit should
+depend on the facade and leave subscriber/exporter ownership to the binary.
 
 ## Bad
 
@@ -42,11 +48,13 @@ fn main() {
 |---|---|---|---|---|
 | `println!` | No | No | No | No |
 | `log` facade | Yes | No | No | Yes |
-| `tracing` | Yes | Yes | Yes | Yes (via feature) |
+| `tracing` | Yes | Yes | With explicit instrumentation/propagation | Yes (via feature) |
 
-- Add to `Cargo.toml`: `tracing = "0.1"` for all crates; `tracing-subscriber = { version = "0.3", features = ["env-filter"] }` for binaries only.
+- Add `tracing` to crates that emit events or spans. Put `tracing-subscriber` and exporter configuration in binaries only.
 - The `%expr` sigil uses `Display`; `?expr` uses `Debug`; bare `field = value` records typed primitives.
 - `tracing` ships a `log` compatibility bridge: set `tracing-subscriber`'s `log` feature or call `tracing_log::LogTracer::init()` to capture existing `log`-emitting dependencies.
+- `println!` is valid for a CLI's intentional user interface on stdout. Diagnostics, progress internals, and library output still go through telemetry (or an explicit CLI renderer).
+- Remove `dbg!` from production paths; it writes unstructured file/line diagnostics to stderr.
 
 ## See Also
 

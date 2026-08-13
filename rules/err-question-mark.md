@@ -40,8 +40,9 @@ fn load_config() -> Result<Config, Error> {
     Ok(config)
 }
 
-// Even more concise
-fn load_config() -> Result<Config, Error> {
+// Compact composition is valid, but prefer the named locals above when they
+// improve source-specific context or debugging.
+fn load_config_compact() -> Result<Config, Error> {
     Ok(toml::from_str(&std::fs::read_to_string("config.toml")?)?)
 }
 ```

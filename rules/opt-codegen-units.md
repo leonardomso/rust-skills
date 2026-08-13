@@ -1,142 +1,71 @@
 # opt-codegen-units
 
-> Set `codegen-units = 1` for maximum optimization in release builds
+> Measure codegen-unit count as a build-throughput and runtime trade-off
 
 ## Why It Matters
 
-By default, Cargo splits code into multiple codegen units for parallel compilation. This speeds up builds but prevents some cross-unit optimizations. Setting `codegen-units = 1` allows LLVM to optimize across the entire crate, potentially improving runtime performance by 5-20% at the cost of slower builds.
+Cargo can split a crate into multiple code generation units so LLVM work runs in parallel. Fewer units expose more of one crate to a single optimization unit but reduce code-generation parallelism and may increase peak memory. The final result also depends on LTO, incremental compilation, target, crate graph, and compiler version. `codegen-units = 1` is a candidate to benchmark, not a universal production setting.
 
 ## Bad
 
 ```toml
-# Cargo.toml - default settings
 [profile.release]
-# codegen-units defaults to 16
-# Fast to compile, but misses optimization opportunities
+codegen-units = 1
+lto = "fat"
 ```
+
+This labels the most serial, resource-intensive combination as correct without measuring build cost or deployed behavior.
 
 ## Good
 
 ```toml
-# Cargo.toml - optimized for runtime performance
-[profile.release]
-codegen-units = 1  # Single unit = better optimization
-lto = true         # Link-time optimization
-opt-level = 3      # Maximum optimization
-```
-
-## What codegen-units Affects
-
-| Codegen Units | Compile Time | Runtime Performance | Memory Use |
-|---------------|--------------|---------------------|------------|
-| 16 (default)  | Faster       | Baseline            | Lower      |
-| 4-8           | Moderate     | Slightly better     | Moderate   |
-| 1             | Slower       | Best                | Higher     |
-
-## How It Works
-
-```rust
-// With codegen-units = 16:
-// - Crate split into 16 independent compilation units
-// - Compiled in parallel
-// - Limited visibility between units for optimization
-
-// With codegen-units = 1:
-// - Entire crate in single unit
-// - LLVM sees all code at once
-// - Can inline across module boundaries
-// - Better dead code elimination
-// - Better constant propagation
-```
-
-## Full Release Profile
-
-```toml
-[profile.release]
-# Maximum runtime performance
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "abort"      # Smaller binary, slight perf gain
-strip = true         # Smaller binary
-
-[profile.release-with-debug]
-# Performance with debugging ability
-inherits = "release"
-debug = true         # Keep debug symbols
-strip = false
-
-[profile.bench]
-# For benchmarking
-inherits = "release"
-```
-
-## Build Time Trade-offs
-
-```bash
-# Default release build (fast compile)
-cargo build --release
-# Time: ~30s
-
-# Optimized release build (slow compile, fast runtime)
-# With codegen-units = 1, lto = "fat"
-cargo build --release
-# Time: ~2-5min, but potentially 10-20% faster binary
-```
-
-## Per-Profile Configuration
-
-```toml
-# Fast debug builds
-[profile.dev]
-codegen-units = 256  # Maximum parallelism
-
-# Fast CI builds
-[profile.ci]
-inherits = "release"
-codegen-units = 16   # Balance compile time vs runtime
-lto = "thin"         # Faster than "fat"
-
-# Production release
-[profile.production]
+[profile.release-cgu1-candidate]
 inherits = "release"
 codegen-units = 1
-lto = "fat"
 ```
 
-## When to Use What
+Compare it with the release default and one intermediate candidate while holding every other input constant:
 
-```rust
-// codegen-units = 16 (default)
-// - Development builds
-// - CI where compile time matters
-// - When runtime performance isn't critical
-
-// codegen-units = 1
-// - Production deployments
-// - Performance-critical applications
-// - Final releases
-// - Benchmarking
+```toml
+[profile.release-cgu4-candidate]
+inherits = "release"
+codegen-units = 4
 ```
 
-## Measuring Impact
+Use named profiles so benchmark and artifact evidence says exactly which code-generation policy produced the bytes.
+
+## Contract
+
+- More codegen units can increase parallelism and reduce wall time on a machine with available CPU and memory, but scheduling and crate shape determine the result.
+- One codegen unit gives LLVM one unit for the crate; it does not provide whole-program visibility unless the selected LTO mode does so.
+- Fewer units do not guarantee faster runtime or a smaller binary. They can change inlining, layout, compile time, and peak memory in either direction.
+- Cargo defaults differ for incremental and non-incremental profiles; inspect the effective profile rather than copying a stale constant.
+- A library's own profile settings are ignored when it is built as a dependency; the workspace/root application owns the final profile.
+
+## Representative Measurement
 
 ```bash
-# Build with different settings
-cargo build --release
-
-# Benchmark
-cargo bench
-
-# Compare binary sizes
-ls -lh target/release/my_binary
-
-# Profile runtime
-perf stat ./target/release/my_binary
+cargo build --locked --profile release-cgu1-candidate
+cargo test --locked --profile release-cgu1-candidate
+cargo bench --profile release-cgu1-candidate
 ```
+
+Record clean build time, incremental build time if relevant, linker/codegen peak memory, artifact size, startup, throughput, and tail latency. Run enough samples on controlled hosts to separate noise from a material change. Preserve toolchain, target CPU, lockfile, and LTO mode with the record.
+
+## Development And CI
+
+Do not equate “CI” with a low-quality artifact profile. Admission must test the exact candidate that will be promoted. A separate fast feedback job may use a cheaper profile, but it cannot replace final-profile tests. Likewise, setting `codegen-units = 256` in development can make some builds slower or more memory-intensive; use the Cargo default until measurement shows a better local policy.
+
+## Failure Behavior
+
+- Reject a candidate that exceeds bounded CI memory or wall time even when a microbenchmark improves.
+- Reject a runtime optimization that regresses the product's stated latency, throughput, size, or energy objective.
+- Treat compiler, linker, target, LTO, and dependency changes as reasons to re-run the comparison.
+- Promote the tested digest. Rebuilding the same source with a different codegen-unit setting is a different candidate.
 
 ## See Also
 
-- [opt-lto-release](./opt-lto-release.md) - Link-time optimization
-- [opt-pgo-profile](./opt-pgo-profile.md) - Profile-guided optimization
-- [opt-target-cpu](./opt-target-cpu.md) - CPU-specific optimization
+- [opt-lto-release](./opt-lto-release.md) - benchmark the interaction with LTO
+- [perf-release-profile](./perf-release-profile.md) - make the whole profile explicit
+- [opt-pgo-profile](./opt-pgo-profile.md) - use representative profile data
+- [perf-profile-first](./perf-profile-first.md) - measure the actual objective

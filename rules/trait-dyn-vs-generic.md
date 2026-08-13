@@ -1,99 +1,144 @@
 # trait-dyn-vs-generic
 
-> Choose static dispatch (generics / `impl Trait`) vs dynamic dispatch (`dyn Trait`) deliberately
+> Choose concrete types, enums, generics, or `dyn Trait` from the substitution and ownership contract
 
 ## Why It Matters
 
-Generic bounds and `impl Trait` monomorphize at compile time: each concrete type gets its own specialised copy that the compiler can inline and optimise, but every distinct type adds to binary size. `dyn Trait` stores a fat pointer (data + vtable) and dispatches at runtime, producing a single code path — necessary when you must store heterogeneous values or return erased types, at the cost of one pointer indirection per call. Choosing the wrong option either leaves performance on the table or prevents heterogeneous collections entirely. Default to generics for hot, simple code; reach for `dyn` when you need flexibility, heap storage, or cross-crate plug-ins.
+Dispatch is an API decision, not a universal performance ladder. Concrete types
+are simplest when behavior is fixed. Enums model a closed set. Generics keep
+open implementations statically dispatched but can spread type parameters
+through public state. Trait objects provide runtime heterogeneity, smaller code,
+and a stable erased boundary at the cost of object-safety constraints and
+indirect calls.
+
+Do not translate every interface from another language into `Arc<dyn Trait>`.
+Do not hide a genuine ownership-and-erasure contract merely to ban `dyn` from a
+public signature.
 
 ## Bad
 
 ```rust
-// Using `dyn` everywhere "to be flexible" — blocks inlining and
-// forces heap allocation even for single, known types.
-trait Shape {
-    fn area(&self) -> f64;
+use std::sync::Arc;
+
+pub trait Store {
+    fn load(&self, key: &str) -> Option<Vec<u8>>;
 }
 
-struct Circle { radius: f64 }
-impl Shape for Circle {
-    fn area(&self) -> f64 { std::f64::consts::PI * self.radius * self.radius }
-}
-
-// Unnecessary boxing when only one concrete type is used.
-fn total_area(shapes: &[Box<dyn Shape>]) -> f64 {
-    shapes.iter().map(|s| s.area()).sum()
+// There is one implementation, but every caller inherits sharing and dispatch.
+pub struct Service {
+    store: Arc<dyn Store + Send + Sync>,
 }
 ```
 
 ## Good
 
+Use the least complex form that expresses the supported substitutions.
+
+### Concrete Type
+
 ```rust
-use std::fmt;
+pub struct Store;
 
-trait Shape {
-    fn area(&self) -> f64;
-    fn name(&self) -> &str;
+impl Store {
+    pub fn load(&self, _key: &str) -> Option<Vec<u8>> {
+        None
+    }
 }
 
-#[derive(Clone)]
-struct Circle { radius: f64 }
-#[derive(Clone)]
-struct Rect { w: f64, h: f64 }
-
-impl Shape for Circle {
-    fn area(&self) -> f64 { std::f64::consts::PI * self.radius * self.radius }
-    fn name(&self) -> &str { "circle" }
-}
-impl Shape for Rect {
-    fn area(&self) -> f64 { self.w * self.h }
-    fn name(&self) -> &str { "rect" }
-}
-
-// --- Static dispatch: use when the type is known and performance matters ---
-// Monomorphized; the compiler can inline `area()`.
-fn total_area_generic<S: Shape>(shapes: &[S]) -> f64 {
-    shapes.iter().map(|s| s.area()).sum()
-}
-
-// Also fine with `impl Trait` in argument position (same monomorphization).
-fn print_area(shape: &impl Shape) {
-    println!("{}: {:.2}", shape.name(), shape.area());
-}
-
-// --- Dynamic dispatch: use for heterogeneous collections or plugin-like APIs ---
-fn total_area_dyn(shapes: &[Box<dyn Shape>]) -> f64 {
-    shapes.iter().map(|s| s.area()).sum()
-}
-
-fn demo() {
-    // Homogeneous slice — zero boxing, static dispatch.
-    let circles = [Circle { radius: 1.0 }, Circle { radius: 2.0 }];
-    println!("{:.2}", total_area_generic(&circles));
-
-    // Heterogeneous collection — `dyn` is the right tool.
-    let shapes: Vec<Box<dyn Shape>> = vec![
-        Box::new(Circle { radius: 1.0 }),
-        Box::new(Rect { w: 3.0, h: 4.0 }),
-    ];
-    println!("{:.2}", total_area_dyn(&shapes));
+pub struct Service {
+    store: Store,
 }
 ```
 
-## Decision Table
+Choose this when the implementation is fixed and callers do not supply one.
 
-| Situation | Prefer |
+### Closed Enum
+
+```rust
+pub enum Backend {
+    Memory(MemoryStore),
+    File(FileStore),
+}
+
+pub struct MemoryStore;
+pub struct FileStore;
+```
+
+Choose this when the supported set is intentionally closed and exhaustive
+matching is useful.
+
+### Generic Parameter
+
+```rust
+pub trait Store {
+    fn load(&self, key: &str) -> Option<Vec<u8>>;
+}
+
+pub struct Service<S> {
+    store: S,
+}
+
+impl<S: Store> Service<S> {
+    pub fn load(&self, key: &str) -> Option<Vec<u8>> {
+        self.store.load(key)
+    }
+}
+```
+
+Choose this when callers provide implementations and the parameter remains
+local instead of infecting many public types.
+
+### Trait Object
+
+```rust
+pub trait Store: Send + Sync {
+    fn load(&self, key: &str) -> Option<Vec<u8>>;
+}
+
+pub struct Service {
+    store: Box<dyn Store>,
+}
+
+impl Service {
+    pub fn new(store: Box<dyn Store>) -> Self {
+        Self { store }
+    }
+}
+```
+
+A public `Box<dyn Store>` is appropriate when the caller transfers unique
+ownership of an erased implementation. `Arc<dyn Store>` is appropriate when
+shared ownership itself is the contract. A crate-owned handle can hide those
+wrappers when storage and sharing are implementation details that may change.
+
+## Decision Guide
+
+| Requirement | Default |
 |---|---|
-| Single known concrete type | `impl Trait` / generic |
-| Hot path, inlining critical | Generic bound |
-| Heterogeneous collection (`Vec<Box<dyn …>>`) | `dyn Trait` |
-| Storing trait objects across calls | `dyn Trait` |
-| Returning erased type from `fn` | `Box<dyn Trait>` or `impl Trait` (static) |
-| Binary size matters, many monomorphisations | `dyn Trait` |
-| Plug-in / callback registered at runtime | `dyn Trait` |
+| One implementation | Concrete type |
+| Small, closed implementation set | Enum |
+| Caller implementations; type remains local | Generic / `impl Trait` |
+| Runtime heterogeneous collection | `dyn Trait` |
+| Stable plugin or ABI-adjacent erasure boundary | `dyn Trait` behind an owned boundary |
+| Sharing is internal | Crate-owned cloneable handle |
+| Caller transfers or shares erased ownership | Public `Box` / `Arc<dyn Trait>` may be the honest API |
+
+## Key Points
+
+- Keep traits narrow and based on behavior callers actually substitute.
+- Require `Send` and `Sync` only when the execution contract needs them.
+- Confirm object safety before committing to `dyn Trait`.
+- Benchmark dispatch only on measured hot paths; monomorphization also has code
+  size and compile-time costs.
+- Avoid nested generic architecture that exposes implementation topology.
+- State ownership directly. Hiding every smart pointer can make lifetime and
+  sharing costs less clear rather than more stable.
 
 ## See Also
 
-- [anti-type-erasure](anti-type-erasure.md) - don't use `Box<dyn Trait>` when `impl Trait` works
-- [type-generic-bounds](type-generic-bounds.md) - add trait bounds only where needed
-- [trait-object-safety](trait-object-safety.md) - keep traits dyn-compatible when you need `dyn Trait`
+- [api-no-wrapper-params](api-no-wrapper-params.md) - keep incidental wrappers out of signatures
+- [api-service-clone](api-service-clone.md) - hide internal shared ownership in a handle
+- [anti-type-erasure](anti-type-erasure.md) - retain known concrete types
+- [anti-over-abstraction](anti-over-abstraction.md) - do not add substitution without a consumer
+- [trait-object-safety](trait-object-safety.md) - requirements for `dyn Trait`
+- [type-generic-bounds](type-generic-bounds.md) - keep bounds near their use

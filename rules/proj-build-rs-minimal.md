@@ -68,3 +68,5 @@ autocfg = "1"
 
 - [proj-feature-additive](proj-feature-additive.md) - design features to be strictly additive
 - [lint-cfg-check](lint-cfg-check.md) - catch cfg typos with unexpected_cfgs
+- [ffi-sys-crate-builds](ffi-sys-crate-builds.md) - -sys crates vendor or probe instead of shelling out
+- [proj-works-out-of-box](proj-works-out-of-box.md) - default features build with only the Rust toolchain

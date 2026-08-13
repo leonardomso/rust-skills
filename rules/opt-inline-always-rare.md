@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-`#[inline(always)]` forces the compiler to inline a function regardless of heuristics. Overuse increases binary size, hurts instruction cache, and can slow down code. The compiler is usually smarter about inlining than humans. Reserve this for measured hot paths where benchmarks prove a benefit.
+`#[inline(always)]` is a strong request, not a language guarantee; recursion,
+code-generation constraints, and other compiler decisions can still prevent
+inlining. Overuse can increase binary size and instruction-cache pressure.
+Reserve it for a measured hot path where representative benchmarks and
+generated-code inspection show a benefit.
 
 ## Bad
 
@@ -40,40 +44,36 @@ pub fn calculate_tax(amount: f64) -> f64 {
     amount * 0.1
 }
 
-// Only force inline for proven hot paths
-impl Hasher for MyHasher {
-    // Hasher::write is called millions of times in tight loops
-    // Profiling showed 15% improvement from forced inlining
-    #[inline(always)]
-    fn write(&mut self, bytes: &[u8]) {
-        // Very small, very hot
-        self.state = self.state.wrapping_add(bytes.len() as u64);
-    }
+// Use a strong request only when retained project evidence shows the ordinary
+// #[inline] candidate leaves a material boundary on every supported target.
+#[inline(always)]
+fn decode_lane(value: u32, mask: u32) -> u32 {
+    (value & mask).rotate_left(3)
 }
 ```
 
-## When #[inline(always)] Helps
+## Candidates To Measure
 
 ```rust
-// ✅ Tiny functions in hot inner loops
+// Tiny functions in a measured hot inner loop
 #[inline(always)]
 fn fast_hash(a: u64, b: u64) -> u64 {
     a.wrapping_mul(b).wrapping_add(a)
 }
 
-// ✅ Generic functions that benefit from monomorphization
+// A generic helper at a cross-crate optimization boundary
 #[inline(always)]
 fn swap<T>(a: &mut T, b: &mut T) {
     std::mem::swap(a, b);
 }
 
-// ✅ Iterator adapters and closures
+// An iterator adapter whose call boundary remains in optimized output
 #[inline(always)]
 fn apply<T, F: Fn(T) -> T>(f: F, x: T) -> T {
     f(x)
 }
 
-// ✅ SIMD/vectorization helpers
+// A small SIMD helper when the call boundary blocks vectorization
 #[inline(always)]
 fn add_simd(a: &[f32], b: &[f32], out: &mut [f32]) {
     // ...
@@ -87,7 +87,7 @@ fn add_simd(a: &[f32], b: &[f32], out: &mut [f32]) {
 #[inline]
 fn suggested_inline(x: i32) -> i32 { x + 1 }
 
-// #[inline(always)] - force inline (almost always)
+// #[inline(always)] - strong request; still not a guarantee
 #[inline(always)]
 fn force_inline(x: i32) -> i32 { x + 1 }
 
@@ -121,8 +121,7 @@ fn bench_with_inline(c: &mut Criterion) {
 ## Generic Functions
 
 ```rust
-// Generic functions across crate boundaries often need #[inline]
-// Because the generic code is compiled in the calling crate
+// Measure cross-crate generic code before adding an inline hint.
 
 // In library crate:
 #[inline]  // Allow inlining in downstream crates
@@ -130,8 +129,8 @@ pub fn generic_function<T: Display>(x: T) {
     println!("{}", x);
 }
 
-// Without #[inline], the generic function can't be inlined
-// across crate boundaries even if beneficial
+// Generic functions are monomorphized for concrete types; the compiler can
+// inline them without this attribute. The hint can still affect heuristics.
 ```
 
 ## See Also

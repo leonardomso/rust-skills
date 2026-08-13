@@ -28,7 +28,7 @@ impl RequestBuilder {
 }
 
 // Bug: builder methods are ignored - no warning!
-let request = RequestBuilder::new("https://api.example.com");
+let request = Request::builder("https://api.example.com");
 request.timeout(Duration::from_secs(30));  // Dropped silently!
 request.header("Authorization", "Bearer token");  // Dropped silently!
 let response = request.send();  // Sends with no timeout or headers
@@ -58,11 +58,11 @@ impl RequestBuilder {
 }
 
 // Now warns: unused return value that must be used
-let request = RequestBuilder::new("https://api.example.com");
+let request = Request::builder("https://api.example.com");
 request.timeout(Duration::from_secs(30));  // Warning!
 
 // Correct: chain methods
-let response = RequestBuilder::new("https://api.example.com")
+let response = Request::builder("https://api.example.com")
     .timeout(Duration::from_secs(30))
     .header("Authorization", "Bearer token")
     .send();

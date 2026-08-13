@@ -70,6 +70,31 @@ where
 }
 ```
 
+Use `impl AsRef<_>` at call boundaries, not as infectious storage:
+
+```rust
+// Avoid: every use of User now carries an unrelated type parameter.
+struct GenericUser<N: AsRef<str>> {
+    name: N,
+}
+
+// Store the representation the type owns; keep input flexibility in `new`.
+struct User {
+    name: String,
+}
+
+impl User {
+    fn new(name: impl AsRef<str>) -> Self {
+        Self { name: name.as_ref().to_owned() }
+    }
+}
+```
+
+For low-volume configuration APIs the convenience is usually worth a small
+conversion. In high-volume hot paths, measure monomorphization and conversion
+cost; a direct `&str`, `&Path`, or `&[u8]` parameter may be the clearer and
+smaller interface.
+
 ## Implement AsRef for Custom Types
 
 ```rust
@@ -140,3 +165,5 @@ fn process<T: AsRef<U> + ?Sized, U: ?Sized>(value: &T) {
 - [api-impl-into](./api-impl-into.md) - When to use Into instead
 - [own-slice-over-vec](./own-slice-over-vec.md) - Using slices for flexibility
 - [own-borrow-over-clone](./own-borrow-over-clone.md) - Preferring borrows
+- [api-impl-io](./api-impl-io.md) - Accept Read/Write the same way you accept AsRef
+- [api-impl-rangebounds](./api-impl-rangebounds.md) - Accept RangeBounds the same way you accept AsRef

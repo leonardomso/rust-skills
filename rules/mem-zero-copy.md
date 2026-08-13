@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-Zero-copy means working with data without copying it. Instead of allocating new memory and copying bytes, you work with references to the original data. This dramatically reduces memory usage and improves performance, especially for large data.
+“Zero-copy” should name which payload bytes are shared. Borrowed slices can
+avoid copying payload data, but an iterator, vector of slice descriptors,
+reference count, parser state, or retained backing buffer still has cost.
+Borrowing can also pin a large input for the lifetime of one small field.
+Choose it when profiling and ownership lifetimes justify the trade-off.
 
 ## Bad
 
@@ -28,16 +32,14 @@ fn process_packet(buffer: &[u8]) -> Vec<u8> {
 ## Good
 
 ```rust
-// Zero-copy: returns references to original data
-fn get_lines(data: &str) -> Vec<&str> {
-    data.lines().collect()  // Just pointers!
+// Borrows each line and does not allocate a descriptor Vec.
+fn lines(data: &str) -> impl Iterator<Item = &str> {
+    data.lines()
 }
 
-// Zero-copy with slices
-fn process_packet(buffer: &[u8]) -> (&[u8], &[u8]) {
-    let header = &buffer[0..16];  // Just a pointer + length
-    let body = &buffer[16..];     // Just a pointer + length
-    (header, body)
+// Shares payload bytes and rejects a short packet.
+fn process_packet(buffer: &[u8]) -> Option<(&[u8], &[u8])> {
+    buffer.split_at_checked(16)
 }
 ```
 
@@ -46,15 +48,14 @@ fn process_packet(buffer: &[u8]) -> (&[u8], &[u8]) {
 ```rust
 use bytes::Bytes;
 
-// Bytes provides zero-copy slicing with reference counting
+// Bytes slices share payload storage.
 let data = Bytes::from("hello world");
 
-// Slicing doesn't copy - just increments refcount
-let hello = data.slice(0..5);   // Zero-copy!
-let world = data.slice(6..11); // Zero-copy!
+let hello = data.slice(0..5);
+let world = data.slice(6..11);
 
-// Both hello and world share the underlying allocation
-// Memory is freed when all references are dropped
+// Both views keep the backing storage alive. The internal representation may
+// optimize static data; do not depend on a particular refcount operation.
 ```
 
 ## Common Pattern: Cow for Static Strings
@@ -82,12 +83,12 @@ struct ParsedBad {
     value: String,
 }
 
-fn parse_bad(input: &str) -> ParsedBad {
-    let (name, value) = input.split_once('=').unwrap();
-    ParsedBad {
+fn parse_bad(input: &str) -> Option<ParsedBad> {
+    let (name, value) = input.split_once('=')?;
+    Some(ParsedBad {
         name: name.to_string(),   // Copy!
         value: value.to_string(), // Copy!
-    }
+    })
 }
 
 // Good: References into original string
@@ -96,9 +97,9 @@ struct Parsed<'a> {
     value: &'a str,
 }
 
-fn parse_good(input: &str) -> Parsed<'_> {
-    let (name, value) = input.split_once('=').unwrap();
-    Parsed { name, value }  // Zero-copy!
+fn parse_good(input: &str) -> Option<Parsed<'_>> {
+    let (name, value) = input.split_once('=')?;
+    Some(Parsed { name, value })
 }
 ```
 
@@ -124,9 +125,9 @@ fn normalize<'a>(input: &'a str) -> Cow<'a, str> {
 ```rust
 use memchr::memchr;
 
-// Fast byte search using SIMD
+// The crate selects an optimized implementation for the target.
 fn find_newline(data: &[u8]) -> Option<usize> {
-    memchr(b'\n', data)  // SIMD-accelerated, no allocation
+    memchr(b'\n', data)
 }
 
 // Find all occurrences
@@ -150,9 +151,9 @@ fn store_for_later(s: &str) -> String {
     s.to_string()  // Must copy for ownership
 }
 
-// Cross-thread transfer (without Arc)
+// Detached 'static thread without shared ownership
 fn send_to_thread(data: &[u8]) {
-    let owned = data.to_vec();  // Must copy
+    let owned = data.to_vec();
     std::thread::spawn(move || {
         process(&owned);
     });

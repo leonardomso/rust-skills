@@ -1,43 +1,31 @@
 # lint-unsafe-doc
 
-> Require documentation for unsafe blocks
+> Require a local proof for every unsafe operation
 
 ## Why It Matters
 
-The `undocumented_unsafe_blocks` lint ensures every unsafe block has a `// SAFETY:` comment explaining why the operation is sound. Unsafe code is the source of most memory safety bugs—documenting invariants catches mistakes and helps reviewers.
+`clippy::undocumented_unsafe_blocks` requires a `// SAFETY:` comment immediately associated with an unsafe block or implementation. The comment is not a waiver: it must connect the operation's exact preconditions to invariants established by safe construction, a preceding check, or the caller contract of an `unsafe fn`. Unsafe code can cause undefined behavior even when a comment exists, so reviews and Miri/fuzz tests remain required.
 
 ## Configuration
-
-```rust
-#![warn(clippy::undocumented_unsafe_blocks)]
-```
-
-Or in `Cargo.toml`:
-
-```toml
-[lints.clippy]
-undocumented_unsafe_blocks = "warn"
-```
-
-For strict enforcement:
 
 ```toml
 [lints.clippy]
 undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "warn"
+missing_safety_doc = "deny"
 ```
+
+Workspace lint inheritance must apply this policy to every crate containing unsafe code. Generated bindings may use a narrow, reviewed override at the generated boundary; do not weaken the workspace policy globally.
 
 ## Bad
 
 ```rust
-pub fn read_data(ptr: *const u8, len: usize) -> &[u8] {
-    unsafe {
-        std::slice::from_raw_parts(ptr, len)  // WARN: undocumented
-    }
-}
-
-impl Buffer {
-    pub fn get_unchecked(&self, index: usize) -> &u8 {
-        unsafe { self.data.get_unchecked(index) }  // WARN
+pub fn byte_at(bytes: &[u8], index: usize) -> Option<u8> {
+    if index < bytes.len() {
+        // No proof is recorded next to the unchecked operation.
+        Some(unsafe { *bytes.get_unchecked(index) })
+    } else {
+        None
     }
 }
 ```
@@ -45,89 +33,117 @@ impl Buffer {
 ## Good
 
 ```rust
-pub fn read_data(ptr: *const u8, len: usize) -> &[u8] {
-    // SAFETY: Caller guarantees:
-    // - ptr is valid for reads of len bytes
-    // - ptr is properly aligned for u8
-    // - the memory is initialized
-    // - no mutable references exist to this memory
-    unsafe {
-        std::slice::from_raw_parts(ptr, len)
+pub fn byte_at(bytes: &[u8], index: usize) -> Option<u8> {
+    if index >= bytes.len() {
+        return None;
+    }
+
+    // SAFETY: the branch above proves index < bytes.len(), and bytes is a
+    // valid slice for the duration of this access.
+    Some(unsafe { *bytes.get_unchecked(index) })
+}
+```
+
+Prefer `bytes.get(index).copied()` unless measurement proves the checked wrapper is a real hot path and optimized output retains a redundant check.
+
+## Unsafe Caller Contracts
+
+```rust
+/// Creates a shared slice from a raw memory region.
+///
+/// # Safety
+///
+/// For the returned lifetime `'a`, `ptr` must be non-null and properly aligned,
+/// point to `len` initialized bytes in one allocation, remain valid for reads,
+/// and not be mutated except through `UnsafeCell`. `len` must not exceed
+/// `isize::MAX`, and `ptr.add(len)` must stay within the allocation.
+pub unsafe fn bytes_from_raw<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
+    // SAFETY: the caller contract above is exactly the contract required by
+    // from_raw_parts; this block performs no additional pointer operations.
+    unsafe { std::slice::from_raw_parts(ptr, len) }
+}
+```
+
+A `SAFETY` comment inside the function does not make a raw-pointer API safe. Preconditions that safe Rust cannot enforce belong in an `unsafe fn` and its `# Safety` rustdoc. Prefer accepting a slice or an owning handle whenever possible.
+
+## Pointer Ownership
+
+```rust
+use std::ptr::NonNull;
+
+struct Owned<T> {
+    ptr: NonNull<T>,
+}
+
+impl<T> Owned<T> {
+    fn new(value: T) -> Self {
+        Self {
+            ptr: NonNull::from(Box::leak(Box::new(value))),
+        }
     }
 }
 
-impl Buffer {
-    pub fn get_unchecked(&self, index: usize) -> &u8 {
-        debug_assert!(index < self.len(), "index out of bounds");
-        // SAFETY: We verified index < len in debug builds.
-        // Callers must ensure index is within bounds.
-        unsafe { self.data.get_unchecked(index) }
+impl<T> Drop for Owned<T> {
+    fn drop(&mut self) {
+        // SAFETY: new obtains ptr from one Box allocation; Owned keeps unique
+        // ownership and reconstructs that Box exactly once during Drop.
+        unsafe { drop(Box::from_raw(self.ptr.as_ptr())) };
     }
 }
 ```
 
-## SAFETY Comment Format
+The proof covers origin, validity, uniqueness, and exactly-once reclamation. “The pointer is non-null” alone would not be sufficient.
+
+## FFI Calls
 
 ```rust
-// SAFETY: <explanation of why this is sound>
-unsafe {
-    // ...
+unsafe extern "C" {
+    unsafe fn consume(data: *const u8, len: usize) -> i32;
+}
+
+fn send(bytes: &[u8]) -> Result<(), i32> {
+    // SAFETY: bytes.as_ptr() is valid for bytes.len() initialized bytes for the
+    // duration of the call; the foreign contract promises not to retain or
+    // mutate the region.
+    let status = unsafe { consume(bytes.as_ptr(), bytes.len()) };
+    match status {
+        0 => Ok(()),
+        code => Err(code),
+    }
 }
 ```
 
-The comment should explain:
-1. **What invariants are upheld** - preconditions that make this safe
-2. **Why the invariants hold** - how you know they're satisfied
-3. **What could go wrong** - if invariants are violated
+The comment must cite the reviewed foreign contract, ownership/retention policy, length units, mutability, and thread requirements that matter to the call. Validate generated declarations against the linked library version.
 
-## Examples by Category
-
-### Pointer Operations
+## Manual Send And Sync
 
 ```rust
-// SAFETY: ptr was obtained from Box::into_raw, so it's valid
-// and properly aligned. We're taking back ownership.
-let boxed = unsafe { Box::from_raw(ptr) };
+use std::ptr::NonNull;
+
+struct OwnedBuffer {
+    ptr: NonNull<u8>,
+    len: usize,
+}
+
+// SAFETY: OwnedBuffer has unique ownership of its allocation; moving the
+// handle transfers that ownership, and all access requires &mut self. The
+// allocator permits deallocation on a different thread.
+unsafe impl Send for OwnedBuffer {}
 ```
 
-### Unchecked Operations
+Manual `Send` or `Sync` needs a concurrency proof about aliasing, mutation, ownership transfer, destruction, and the behavior of every reachable field. Bit-pattern validity or the absence of obvious pointers is not such a proof. Avoid a manual implementation when field types can encode the invariant and derive the auto traits.
 
-```rust
-// SAFETY: We just checked that i < self.len() above.
-// The bounds check cannot be elided by the optimizer
-// because len() is not inlined.
-unsafe { self.data.get_unchecked(i) }
-```
+## Review Checklist
 
-### FFI Calls
-
-```rust
-// SAFETY: libc::getenv is safe to call with a null-terminated
-// string. We ensure null termination with CString::new.
-// The returned pointer is valid for the lifetime of the environment.
-let value = unsafe { libc::getenv(key.as_ptr()) };
-```
-
-### Trait Implementations
-
-```rust
-// SAFETY: MyType contains no pointers or interior mutability,
-// and all bit patterns are valid MyType values.
-unsafe impl Send for MyType {}
-unsafe impl Sync for MyType {}
-```
-
-## Related Lints
-
-```toml
-[lints.clippy]
-undocumented_unsafe_blocks = "warn"
-# Also consider:
-multiple_unsafe_ops_per_block = "warn"  # One operation per block
-```
+1. State each unsafe operation's library or language preconditions.
+2. Point to the local check, constructor invariant, or unsafe caller contract establishing each precondition.
+3. Cover provenance, bounds, alignment, initialization, aliasing, lifetimes, ownership, concurrency, unwinding, and FFI retention where applicable.
+4. Keep one conceptual unsafe operation per block so the proof cannot silently expand.
+5. Add a regression test that exercises boundary values; use Miri for supported pure-Rust paths and sanitizers/fuzzing for compatible native boundaries.
 
 ## See Also
 
-- [doc-safety-section](./doc-safety-section.md) - `# Safety` in docs
-- [lint-deny-correctness](./lint-deny-correctness.md) - Correctness lints
-- [type-repr-transparent](./type-repr-transparent.md) - FFI safety
+- [doc-safety-section](./doc-safety-section.md) - document unsafe caller and implementor obligations
+- [unsafe-safety-comment](unsafe-safety-comment.md) - write precise local safety proofs
+- [unsafe-minimize-scope](unsafe-minimize-scope.md) - prevent proof scope from growing
+- [unsafe-miri-ci](unsafe-miri-ci.md) - run dynamic undefined-behavior checks

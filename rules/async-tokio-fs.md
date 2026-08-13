@@ -1,167 +1,126 @@
 # async-tokio-fs
 
-> Use `tokio::fs` instead of `std::fs` in async code
+> Isolate filesystem blocking and bound file work, bytes, and concurrency
 
 ## Why It Matters
 
-`std::fs` operations are blocking—they stop the current thread until the syscall completes. In async code, this blocks the executor thread, preventing it from running other tasks. `tokio::fs` wraps filesystem operations in `spawn_blocking`, keeping the executor responsive.
+Most general-purpose operating systems expose regular-file operations as blocking calls. `std::fs` on a Tokio worker can stall unrelated tasks. Tokio's filesystem facade ordinarily delegates those calls to its blocking pool; awaiting it keeps an async worker available but does not make the underlying syscall asynchronous or cancellable. Unbounded file counts or `read_to_end` calls can still exhaust threads, descriptors, memory, and storage bandwidth.
 
 ## Bad
 
 ```rust
-async fn process_files(paths: &[PathBuf]) -> Result<Vec<String>> {
-    let mut contents = Vec::new();
-    
+async fn load_all(paths: &[std::path::PathBuf]) -> std::io::Result<Vec<String>> {
+    let mut output = Vec::new();
     for path in paths {
-        // BLOCKS the entire executor thread!
-        let data = std::fs::read_to_string(path)?;
-        contents.push(data);
+        // Blocks a runtime worker and reads an unbounded file into memory.
+        output.push(std::fs::read_to_string(path)?);
     }
-    
-    Ok(contents)
+    Ok(output)
 }
-
-// While reading a file, NO other tasks can run on this thread
 ```
 
 ## Good
 
 ```rust
-use tokio::fs;
+use futures::{stream, StreamExt, TryStreamExt};
+use std::path::{Path, PathBuf};
+use tokio::io::AsyncReadExt;
 
-async fn process_files(paths: &[PathBuf]) -> Result<Vec<String>> {
-    let mut contents = Vec::new();
-    
-    for path in paths {
-        // Non-blocking: allows other tasks to run
-        let data = fs::read_to_string(path).await?;
-        contents.push(data);
+const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_CONCURRENT_READS: usize = 8;
+
+async fn read_bounded(path: &Path) -> std::io::Result<Vec<u8>> {
+    let mut file = tokio::fs::File::open(path).await?;
+    let metadata = file.metadata().await?;
+    if !metadata.is_file() || metadata.len() > MAX_FILE_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "file is not regular or exceeds the byte limit",
+        ));
     }
-    
-    Ok(contents)
+
+    let capacity = usize::try_from(metadata.len())
+        .map_err(|_| std::io::Error::other("file length does not fit usize"))?;
+    let mut bytes = Vec::with_capacity(capacity);
+    file.take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes).await?;
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "file grew beyond the byte limit while reading",
+        ));
+    }
+    Ok(bytes)
 }
 
-// Even better: concurrent reads
-async fn process_files_concurrent(paths: &[PathBuf]) -> Result<Vec<String>> {
-    let futures: Vec<_> = paths.iter()
-        .map(|path| fs::read_to_string(path))
-        .collect();
-    
-    futures::future::try_join_all(futures).await
+async fn read_many(paths: Vec<PathBuf>) -> std::io::Result<Vec<Vec<u8>>> {
+    stream::iter(paths)
+        .map(|path| async move { read_bounded(&path).await })
+        .buffered(MAX_CONCURRENT_READS)
+        .try_collect()
+        .await
 }
 ```
 
-## tokio::fs API
+The two byte checks cover the initial metadata and growth during the read. Concurrency is an explicit service policy; tune it against file-descriptor limits, blocking-pool capacity, storage queue depth, and per-request admission. For an untrusted directory tree, validate the allowed root and symlink policy with descriptor-relative platform APIs or an isolated worker; a lexical path-prefix check is not a sandbox.
+
+## Streaming
 
 ```rust
-use tokio::fs;
+use tokio::io::{AsyncBufReadExt, BufReader};
 
-// Reading
-let contents = fs::read_to_string("file.txt").await?;
-let bytes = fs::read("file.bin").await?;
+async fn process_lines(path: &std::path::Path) -> std::io::Result<()> {
+    let file = tokio::fs::File::open(path).await?;
+    let mut lines = BufReader::new(file).lines();
+    let mut seen = 0_u64;
 
-// Writing
-fs::write("output.txt", "contents").await?;
-
-// File operations
-let file = fs::File::open("file.txt").await?;
-let file = fs::File::create("new.txt").await?;
-
-// Directory operations
-fs::create_dir("new_dir").await?;
-fs::create_dir_all("nested/dir/path").await?;
-fs::remove_dir("empty_dir").await?;
-fs::remove_dir_all("dir_with_contents").await?;
-
-// Metadata
-let metadata = fs::metadata("file.txt").await?;
-let canonical = fs::canonicalize("./relative").await?;
-
-// Rename/remove
-fs::rename("old.txt", "new.txt").await?;
-fs::remove_file("file.txt").await?;
-
-// Read directory
-let mut entries = fs::read_dir("some_dir").await?;
-while let Some(entry) = entries.next_entry().await? {
-    println!("{}", entry.path().display());
+    while let Some(line) = lines.next_line().await? {
+        seen = seen
+            .checked_add(u64::try_from(line.len()).unwrap_or(u64::MAX))
+            .ok_or_else(|| std::io::Error::other("input byte count overflow"))?;
+        if seen > MAX_FILE_BYTES {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "input exceeds the byte limit",
+            ));
+        }
+        process_line(&line)?;
+    }
+    Ok(())
 }
 ```
 
-## Async File I/O
+Line iteration bounds retained memory but still needs a cumulative byte/record limit. Define behavior for invalid UTF-8, overlong records, partial writes, disk-full, permission changes, and file replacement during processing.
+
+## Writes And Durability
 
 ```rust
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncBufReadExt, BufReader};
+use tokio::io::AsyncWriteExt;
 
-// Read with buffer
-let mut file = File::open("large.bin").await?;
-let mut buffer = vec![0u8; 4096];
-let bytes_read = file.read(&mut buffer).await?;
-
-// Read all
-let mut contents = Vec::new();
-file.read_to_end(&mut contents).await?;
-
-// Write
-let mut file = File::create("output.bin").await?;
-file.write_all(b"data").await?;
-file.flush().await?;
-
-// Buffered line reading
-let file = File::open("lines.txt").await?;
-let reader = BufReader::new(file);
-let mut lines = reader.lines();
-
-while let Some(line) = lines.next_line().await? {
-    println!("{}", line);
+async fn write_temp(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut file = tokio::fs::File::create(path).await?;
+    file.write_all(bytes).await?;
+    file.sync_all().await?;
+    Ok(())
 }
 ```
 
-## When std::fs is Acceptable
+`flush` moves buffered userspace data toward the operating system; it is not a durable-storage guarantee. Crash-safe replacement requires a same-filesystem temporary file, explicit file synchronization, an atomic rename supported by the platform/filesystem, and directory synchronization where required. Test the exact storage class and failure model rather than describing `fs::write` as durable.
 
-```rust
-// Startup/initialization (before async runtime)
-fn main() {
-    let config = std::fs::read_to_string("config.toml")
-        .expect("config file required");
-    
-    tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(run_with_config(config));
-}
+## Cancellation And Shutdown
 
-// Single-threaded current_thread runtime (less impact)
-#[tokio::main(flavor = "current_thread")]
-async fn main() {
-    // Still prefer tokio::fs, but impact is lower
-}
+Dropping an awaiting Tokio filesystem future may stop interest in its result but cannot be assumed to cancel a blocking syscall already running. Apply admission before scheduling, bound every operation, track shutdown, and wait only for a defined grace period. For hard deadlines or hostile filesystems, isolate work in a supervised process that can be terminated; adding a Tokio timeout does not reclaim a stuck blocking thread.
 
-// When file operations are rare and quick
-// (e.g., reading small config once per hour)
-```
+## When `std::fs` Fits
 
-## Performance Considerations
+Synchronous filesystem APIs are appropriate in a synchronous binary phase before runtime startup, or inside a bounded blocking/worker boundary whose ownership and shutdown are explicit. A current-thread runtime makes blocking more harmful, not less: one blocking call stops every task on that runtime.
 
-```rust
-// tokio::fs uses spawn_blocking internally
-// For many small files, the overhead adds up
+## Memory Mapping
 
-// Batch operations when possible
-let paths: Vec<_> = entries.iter()
-    .map(|e| e.path())
-    .collect();
-
-let contents = futures::future::try_join_all(
-    paths.iter().map(|p| fs::read_to_string(p))
-).await?;
-
-// For heavy I/O, consider memory-mapped files
-// (requires unsafe or mmap crate)
-```
+A mapping can avoid copying payload bytes for measured random-access workloads, but it introduces platform-specific lifetime and mutation hazards: truncation can fault, external writers can race readers, and unsafe mapping constructors require a stable backing-file contract. Do not recommend mmap as a generic heavy-I/O upgrade. Pin a reviewed crate, constrain file mutation, and test faults and replacement behavior.
 
 ## See Also
 
-- [async-spawn-blocking](./async-spawn-blocking.md) - How tokio::fs works internally
-- [async-tokio-runtime](./async-tokio-runtime.md) - Runtime configuration
-- [err-context-chain](./err-context-chain.md) - Adding path context to IO errors
+- [async-spawn-blocking](./async-spawn-blocking.md) - bound blocking admission and shutdown
+- [async-bounded-channel](async-bounded-channel.md) - put backpressure before scheduled work
+- [async-tokio-runtime](./async-tokio-runtime.md) - configure and observe runtime resources
+- [err-context-chain](./err-context-chain.md) - preserve path context without leaking secrets

@@ -33,16 +33,16 @@ tokio = "1.32"     # Different version!
 members = ["crate-a", "crate-b", "crate-c"]
 
 [workspace.dependencies]
-serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.32", features = ["full"] }
+serde = { version = "1.0", default-features = false }
+tokio = { version = "1.32", default-features = false }
 thiserror = "1.0"
 anyhow = "1.0"
 tracing = "0.1"
 
 # crate-a/Cargo.toml
 [dependencies]
-serde.workspace = true
-tokio.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["rt", "sync"] }
 
 # crate-b/Cargo.toml
 [dependencies]
@@ -56,16 +56,16 @@ thiserror.workspace = true
 ```toml
 # Root Cargo.toml
 [workspace.dependencies]
-tokio = { version = "1.32", features = ["rt-multi-thread"] }
+tokio = { version = "1.32", default-features = false }
 
 # crate-a/Cargo.toml - add extra features
 [dependencies]
-tokio = { workspace = true, features = ["net", "io-util"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 # Gets both workspace features AND local features
 
 # crate-b/Cargo.toml - minimal features
 [dependencies]
-tokio = { workspace = true }  # Just workspace features
+tokio = { workspace = true, features = ["sync"] }
 ```
 
 ## Dev and Build Dependencies
@@ -93,9 +93,9 @@ cc.workspace = true
 # Root Cargo.toml
 [workspace.dependencies]
 # Internal crates
-my-core = { path = "crates/core" }
-my-utils = { path = "crates/utils" }
-my-derive = { path = "crates/derive" }
+my-core = { path = "crates/core", version = "0.1" }
+my-utils = { path = "crates/utils", version = "0.1" }
+my-derive = { path = "crates/derive", version = "0.1" }
 
 # External crates
 serde = "1.0"
@@ -126,6 +126,26 @@ serde = { workspace = true, optional = true }
 serde = ["dep:serde"]
 ```
 
+## Publishable Git Dependencies
+
+Cargo 1.96 lets a dependency name both a git source for local development and
+an alternate registry source for publication:
+
+```toml
+[dependencies]
+shared-types = { git = "https://github.com/acme/shared-types", rev = "8e4d7ab", version = "2.3", registry = "company" }
+```
+
+Cargo uses the pinned git revision locally and records the registry dependency
+when packaging. Keep `version` compatible with the pinned revision, and run
+`cargo package` plus tests against the packaged artifact in CI; otherwise local
+and published consumers can compile different code under the same dependency
+declaration.
+
+This form is for packages published to the named alternate registry. Crates.io
+does not accept dependencies that resolve from another registry; use a
+crates.io version source there, or do not publish that package to crates.io.
+
 ## Complete Workspace Example
 
 ```toml
@@ -136,7 +156,7 @@ resolver = "3"  # default for the 2024 edition; use "2" for 2021
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 repository = "https://github.com/user/repo"
 
@@ -145,11 +165,11 @@ repository = "https://github.com/user/repo"
 my-core = { path = "crates/core", version = "0.1" }
 
 # Async
-tokio = { version = "1.32", features = ["full"] }
+tokio = { version = "1.32", default-features = false }
 futures = "0.3"
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", default-features = false }
 serde_json = "1.0"
 
 # Error handling
@@ -162,7 +182,7 @@ tracing-subscriber = "0.3"
 
 # Testing
 proptest = "1.0"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.5", default-features = false }
 
 # crates/core/Cargo.toml
 [package]

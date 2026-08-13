@@ -42,8 +42,11 @@ let (tx, mut rx) = mpsc::channel::<Message>(100);  // Max 100 items
 tokio::spawn(async move {
     loop {
         let msg = generate_message();
-        // Blocks if channel is full - natural backpressure
-        tx.send(msg).await.unwrap();
+        // Waits without blocking the executor thread when the queue is full.
+        // A closed receiver ends the producer.
+        if tx.send(msg).await.is_err() {
+            break;
+        }
     }
 });
 
@@ -52,13 +55,14 @@ tokio::spawn(async move {
         slow_process(msg).await;
     }
 });
-// Memory usage capped at ~100 messages
+// Queue occupancy is capped at 100 messages. Account separately for message
+// size, in-flight work, producers, and downstream buffers.
 ```
 
 ## Choosing Buffer Size
 
 ```rust
-// Too small: frequent blocking, reduced throughput
+// Too small: producers wait frequently, which may reduce throughput
 let (tx, rx) = mpsc::channel::<Item>(1);
 
 // Too large: delayed backpressure, memory waste

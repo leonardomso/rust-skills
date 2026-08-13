@@ -1,10 +1,15 @@
 # own-copy-small
 
-> Implement `Copy` for small, simple types
+> Implement `Copy` when implicit duplication matches the type's semantics
 
 ## Why It Matters
 
-Types that implement `Copy` are implicitly duplicated on assignment instead of moved. This eliminates the need for explicit `.clone()` calls and makes the code more ergonomic. For small types (generally ≤16 bytes), copying is as fast or faster than moving a pointer.
+Types that implement `Copy` are implicitly duplicated wherever move syntax is
+used. That is an API promise: adding a non-`Copy` field later becomes breaking,
+and callers cannot see duplication at the call site. Use `Copy` for plain value
+types whose identity and resource ownership are irrelevant. Size affects cost,
+but no byte threshold replaces the semantic decision; the optimizer can also
+elide moves and copies.
 
 ## Bad
 
@@ -83,13 +88,14 @@ impl Drop for FileHandle {
 }
 ```
 
-## Size Guidelines
+## Decision Guidelines
 
-| Size | Recommendation |
-|------|----------------|
-| ≤ 16 bytes | Implement `Copy` |
-| 17-64 bytes | Consider `Copy`, benchmark if critical |
-| > 64 bytes | Probably don't, prefer references |
+| Contract | Recommendation |
+|----------|----------------|
+| Plain numeric/identifier value; all fields `Copy` | Usually derive `Copy` |
+| Resource handle, secret, capability, or identity-bearing token | Usually keep moves explicit |
+| Large value copied frequently | Borrow or benchmark before deriving `Copy` |
+| Public type likely to gain owned fields | Avoid promising `Copy` prematurely |
 
 ```rust
 use std::mem::size_of;
@@ -100,9 +106,9 @@ struct SmallId(u64); // 8 bytes ✅
 #[derive(Clone, Copy)]
 struct Rect { x: f32, y: f32, w: f32, h: f32 } // 16 bytes ✅
 
-#[derive(Clone)] // No Copy - 72 bytes
+#[derive(Clone)] // Keep duplication explicit for a large aggregate
 struct Transform {
-    matrix: [[f64; 3]; 3], // 72 bytes, too large
+    matrix: [[f64; 3]; 3],
 }
 ```
 

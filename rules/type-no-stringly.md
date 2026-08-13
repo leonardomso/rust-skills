@@ -97,6 +97,12 @@ fn handle_request(priority_str: &str) -> Result<(), Error> {
 }
 ```
 
+OS-facing paths are `Path` / `PathBuf`, not `str` / `String`; the platform can
+represent paths that are not UTF-8. Strong types still need a semantic
+invariant. Do not wrap every ordinary numeric output in `NonZero`,
+`Saturating`, or a newtype merely because a wrapper exists—an unconstrained
+count or window size should remain the corresponding integer.
+
 ## Validated Newtypes
 
 ```rust

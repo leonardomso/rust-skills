@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-A validated newtype guarantees its inner value is always valid. Once you have an `Email`, you know it passed validation—no re-checking needed. This "parse, don't validate" pattern catches errors at boundaries and makes invalid states unrepresentable.
+A private newtype plus invariant-preserving constructors can guarantee stable,
+context-free properties of its inner value. It cannot permanently prove
+authorization, reachability, uniqueness, revocation, or any fact that depends
+on external state. Name the exact invariant and re-check contextual facts at
+the effect boundary.
 
 ## Bad
 
@@ -29,16 +33,23 @@ fn add_recipient(list: &mut Vec<String>, email: &str) -> Result<(), Error> {
 ## Good
 
 ```rust
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Email(String);
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct BoundedLabel(String);
 
-impl Email {
-    pub fn new(s: &str) -> Result<Self, EmailError> {
-        if is_valid_email(s) {
-            Ok(Email(s.to_string()))
-        } else {
-            Err(EmailError::Invalid(s.to_string()))
+impl BoundedLabel {
+    pub const MAX_BYTES: usize = 64;
+
+    pub fn new(value: String) -> Result<Self, LabelError> {
+        if value.is_empty() {
+            return Err(LabelError::Empty);
         }
+        if value.len() > Self::MAX_BYTES {
+            return Err(LabelError::TooLong);
+        }
+        if !value.chars().all(|c| c.is_alphanumeric() || matches!(c, '-' | '_')) {
+            return Err(LabelError::InvalidCharacter);
+        }
+        Ok(Self(value))
     }
     
     pub fn as_str(&self) -> &str {
@@ -46,15 +57,8 @@ impl Email {
     }
 }
 
-// No validation needed - Email is always valid
-fn send_email(to: &Email, body: &str) -> Result<(), Error> {
-    // to is guaranteed valid
-    send_to_address(to.as_str(), body)
-}
-
-fn add_recipient(list: &mut Vec<Email>, email: Email) {
-    // email is guaranteed valid
-    list.push(email);
+fn create_resource(label: BoundedLabel) -> Resource {
+    Resource { label }
 }
 ```
 
@@ -121,7 +125,7 @@ impl Percentage {
 ```rust
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct Email(String);
 
 impl<'de> Deserialize<'de> for Email {
@@ -134,23 +138,37 @@ impl<'de> Deserialize<'de> for Email {
     }
 }
 
-// JSON deserialization automatically validates
+// JSON deserialization routes through the same constructor. Ensure Email's
+// Debug and errors redact PII instead of embedding the rejected input.
 let email: Email = serde_json::from_str(r#""user@example.com""#)?;
 ```
 
 ## Compile-Time Validation
 
 ```rust
-// For values known at compile time
-macro_rules! email {
-    ($s:literal) => {{
-        const _: () = assert!(is_valid_email_const($s));
-        Email::new_unchecked($s)
-    }};
+pub struct Month(u8);
+
+impl Month {
+    pub const fn new(value: u8) -> Option<Self> {
+        if value >= 1 && value <= 12 {
+            Some(Self(value))
+        } else {
+            None
+        }
+    }
 }
 
-let admin = email!("admin@example.com");  // Validated at compile time
+const JANUARY: Month = match Month::new(1) {
+    Some(month) => month,
+    None => panic!("BUG: January literal is in 1..=12"),
+};
 ```
+
+Every conversion from a weaker representation is fallible. Do not implement
+`From<String>` or `From<u8>` when some inputs violate the invariant; use
+`TryFrom`, `FromStr`, or a constructor returning a proper error. An additional
+constant can unwrap the checked result so an invalid literal fails at compile
+time without making ordinary runtime construction panic.
 
 ## See Also
 

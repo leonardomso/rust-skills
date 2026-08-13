@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Const generics let a single type or function work for any array size — or other constant value — without macros, trait objects, or carrying a runtime length field. The compiler monomorphizes one copy per distinct value, so there is no indirection and no overhead compared to hand-writing the same code for each size. This is the idiomatic way to write generic array-based data structures and algorithms on stable Rust.
+Const generics let one source definition work with arrays or inline buffers of
+different compile-time sizes without a trait object or a separate runtime
+capacity field. Each used value participates in monomorphization, which can
+remove runtime indirection but can also increase compile time and code size.
+Use them when the value is part of the type-level contract, not merely to move
+a runtime configuration knob into the type system.
 
 ## Bad
 
@@ -18,7 +23,7 @@ fn sum_8(arr: [i32; 8]) -> i32 {
     arr.iter().sum()
 }
 
-// carries runtime length — extra field, heap allocation, no compile-time bounds
+// Carries a redundant runtime capacity and uses separately allocated storage.
 struct Buffer {
     data: Vec<u8>,
     capacity: usize,
@@ -36,7 +41,7 @@ fn sum<const N: usize>(arr: [i32; N]) -> i32 {
 let total = sum([1, 2, 3, 4]);       // N = 4, inferred
 let total8 = sum([0i32; 8]);         // N = 8, inferred
 
-// stack-allocated buffer parameterized by capacity — no heap, no runtime length
+// Inline buffer parameterized by capacity; len remains runtime state.
 struct Buffer<const N: usize> {
     data: [u8; N],
     len: usize,
@@ -82,7 +87,11 @@ let result = xor_block([0u8; BLOCK], [0xFF; BLOCK]);
 
 ## Notes
 
-Rust 1.65+ stabilized const generic defaults (`struct Buf<const N: usize = 64>`), letting you provide a sensible default while still allowing callers to override it. Const generics currently support integer, bool, and char types; floating-point and custom types are not yet stable. Where N can be inferred from a function argument, you rarely need to write it explicitly.
+Rust 1.65+ stabilized const generic defaults
+(`struct Buf<const N: usize = 64>`). Const generic parameter types currently
+include integers, `bool`, and `char`; floating-point and user-defined parameter
+types are not stable. Inference often supplies `N` from an argument, but public
+types with different values remain different, non-interchangeable types.
 
 ## See Also
 

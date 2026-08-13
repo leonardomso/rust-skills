@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-`HashMap` is the right default: O(1) average lookup and insertion with no ordering overhead. `BTreeMap` keeps keys sorted in a B-tree, enabling efficient range queries and ordered iteration at the cost of O(log n) operations. The `indexmap` crate's `IndexMap` preserves insertion order with O(1) average lookup — valuable for deterministic output, config files, or any API where output order must match input order. Choosing the wrong map wastes CPU cycles on sorting you don't need or forces you to sort after the fact.
+`HashMap` is a useful default when order is not part of the contract; lookup
+and insertion are expected O(1) but can degrade with collisions. `BTreeMap`
+keeps keys sorted and supports range queries with O(log n) operations.
+`IndexMap` preserves insertion order while providing expected O(1) lookup.
+Choose from required ordering, range, key-threat, memory, and measured access
+patterns rather than a universal speed ranking.
 
 ## Bad
 
@@ -33,7 +38,7 @@ fn main() {
 ## Good
 
 ```rust
-// --- 1. HashMap: default, fast, unordered ---
+// --- 1. HashMap: general-purpose, unordered ---
 use std::collections::HashMap;
 
 fn total_scores<'a>(records: &[(&'a str, u32)]) -> HashMap<&'a str, u32> {
@@ -95,12 +100,14 @@ fn main() {
 
 | Requirement | Choose |
 |---|---|
-| Fast lookup, order irrelevant | `HashMap` |
+| General-purpose lookup, order irrelevant | `HashMap` |
 | Sorted iteration or range queries | `BTreeMap` |
 | Insertion-order iteration + fast lookup | `IndexMap` (indexmap crate) |
 | Tiny map (≤ 8 entries), no heap | consider an array of tuples |
 
-**Note on hashing:** The default `HashMap` uses SipHash-1-3, which is DOS-resistant but not the fastest. For non-adversarial hot paths, see `perf-ahash` for a faster hasher that drops in as a type parameter.
+**Note on hashing:** the standard default is randomized and its exact algorithm
+may change. For a measured hot path with trusted keys, `perf-ahash` describes
+the additional performance and threat-model review required before replacement.
 
 ## See Also
 

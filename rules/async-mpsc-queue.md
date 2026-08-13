@@ -9,12 +9,12 @@
 ## Bad
 
 ```rust
-use std::sync::mpsc;  // Wrong! Blocks the async runtime
+use std::sync::mpsc;  // Blocking receive API
 
-let (tx, rx) = std::sync::mpsc::channel();
+let (tx, rx) = std::sync::mpsc::sync_channel(100);
 
 tokio::spawn(async move {
-    tx.send("hello").unwrap();  // Might block
+    tx.send("hello").unwrap();  // Can block when the sync channel is full
 });
 
 tokio::spawn(async move {
@@ -30,7 +30,10 @@ use tokio::sync::mpsc;
 let (tx, mut rx) = mpsc::channel::<String>(100);
 
 tokio::spawn(async move {
-    tx.send("hello".to_string()).await.unwrap();
+    if tx.send("hello".to_string()).await.is_err() {
+        // The consumer shut down; stop producing.
+        return;
+    }
 });
 
 tokio::spawn(async move {
@@ -51,7 +54,9 @@ let (tx, mut rx) = mpsc::channel::<Event>(100);
 for i in 0..10 {
     let tx = tx.clone();  // Cheap clone
     tokio::spawn(async move {
-        tx.send(Event { source: i }).await.unwrap();
+        if tx.send(Event { source: i }).await.is_err() {
+            return;
+        }
     });
 }
 

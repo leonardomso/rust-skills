@@ -6,6 +6,12 @@
 
 Intuition about performance is often wrong. The code you think is slow frequently isn't, while actual bottlenecks hide in unexpected places. Profiling shows you exactly where time is spent, preventing wasted effort on optimizations that don't matter.
 
+Decide early whether the crate affects fleet cost, throughput, or latency. If it
+does, identify its hot paths, benchmark them, and profile both CPU time and
+allocations under representative load. Record the sensitive paths and their
+budgets near the benchmark or in contributor guidance so later changes do not
+silently move work back into them.
+
 ## Bad
 
 ```rust
@@ -106,7 +112,8 @@ cargo run --release
 ### criterion (Micro-benchmarks)
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn bench_my_function(c: &mut Criterion) {
     c.bench_function("my_function", |b| {
@@ -116,6 +123,13 @@ fn bench_my_function(c: &mut Criterion) {
 
 criterion_group!(benches, bench_my_function);
 criterion_main!(benches);
+```
+
+Keep symbols in optimized benchmark builds so profilers can attribute the work:
+
+```toml
+[profile.bench]
+debug = 1
 ```
 
 ## What to Look For
@@ -153,13 +167,14 @@ Flamegraph Reading:
 ## Optimization Workflow
 
 ```
-1. Write correct code first
-2. Write benchmarks for hot paths
-3. Profile under realistic load
-4. Identify actual bottlenecks
-5. Optimize ONE thing
-6. Measure improvement
-7. Repeat if needed
+1. Decide whether performance or unit cost is a product constraint
+2. Write correct code first
+3. Identify and document the sensitive paths and budgets
+4. Write benchmarks for those paths
+5. Profile CPU and allocations under realistic load
+6. Optimize ONE measured bottleneck
+7. Measure improvement
+8. Repeat if needed
 ```
 
 ## Evidence: Rust Performance Book
@@ -173,3 +188,4 @@ Flamegraph Reading:
 - [opt-lto-release](opt-lto-release.md) - Enable LTO for release builds
 - [test-criterion-bench](test-criterion-bench.md) - Use criterion for benchmarking
 - [anti-premature-optimize](anti-premature-optimize.md) - Don't optimize without data
+- [perf-global-allocator](perf-global-allocator.md) - pick the process allocator after a profile, in main.rs

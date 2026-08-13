@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-`Option<T>` explicitly represents "value or nothing" in the type system. Unlike null pointers or sentinel values, you can't accidentally use a missing value—the compiler forces you to handle the `None` case. This eliminates null pointer exceptions at compile time.
+`Option<T>` explicitly represents "value or nothing" in the type system.
+Ordinary safe code must inspect or transform the `Option` before obtaining a
+`T`, so absence cannot masquerade as a normal value. Code can still panic by
+unwrapping `None`, and raw pointers or FFI can still be null; `Option` makes the
+contract explicit rather than eliminating every null-related failure.
 
 ## Bad
 
@@ -107,7 +111,7 @@ fn parse(input: &str) -> Result<Value, ParseError> { ... }
 let value = find("key").ok_or(Error::NotFound)?;
 
 // Convert Result to Option
-let value = parse("input").ok();  // Discards error
+let value = parse("input").ok();  // Intentionally discards error details.
 ```
 
 ## Option References

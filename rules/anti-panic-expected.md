@@ -30,7 +30,7 @@ fn load_settings() -> Settings {
     serde_json::from_str(&content).expect("invalid settings")
 }
 
-// Custom panic for validation
+// Expected validation failure in an input-processing API
 fn process_age(age: i32) {
     if age < 0 {
         panic!("age cannot be negative");  // Should return error
@@ -82,6 +82,13 @@ fn get_unchecked(&self, index: usize) -> &T {
     unsafe { self.data.get_unchecked(index) }
 }
 
+// A caller violated a documented precondition. This is not an input parser:
+// callers choose an index only after establishing it is valid.
+fn nth_ready(items: &[Item], index: usize) -> &Item {
+    assert!(index < items.len(), "ready index {index} out of bounds");
+    &items[index]
+}
+
 // Unrecoverable state
 fn init() {
     if !CAN_PROCEED {
@@ -105,6 +112,7 @@ fn test_fails() {
 | File not found | Return `Err` |
 | Malformed data | Return `Err` |
 | Bug/impossible state | `panic!` or `unreachable!` |
+| Documented contract violation | Panic |
 | Failed assertion in test | `panic!` |
 | Unrecoverable init failure | `panic!` |
 

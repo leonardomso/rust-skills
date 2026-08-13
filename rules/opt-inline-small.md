@@ -1,164 +1,83 @@
 # opt-inline-small
 
-> Use `#[inline]` for small hot functions
+> Add `#[inline]` only at measured optimization boundaries
 
 ## Why It Matters
 
-Function call overhead (stack frame setup, register saves, jumps) can dominate small functions. Inlining eliminates this overhead and enables further optimizations by the compiler. The compiler often inlines automatically, but hints help for cross-crate calls.
+Inlining can remove a call boundary and expose constant propagation or vectorization, but it can also duplicate code, increase compile time, and hurt instruction-cache locality. Rust does not guarantee that `#[inline]` or `#[inline(always)]` produces an inlined machine-code body. Same-crate and generic functions are already optimization candidates. Treat the attribute as a code-generation hint retained by benchmark and optimized-output evidence.
 
 ## Bad
 
 ```rust
-// Small hot function without inline hint
-// May not be inlined across crate boundaries
-fn is_ascii_digit(b: u8) -> bool {
-    b >= b'0' && b <= b'9'
-}
-
-// Called millions of times
-for byte in data {
-    if is_ascii_digit(*byte) {  // Function call overhead
-        count += 1;
-    }
-}
-```
-
-## Good
-
-```rust
-#[inline]
-fn is_ascii_digit(b: u8) -> bool {
-    b >= b'0' && b <= b'9'
-}
-
-// Now the compiler will inline this
-for byte in data {
-    if is_ascii_digit(*byte) {  // Inlined, no call overhead
-        count += 1;
-    }
-}
-```
-
-## Inline Attributes
-
-```rust
-// No attribute - compiler decides (usually good for same-crate)
-fn auto_decide() { }
-
-// Suggest inlining - helps cross-crate
-#[inline]
-fn suggest_inline() { }
-
-// Strongly suggest inlining - almost always inlined
-#[inline(always)]
-fn force_inline() { }
-
-// Strongly suggest NOT inlining - for large/cold code
-#[inline(never)]
-fn prevent_inline() { }
-```
-
-## When to Use Each
-
-```rust
-// #[inline] - Small functions, especially in libraries
 #[inline]
 pub fn len(&self) -> usize {
     self.inner.len()
 }
+```
 
-// #[inline(always)] - Critical hot path, verified by profiling
-#[inline(always)]
-fn hot_inner_loop_helper(x: u32) -> u32 {
-    x.wrapping_mul(0x9E3779B9)
+Small source size and public visibility alone do not show this method is hot or that a retained call exists. Adding hints to every accessor grows metadata and constrains future tuning without demonstrated value.
+
+## Good
+
+```rust
+// A representative cross-crate benchmark showed a retained call here blocked
+// vectorization on supported targets; generated-code CI records the boundary.
+#[inline]
+pub fn decode_lane(value: u32, mask: u32) -> u32 {
+    (value & mask).rotate_left(3)
 }
+```
 
-// #[inline(never)] - Error handlers, cold paths
+The comment describes the evidence, not a promised speedup. If the compiler later optimizes the baseline equally, remove the annotation.
+
+## Attribute Semantics
+
+```rust
+fn compiler_decides() {}
+
+#[inline]
+fn request_inline_consideration() {}
+
+#[inline(always)]
+fn make_a_stronger_request() {}
+
 #[inline(never)]
-fn handle_error(err: Error) -> ! {
-    eprintln!("Fatal: {}", err);
-    std::process::exit(1);
-}
-
-// No attribute - large functions, infrequent calls
-fn complex_processing(data: &mut Data) {
-    // Many lines of code...
-}
+fn request_a_call_boundary() {}
 ```
 
-## Evidence from ripgrep
+All are hints to code generation rather than semantic guarantees. Recursion, target constraints, optimization level, LTO, compiler heuristics, and code shape can change the result. `#[inline(never)]` is likewise a strong request, not an absolute promise.
 
-```rust
-// https://github.com/BurntSushi/ripgrep/blob/master/crates/printer/src/standard.rs
+## Cross-Crate Boundaries
 
-#[inline(always)]
-fn write_prelude(
-    &self,
-    absolute_byte_offset: u64,
-    line_number: Option<u64>,
-    column: Option<u64>,
-) -> io::Result<()> {
-    // Hot path in printing matches
-}
+Without whole-program LTO, an ordinary non-generic function body may be unavailable for downstream inlining. `#[inline]` can make a body available in crate metadata. That is a reason to test a candidate, not to annotate every public function. Generic/opaque code often already needs downstream monomorphization; inspect the actual artifact before claiming the attribute is required.
 
-#[inline(always)]
-fn write_line(&self, line: &[u8]) -> io::Result<()> {
-    // Called for every line
-}
-```
+An `#[inline]` outer function does not automatically make every private callee body available downstream. Annotate only the exact measured boundary or refactor a genuinely tiny helper into the exposed body when that remains maintainable.
 
-## Generic Functions
+## Cold Paths
 
-```rust
-// Generic functions are already candidates for per-monomorphization inlining
-// But #[inline] helps ensure it across crates
+Use `#[cold]` and/or `#[inline(never)]` only when a profile shows sizeable rare code contaminating a hot path. Do not introduce process exits, logging, backtraces, or changed error construction merely to force a boundary. Verify error semantics and optimized layout separately.
 
-#[inline]
-pub fn min<T: Ord>(a: T, b: T) -> T {
-    if a < b { a } else { b }
-}
-```
-
-## Cautions
-
-```rust
-// DON'T inline large functions - hurts instruction cache
-#[inline(always)]  // BAD for large function
-fn large_complex_function(data: &mut [u8]) {
-    // 100+ lines of code
-    // Inlining bloats every call site
-}
-
-// DON'T assume inlining always helps - measure!
-// Sometimes the compiler makes better decisions
-
-// Cross-crate inlining requires #[inline] on each function
-// Without LTO, a function body is not available to other crates unless
-// it carries #[inline]. Within a single crate (or with LTO enabled),
-// the compiler may still inline `inner` transitively after inlining
-// `outer`, but this is not guaranteed — verify hot code with assembly.
-#[inline]
-fn outer() {
-    inner();
-}
-
-fn inner() { }  // May not be inlined at outer's call sites across crate boundaries without #[inline]
-```
-
-## Verifying Inlining
+## Verification
 
 ```bash
-# Check if function was inlined using Cachegrind
-# Non-inlined functions show entry/exit counts
-
-# Or examine assembly
-cargo rustc --release -- --emit=asm
-# Look for call instructions vs inlined code
+cargo rustc --locked --profile release-service -- --emit=asm
 ```
+
+Use pinned inspection tools where practical and compare baseline/candidate assembly, object size, clean build time, throughput, and tail latency on supported targets. A missing `call` instruction alone is not sufficient: code duplication and cache behavior may dominate. Re-run after compiler, profile, LTO, target CPU, or workload changes.
+
+## Decision Guide
+
+| Evidence | Action |
+|---|---|
+| No measured hot boundary | Let the compiler decide |
+| Cross-crate call blocks a demonstrated optimization | Try `#[inline]`, benchmark, inspect |
+| Tiny critical helper still not inlined and candidate wins | Consider `#[inline(always)]` with stronger code-size review |
+| Rare sizeable error construction affects hot layout | Consider `#[cold]`/`#[inline(never)]` |
+| Annotation no longer changes product metrics | Remove it |
 
 ## See Also
 
-- [opt-inline-always-rare](opt-inline-always-rare.md) - Use #[inline(always)] sparingly
-- [opt-inline-never-cold](opt-inline-never-cold.md) - Use #[inline(never)] for cold paths
-- [opt-cold-unlikely](opt-cold-unlikely.md) - Use #[cold] for unlikely paths
-- [opt-lto-release](opt-lto-release.md) - LTO enables cross-crate inlining
+- [opt-inline-always-rare](opt-inline-always-rare.md) - review stronger inline requests
+- [opt-inline-never-cold](opt-inline-never-cold.md) - isolate measured cold code
+- [opt-lto-release](opt-lto-release.md) - benchmark whole-artifact LTO
+- [perf-profile-first](perf-profile-first.md) - retain only evidence-backed tuning

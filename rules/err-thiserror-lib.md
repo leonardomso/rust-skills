@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Libraries should expose typed, matchable errors so users can handle specific error conditions. `thiserror` generates `Error` trait implementations with minimal boilerplate, creating ergonomic error types that are easy to match against.
+Libraries should expose typed errors so users can handle supported failure
+classes. A closed domain may publish a matchable enum. An evolving library
+surface should expose an opaque situation-specific struct with `is_*` and
+context accessors, keeping its inner kind private. `thiserror` can generate
+`Display`, conversions, and `Error` implementations for either representation;
+it does not require publishing every internal variant.
 
 ## Bad
 

@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-When a value can be in exactly one of several states, an enum makes invalid states unrepresentable. The compiler ensures all states are handled. Contrast with boolean flags or optional fields that can represent impossible combinations.
+When a value can be in exactly one of several states, an enum can make
+cross-state field combinations unrepresentable. An exhaustive match without a
+wildcard lets the compiler report a newly added variant. A `_` arm, `if let`,
+interior mutation, or invalid transition method can still hide states, so the
+API must preserve the enum's invariant.
 
 ## Bad
 
@@ -88,17 +92,20 @@ impl Connection {
     }
     
     fn authenticate(&mut self, creds: Credentials) -> Result<(), Error> {
-        match std::mem::replace(&mut self.state, ConnectionState::Disconnected) {
-            ConnectionState::Connected { socket } => {
-                let session = perform_auth(&socket, creds)?;
-                self.state = ConnectionState::Authenticated { socket, session };
-                Ok(())
-            }
-            other => {
-                self.state = other;
-                Err(Error::NotConnected)
-            }
-        }
+        // Do the fallible work while borrowing the current socket. A failure
+        // leaves the original Connected state intact.
+        let session = match &self.state {
+            ConnectionState::Connected { socket } => perform_auth(socket, creds)?,
+            _ => return Err(Error::NotConnected),
+        };
+
+        let ConnectionState::Connected { socket } =
+            std::mem::replace(&mut self.state, ConnectionState::Disconnected)
+        else {
+            unreachable!("state was checked without an intervening mutation");
+        };
+        self.state = ConnectionState::Authenticated { socket, session };
+        Ok(())
     }
 }
 ```

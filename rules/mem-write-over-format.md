@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-`format!()` always allocates a new `String`. In hot paths or loops, these allocations add up. `write!()` writes directly into an existing buffer, reusing its capacity. For high-frequency formatting operations, this can eliminate significant allocator overhead.
+`format!()` creates an intermediate `String` and ordinarily allocates for
+non-empty output. In a measured hot loop, those short-lived buffers can add
+allocator pressure. `write!()` targets an existing `String`, byte buffer, or
+writer and can reuse its capacity. It does not make formatting free, and a
+fallible writer still requires real error handling.
 
 ## Bad
 
@@ -46,7 +50,7 @@ fn log_event(event: &Event, output: &mut Vec<u8>) {
         event.timestamp,
         event.level,
         event.message
-    ).unwrap();
+    ).expect("Vec-backed formatting has no external I/O failure");
 }
 
 fn build_response(items: &[Item]) -> String {
@@ -56,7 +60,8 @@ fn build_response(items: &[Item]) -> String {
     
     for item in items {
         // write! into existing String, reuses capacity
-        write!(&mut result, "{}: {}\n", item.name, item.value).unwrap();
+        write!(&mut result, "{}: {}\n", item.name, item.value)
+            .expect("Display implementations must not invent formatting errors");
     }
     
     result
@@ -69,15 +74,15 @@ fn build_response(items: &[Item]) -> String {
 // std::fmt::Write - for String, &mut String
 use std::fmt::Write as FmtWrite;
 let mut s = String::new();
-write!(&mut s, "Hello {}", 42).unwrap();
+write!(&mut s, "Hello {}", 42).expect("integer formatting into String succeeds");
 
 // std::io::Write - for Vec<u8>, File, TcpStream, etc.
 use std::io::Write as IoWrite;
 let mut v: Vec<u8> = Vec::new();
-write!(&mut v, "Hello {}", 42).unwrap();
+write!(&mut v, "Hello {}", 42).expect("writing to Vec<u8> succeeds");
 
-// Both can fail in principle, but String/Vec never fail
-// Still need .unwrap() due to Result return type
+// A custom Display implementation can return fmt::Error. File/socket writers
+// also have real I/O failures; propagate those at the boundary.
 ```
 
 ## Reusable Formatting Buffer
@@ -101,7 +106,7 @@ impl Formatter {
             "[{}] {}",
             event.timestamp, 
             event.message
-        ).unwrap();
+        ).expect("Display implementations must not invent formatting errors");
         &self.buffer
     }
 }
@@ -143,31 +148,34 @@ fn describe(item: &Item) -> String {
 
 // Debug/error paths (not hot)
 if condition {
-    panic!("Unexpected: {}", format!("details: {:?}", debug_info));
+    panic!("unexpected: details: {:?}", debug_info);
 }
 ```
 
 ## Benchmark Difference
 
-Writing into a pre-allocated buffer avoids per-call heap allocation and is
-consistently faster than `format!()` in tight loops. The exact difference
-depends on string length, allocator, and hardware — measure with
+Writing into a sufficiently sized reusable buffer avoids constructing one
+owned `String` per call. Whether that improves the complete operation depends
+on formatting cost, destination, string length, allocator, and hardware;
+measure with
 [criterion](https://crates.io/crates/criterion) in your own workload.
 
 ```rust
 use std::fmt::Write; // brings the write! target trait into scope
 
-// format! in loop: new heap allocation on every iteration
+// format! in loop: constructs a fresh owned String on every iteration
 for i in 0..1000 {
     let s = format!("item-{}", i);
     process(&s);
 }
 
-// write! with reuse: no allocation after the first iteration
+// write! with reuse: retains capacity and grows only if a later rendering
+// exceeds it
 let mut buf = String::with_capacity(32);
 for i in 0..1000 {
     buf.clear();
-    write!(&mut buf, "item-{}", i).unwrap();
+    write!(&mut buf, "item-{}", i)
+        .expect("integer formatting into String succeeds");
     process(&buf);
 }
 ```

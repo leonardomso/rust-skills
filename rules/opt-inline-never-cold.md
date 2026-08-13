@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-Inlining error handling code into hot paths wastes instruction cache space and can prevent other optimizations. `#[inline(never)]` keeps cold code out of the hot path. `#[cold]` tells the compiler this branch is unlikely, enabling better branch prediction hints and code layout.
+Inlining large error construction into hot paths can increase instruction-cache
+pressure. `#[inline(never)]` is a strong request to retain a call boundary;
+`#[cold]` is a hint that can influence code layout and caller optimization.
+Neither attribute guarantees machine-code placement or performance, so apply
+them to measured paths and inspect optimized output.
 
 ## Bad
 
@@ -70,7 +74,9 @@ fn get_index(&self, idx: usize) -> &T {
     if idx >= self.len {
         cold_out_of_bounds(idx, self.len);
     }
-    unsafe { self.ptr.add(idx).as_ref().unwrap() }
+    // SAFETY: idx < len, and the container invariant requires ptr to reference
+    // len initialized, properly aligned T values.
+    unsafe { &*self.ptr.add(idx) }
 }
 
 #[cold]
@@ -114,7 +120,7 @@ fn read_config(path: &Path) -> Result<Config, MyError> {
 ## likely/unlikely Hints
 
 ```rust
-// Nightly: std::hint likely/unlikely branch hints (still unstable as of Rust 1.96)
+// Nightly: std::hint likely/unlikely branch hints (still unstable as of Rust 1.97)
 // (std::hint::cold_path() is stable since 1.95 for marking the rare branch)
 #![feature(likely_unlikely)]
 use std::hint::{likely, unlikely};

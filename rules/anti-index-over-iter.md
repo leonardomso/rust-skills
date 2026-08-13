@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Manual indexing (`for i in 0..len`) requires bounds checks on every access, prevents SIMD optimization, and introduces off-by-one error risks. Iterators eliminate these issues and are more idiomatic Rust.
+Manual indexing (`for i in 0..len`) exposes bounds and length coordination at
+every access, which increases off-by-one and mismatched-slice risk. The
+optimizer can eliminate bounds checks and vectorize either indexed or iterator
+code; source syntax does not guarantee either result. Prefer iterators because
+they express traversal and pairing directly, then inspect generated code or
+benchmark when the loop is actually hot.
 
 ## Bad
 
@@ -39,7 +44,7 @@ fn normalize(data: &mut [f64]) {
 ## Good
 
 ```rust
-// Iterator - no bounds checks, SIMD-friendly
+// Iterator expresses traversal without manual bounds coordination
 fn sum_squares(data: &[i32]) -> i64 {
     data.iter()
         .map(|&x| (x as i64) * (x as i64))
@@ -88,12 +93,12 @@ for i in 0..rows {
 
 ## Comparison
 
-| Pattern | Bounds Checks | SIMD | Safety |
-|---------|---------------|------|--------|
-| `for i in 0..len { data[i] }` | Every access | Limited | Off-by-one risk |
-| `for x in &data` | None | Good | Safe |
-| `for x in data.iter()` | None | Good | Safe |
-| `data.iter().enumerate()` | None | Good | Safe |
+| Pattern | Source-level contract | Optimization |
+|---------|-----------------------|--------------|
+| `for i in 0..len { data[i] }` | Coordinates index and bounds manually | Bounds checks may be eliminated |
+| `for x in &data` | Traverses existing elements | Often optimized to the same loop |
+| `for x in data.iter()` | Traverses existing elements | Often optimized to the same loop |
+| `data.iter().enumerate()` | Couples each value to its index | Often optimized to the same loop |
 
 ## Common Conversions
 

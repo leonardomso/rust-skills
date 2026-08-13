@@ -1,10 +1,17 @@
 # async-spawn-blocking
 
-> Use `spawn_blocking` for CPU-intensive work
+> Move blocking calls off executor threads and bound sustained CPU work
 
 ## Why It Matters
 
-Async runtimes like Tokio use a small number of threads to handle many tasks. CPU-intensive or blocking operations on these threads starve other tasks. `spawn_blocking` moves such work to a dedicated thread pool.
+Tokio uses a small set of worker threads to poll many futures. A blocking call
+or long computation on one worker delays unrelated tasks. `spawn_blocking`
+moves synchronous work to Tokio's blocking pool, but that pool has a high
+default thread limit because it also serves blocking I/O. It is not automatic
+CPU backpressure: many CPU jobs must acquire a semaphore or enter a separately
+bounded compute pool. Once a blocking task starts, aborting its `JoinHandle`
+does not stop it, and runtime shutdown waits for it unless the caller imposes a
+shutdown timeout.
 
 ## Bad
 
@@ -28,14 +35,26 @@ async fn read_large_file(path: &Path) -> Vec<u8> {
 ```rust
 use tokio::task;
 
-// GOOD: Offload CPU work to blocking pool
-async fn process_image(data: Vec<u8>) -> ProcessedImage {
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+
+// GOOD: Bound admission before using the blocking pool for CPU work.
+async fn process_image(
+    data: Vec<u8>,
+    cpu_permits: Arc<Semaphore>,
+) -> Result<ProcessedImage, ProcessError> {
+    let permit = cpu_permits
+        .acquire_owned()
+        .await
+        .map_err(|_| ProcessError::ShuttingDown)?;
+
     task::spawn_blocking(move || {
+        let _permit = permit;
         let resized = resize_image(&data);
         compress(resized)
     })
     .await
-    .expect("spawn_blocking failed")
+    .map_err(ProcessError::Join)
 }
 
 // GOOD: Use async file I/O
@@ -44,12 +63,10 @@ async fn read_large_file(path: &Path) -> tokio::io::Result<Vec<u8>> {
 }
 
 // GOOD: Or spawn_blocking for unavoidable sync I/O
-async fn read_with_sync_lib(path: PathBuf) -> Vec<u8> {
-    task::spawn_blocking(move || {
-        sync_library::read_file(&path)
-    })
+async fn read_with_sync_lib(path: PathBuf) -> Result<Vec<u8>, ReadError> {
+    task::spawn_blocking(move || sync_library::read_file(&path))
     .await
-    .unwrap()
+    .map_err(ReadError::Join)?
 }
 ```
 
@@ -69,45 +86,51 @@ async fn read_with_sync_lib(path: PathBuf) -> Vec<u8> {
 - Synchronous HTTP clients
 - Thread::sleep
 
-// Example thresholds (rough guidelines):
-// < 10µs: OK on async thread
-// 10µs - 1ms: Consider spawn_blocking
-// > 1ms: Definitely spawn_blocking
+// Measure on the deployed runtime. There is no universal duration threshold:
+// poll frequency, worker count, tail-latency budget, and arrival rate matter.
 ```
 
 ## Practical Examples
 
 ```rust
 // Password hashing (CPU-intensive)
-async fn hash_password(password: String) -> String {
+async fn hash_password(
+    password: String,
+    cpu_permits: Arc<Semaphore>,
+) -> Result<String, HashError> {
+    let permit = cpu_permits
+        .acquire_owned()
+        .await
+        .map_err(|_| HashError::ShuttingDown)?;
     task::spawn_blocking(move || {
-        bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap()
+        let _permit = permit;
+        bcrypt::hash(password, bcrypt::DEFAULT_COST).map_err(HashError::Hash)
     })
     .await
-    .unwrap()
+    .map_err(HashError::Join)?
 }
 
 // JSON parsing of large documents
-async fn parse_large_json(data: String) -> serde_json::Value {
-    task::spawn_blocking(move || {
-        serde_json::from_str(&data).unwrap()
-    })
+async fn parse_large_json(data: String) -> Result<serde_json::Value, ParseError> {
+    task::spawn_blocking(move || serde_json::from_str(&data))
     .await
-    .unwrap()
+    .map_err(ParseError::Join)?
+    .map_err(ParseError::Json)
 }
 
 // Compression
-async fn compress_data(data: Vec<u8>) -> Vec<u8> {
+async fn compress_data(data: Vec<u8>) -> Result<Vec<u8>, CompressError> {
     task::spawn_blocking(move || {
         let mut encoder = flate2::write::GzEncoder::new(
             Vec::new(),
             flate2::Compression::default(),
         );
-        encoder.write_all(&data).unwrap();
-        encoder.finish().unwrap()
+        encoder.write_all(&data)?;
+        encoder.finish()
     })
     .await
-    .unwrap()
+    .map_err(CompressError::Join)?
+    .map_err(CompressError::Io)
 }
 ```
 
@@ -132,23 +155,34 @@ let result = tokio::task::spawn_blocking(|| {
 }).await?;
 ```
 
-## Rayon for Parallel CPU Work
+## Dedicated Compute Pools
 
 ```rust
-// For parallel CPU work, consider Rayon inside spawn_blocking
-async fn parallel_process(items: Vec<Item>) -> Vec<Output> {
-    task::spawn_blocking(move || {
-        use rayon::prelude::*;
-        items.par_iter()
-            .map(|item| cpu_intensive_transform(item))
-            .collect()
-    })
-    .await
-    .unwrap()
-}
+// A service adapter owns a fixed Rayon pool (or another bounded compute pool)
+// and returns completion through a oneshot channel. Request handlers submit
+// only after acquiring bounded queue capacity.
 ```
+
+Do not create one Rayon pool per request or layer unbounded `spawn_blocking`
+jobs over an unbounded parallel iterator. Pick one owner for parallelism, set a
+static worker/queue bound from CPU and memory budgets, propagate cancellation
+before work starts, and make shutdown behavior observable.
+
+## Failure Behavior
+
+- Treat a closed semaphore or queue as shutdown/backpressure, not permission to
+  run inline on the executor.
+- Preserve both the inner operation error and `JoinError`; a panic or runtime
+  cancellation is not a successful empty result.
+- Apply deadlines at the caller, but remember that timing out the future does
+  not preempt already-running blocking code. The operation itself needs a
+  cancellation mechanism or process boundary when preemption is required.
+- Track queue time, active workers, rejected submissions, duration, panics, and
+  shutdown overruns. Bound metric labels.
 
 ## See Also
 
 - [async-tokio-fs](async-tokio-fs.md) - Use tokio::fs for async file I/O
 - [async-no-lock-await](async-no-lock-await.md) - Don't hold locks across await
+- [async-yield-cpu](async-yield-cpu.md) - Yield between shorter CPU chunks that stay on the runtime
+- [async-future-size](async-future-size.md) - Keep the future itself small when work stays on the runtime

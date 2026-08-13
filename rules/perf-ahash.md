@@ -1,18 +1,24 @@
 # perf-ahash
 
-> Use a faster hasher (`ahash` / `FxHashMap`) when DoS resistance is not needed
+> Change hashers only after profiling and an explicit key-threat analysis
 
 ## Why It Matters
 
-Rust's default `HashMap` uses SipHash-1-3, which is DoS-resistant (hash flooding attacks on external input are not viable) but roughly 2–4× slower than non-cryptographic hashers on typical integer and short-string keys. For internal maps keyed by compiler-generated IDs, integer handles, or other trusted data, switching to a faster hasher can meaningfully reduce CPU time in hot map-heavy code. The wrong choice here is a security bug, not just a performance one — never use a non-DoS-resistant hasher for maps keyed by untrusted external input (user-supplied strings, network data, file paths from untrusted sources).
+The standard `HashMap` default is randomized and designed to resist common
+hash-flooding attacks; its exact algorithm is not a stable API promise. A
+different hasher may improve a measured, map-heavy workload with trusted keys,
+but it changes collision behavior, dependency surface, portability, and attack
+resistance. Never select one from a generic speed ratio. Keep the default for
+untrusted keys unless a security review of the concrete hasher and deployment
+threat model approves otherwise.
 
 ## Bad
 
 ```rust
 use std::collections::HashMap;
 
-// Using the default SipHash hasher for compiler-internal integer keys —
-// DoS resistance is wasted cost here.
+// This map is not known to be hot; changing its hasher speculatively adds a
+// dependency and a security decision without evidence.
 fn build_id_map(ids: &[(u32, String)]) -> HashMap<u32, String> {
     ids.iter().cloned().collect()
 }
@@ -21,15 +27,14 @@ fn build_id_map(ids: &[(u32, String)]) -> HashMap<u32, String> {
 ## Good
 
 ```rust
-// ahash: randomized seed per process, DoS-resistant, ~2x faster than SipHash.
-// Good default replacement for most use cases.
+// AHashMap is one candidate after measurement and threat-model review.
 use ahash::AHashMap;
 
 fn build_id_map_ahash(ids: &[(u32, String)]) -> AHashMap<u32, String> {
     ids.iter().cloned().collect()
 }
 
-// FxHashMap (rustc-hash): fastest option, but uses a predictable hash function.
+// FxHashMap (rustc-hash): a predictable candidate for trusted keys.
 // Only for trusted integer or pointer keys where hash flooding is not a concern
 // (e.g., compiler internals, in-process caches keyed by integer IDs).
 use rustc_hash::FxHashMap;
@@ -58,17 +63,17 @@ fn fast_map_example() -> FastMap<u32, u64> {
 
 ## Hasher Selection Guide
 
-| Hasher | Crate | DoS-resistant | Speed | Use when |
-|--------|-------|--------------|-------|----------|
-| `SipHash-1-3` | std (default) | Yes | Baseline | Keys from untrusted external input |
-| `ahash` | `ahash` | Yes (randomized) | ~2× faster | General-purpose replacement; safe default upgrade |
-| `FxHash` | `rustc-hash` | No | Fastest | Trusted integer/pointer keys, compiler internals |
-| `gxhash` | `gxhash` | Optional | Very fast (SIMD) | Throughput-critical, homogeneous key types |
+| Hasher | Collision/key posture | Use when |
+|--------|-----------------------|----------|
+| std default | Randomized, general-purpose default | Untrusted or mixed keys; no measured reason to change |
+| `ahash` | Randomized but not a cryptographic primitive | Reviewed deployment and measured workload justify it |
+| `FxHash` | Predictable | Trusted keys in a closed process only |
 
 ## Key Points
 
 - **Profile first**: switch hashers only after confirming map operations appear in profiler output.
-- `ahash::AHashMap` is a drop-in replacement for `HashMap` and is the safest upgrade — it uses a random per-process seed.
+- `ahash::AHashMap` has a similar map API, but changing the public concrete type
+  or serialized/debug order can still affect callers.
 - `FxHashMap` is what rustc uses internally; it is predictable, so never expose it to externally-supplied keys.
 - Pass `with_capacity` when the final size is known — it applies regardless of hasher choice.
 

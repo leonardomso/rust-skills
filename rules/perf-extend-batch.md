@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-`extend()` can pre-allocate capacity for the incoming elements and insert them in a single operation. Individual `push()` calls may trigger multiple reallocations as the collection grows. For adding multiple elements, `extend()` is both faster and clearer.
+`extend()` communicates batch insertion and can use an iterator's size hint to
+reserve capacity. It still inserts elements and does not guarantee one
+allocation or one machine operation; an inaccurate size hint or custom
+collection changes the behavior. Prefer it for clarity, reserve an exact
+trusted total when available, and measure before claiming it is faster than a
+well-sized push loop.
 
 ## Bad
 
@@ -66,7 +71,7 @@ fn combine(mut a: Vec<i32>, b: Vec<i32>) -> Vec<i32> {
 
 ## Extend with Capacity
 
-For best performance, combine with `reserve()`:
+When an exact, trusted total is cheaply available, reserve it before extending:
 
 ```rust
 fn merge_all(chunks: Vec<Vec<Item>>) -> Vec<Item> {
@@ -86,7 +91,7 @@ fn merge_all(chunks: Vec<Vec<Item>>) -> Vec<Item> {
 | Method | Description |
 |--------|-------------|
 | `.extend(iter)` | Add all elements from iterator |
-| `.extend_from_slice(&[T])` | Add from slice (for `Copy` types) |
+| `.extend_from_slice(&[T])` | Clone elements from a slice (`T: Clone`) |
 | `.append(&mut Vec)` | Move all from another Vec |
 
 ## Pattern: Building Strings

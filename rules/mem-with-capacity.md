@@ -155,3 +155,4 @@ let mut rarely_used = Vec::new();  // OK if rarely grown
 - [mem-smallvec](mem-smallvec.md) - Use SmallVec for usually-small collections
 - [perf-extend-batch](perf-extend-batch.md) - Use extend() for batch insertions
 - [coll-seq-choice](coll-seq-choice.md) - Pick the right sequence type
+- [mem-shrink-to-fit](mem-shrink-to-fit.md) - Shrink long-lived collections after a growth loop

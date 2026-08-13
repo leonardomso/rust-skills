@@ -77,5 +77,6 @@ Use `let ... else` when the goal is early return on failure; use if-let chains w
 
 ## See Also
 
+- [pat-if-let-guards](pat-if-let-guards.md) - bind data needed only by one match arm
 - [pat-let-else](pat-let-else.md) - early-return pattern extraction without nesting
 - [pat-matches-macro](pat-matches-macro.md) - boolean pattern tests with `matches!()`

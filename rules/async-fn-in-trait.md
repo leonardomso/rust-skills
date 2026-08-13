@@ -1,10 +1,15 @@
 # async-fn-in-trait
 
-> Use native `async fn` in traits (stable 1.75) instead of the `async_trait` macro
+> Use native async trait methods for static dispatch; box futures deliberately for `dyn`
 
 ## Why It Matters
 
-Since Rust 1.75, you can write `async fn` directly inside trait definitions (AFIT — async functions in traits). This eliminates the `#[async_trait]` proc-macro dependency and removes the hidden `Box<dyn Future>` allocation it inserts on every call. Fewer allocations, no macro expansion overhead, and no extra crate to audit. However, native async fn in traits carries two precise caveats you must understand before migrating.
+Since Rust 1.75, a trait can declare `async fn` directly. Static dispatch then
+uses an opaque concrete future without requiring `async_trait`'s box. The
+method body can still allocate for other reasons. Public traits must decide
+future bounds such as `Send` up front, and native async methods are not
+dyn-compatible. Choose from the substitution and ownership contract rather
+than applying a blanket migration.
 
 ## Bad
 
@@ -58,26 +63,38 @@ impl Repo for PgRepo {
 
 ## Caveats
 
-**Caveat 1 — not dyn-compatible.** Native async fn in traits is not yet object-safe. You cannot write `Box<dyn Repo>` with the definition above. For dynamic dispatch you have two options:
+**Caveat 1 — not dyn-compatible.** Native async fn in traits is not
+dyn-compatible. You cannot write `Box<dyn Repo>` with the definition above.
+For dynamic dispatch:
 
 - Keep `#[async_trait]` (it boxes the future, which makes the trait object-safe).
-- Use the `trait-variant` crate's `#[trait_variant::make]` macro, which generates a boxed-future variant alongside your native async trait.
+- Or write an object-safe method that returns
+  `Pin<Box<dyn Future<Output = T> + Send + '_>>` explicitly.
 
 ```rust
-// using trait-variant to get both a static and a dyn-compatible variant
-#[trait_variant::make(RepoSend: Send)]
-trait Repo {
-    async fn get(&self, id: u64) -> anyhow::Result<String>;
+use std::{future::Future, pin::Pin};
+
+trait DynRepo {
+    fn get(
+        &self,
+        id: u64,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<String>> + Send + '_>>;
 }
 
-// `RepoSend` is the Send-bounded version; it IS dyn-compatible via boxing
-fn make_repo() -> Box<dyn RepoSend> {
+fn make_repo() -> Box<dyn DynRepo> {
     // ...
     # unimplemented!()
 }
 ```
 
-**Caveat 2 — futures are not `Send` by default.** On a multi-threaded Tokio runtime, spawned tasks require `Send` futures. The auto-generated future from a native `async fn` in a trait captures `&self` but does not promise `Send`. If you need `Send`, either:
+`trait-variant` generates a second trait with stronger future bounds; it does
+not make that trait dyn-compatible.
+
+**Caveat 2 — the trait does not promise `Send`.** A concrete implementation's
+generated future may be `Send`, but a native async trait method does not let
+generic callers require that property from the trait declaration. Multi-thread
+`tokio::spawn` requires a `Send + 'static` future. If callers need that
+guarantee:
 
 - Use `#[trait_variant::make(TraitNameSend: Send)]` from the `trait-variant` crate to generate a `Send`-bounded variant.
 - Bound the return type explicitly: `fn get(&self, id: u64) -> impl Future<Output = anyhow::Result<String>> + Send`.
@@ -94,7 +111,7 @@ trait Repo {
 | Scenario | Recommended approach |
 |---|---|
 | Static dispatch only (generics, `impl Trait`) | Native `async fn` in trait |
-| Need `dyn Trait` | `#[async_trait]` or `trait-variant` |
+| Need `dyn Trait` | `#[async_trait]` or an explicit boxed-future method |
 | Multi-threaded Tokio, spawned tasks | `trait-variant` `Send` variant or explicit `+ Send` |
 | Single-threaded runtime / `LocalSet` | Native `async fn` in trait (no `Send` needed) |
 

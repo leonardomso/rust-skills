@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Rust's ownership rules prevent you from moving a field out of a `&mut self` reference — the compiler must guarantee the field is not left in an invalid state. The standard workaround many developers reach for is `.clone()`, but that allocates unnecessarily. `std::mem::take` swaps the field with `T::default()` and returns the original value; `std::mem::replace` swaps in an explicit value of your choosing. Both are zero-copy and work wherever you have `&mut T`.
+Rust prevents moving a field out through `&mut self` while leaving the
+containing value partially uninitialized. `std::mem::take` replaces the field
+with `T::default()` and returns the original; `std::mem::replace` installs an
+explicit replacement. Both avoid requiring `T: Clone`. They may still move
+inline bytes, and constructing the replacement may allocate or perform other
+work according to `Default` or the supplied expression.
 
 ## Bad
 
@@ -87,9 +92,12 @@ impl Machine {
 }
 ```
 
-## Consuming a Field in `Drop`
+## Do Not Hide Fallible Flushes in `Drop`
 
-`mem::take` is also the idiomatic way to move out of a field inside `Drop`, where you only have `&mut self`:
+`mem::take` can move a field out inside `Drop`, but a destructor cannot return
+an I/O error and may run during unwinding. Provide an explicit `finish` or
+`close` operation for required persistence; reserve `Drop` for best-effort,
+non-blocking cleanup.
 
 ```rust
 use std::mem;
@@ -102,8 +110,8 @@ struct FileWriter {
 impl Drop for FileWriter {
     fn drop(&mut self) {
         let data = mem::take(&mut self.buffer);
-        // flush `data` to disk without an extra allocation
-        let _ = data; // pretend this writes somewhere
+        // Best-effort cleanup only. Required writes happen in finish().
+        let _ = data;
     }
 }
 ```
@@ -111,7 +119,8 @@ impl Drop for FileWriter {
 ## Key Points
 
 - `mem::take` requires `T: Default`. If `T` has no meaningful default, use `mem::replace` with an explicit sentinel value (e.g., an `Option<T>` field — `mem::take` an `Option<T>` yields `None`, which is often exactly right).
-- Both functions are `#[inline]` and compile away to a few register moves with no heap involvement.
+- Neither function clones the old value. Code generation and allocation
+  behavior depend on `T` and on how the replacement is constructed.
 - `Option<T>` is a natural pairing: keep expensive values in `Option<T>` and call `self.field.take()` (the `Option::take` method, same idea) to move ownership out cleanly.
 
 ## See Also

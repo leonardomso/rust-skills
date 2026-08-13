@@ -146,3 +146,4 @@ fn main() -> anyhow::Result<()> {
 - [proj-bin-dir](proj-bin-dir.md) - Put multiple binaries in src/bin/
 - [proj-mod-by-feature](proj-mod-by-feature.md) - Organize modules by feature
 - [test-integration-dir](test-integration-dir.md) - Integration tests in tests/
+- [perf-global-allocator](perf-global-allocator.md) - The process allocator belongs in main.rs

@@ -4,12 +4,15 @@
 
 ## Why It Matters
 
-`format!()` always allocates a new String, even for constant text. In hot paths, these allocations add up. Use string literals, `write!()`, or pre-allocated buffers instead.
+`format!()` constructs an owned `String` and ordinarily needs heap storage for
+non-empty output. Formatting constant text adds work and changes a borrowed
+value into an owned one for no benefit. In measured hot paths, write into the
+destination or a reusable buffer; on cold paths, prefer the clearest code.
 
 ## Bad
 
 ```rust
-// Allocates every time, even for static text
+// Constructs an owned String every time, even for static text
 fn get_error_message() -> String {
     format!("An error occurred")  // Unnecessary allocation!
 }
@@ -78,7 +81,8 @@ fn bad_log(writer: &mut impl Write, msg: &str, code: u32) {
 
 // Good: Write directly
 fn good_log(writer: &mut impl Write, msg: &str, code: u32) {
-    write!(writer, "[ERROR {}] {}", code, msg).unwrap();  // No allocation!
+    // Avoids an intermediate String. The writer may still buffer or allocate.
+    write!(writer, "[ERROR {}] {}", code, msg).unwrap();
 }
 ```
 
@@ -105,7 +109,7 @@ fn build_message(parts: &[&str]) -> String {
     result
 }
 
-// Good: Use join
+// Alternative when separators—but no trailing newline—are the contract
 fn build_message(parts: &[&str]) -> String {
     parts.join("\n")
 }
@@ -116,10 +120,10 @@ fn build_message(parts: &[&str]) -> String {
 ```rust
 use compact_str::CompactString;
 
-// Stack-allocated for strings <= 24 bytes
+// Current compact_str versions store sufficiently short strings inline.
 fn format_code(code: u32) -> CompactString {
     compact_str::format_compact!("ERR-{:04}", code)
-    // Stack-allocated if result is small enough
+    // Inline if the encoded result fits this version/target's capacity.
 }
 ```
 

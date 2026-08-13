@@ -112,17 +112,25 @@ use std::arch::x86_64::*;
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
+/// # Safety
+///
+/// The caller must establish AVX2 support, for example with
+/// `is_x86_feature_detected!("avx2")`, before calling this function.
 unsafe fn sum_avx2(data: &[f32]) -> f32 {
     let mut acc = _mm256_setzero_ps();
     let mut chunks = data.chunks_exact(8);
     for chunk in &mut chunks {
-        let v = _mm256_loadu_ps(chunk.as_ptr());
+        // SAFETY: chunks_exact(8) yields eight initialized f32 values and the
+        // unaligned load accepts any valid f32 alignment.
+        let v = unsafe { _mm256_loadu_ps(chunk.as_ptr()) };
         acc = _mm256_add_ps(acc, v);
     }
 
     // store the 8 lanes, then finish the reduction (and the remainder) in scalar
     let mut lanes = [0.0f32; 8];
-    _mm256_storeu_ps(lanes.as_mut_ptr(), acc);
+    // SAFETY: lanes provides space for eight initialized f32 outputs and the
+    // unaligned store accepts its address.
+    unsafe { _mm256_storeu_ps(lanes.as_mut_ptr(), acc) };
     lanes.iter().sum::<f32>() + chunks.remainder().iter().sum::<f32>()
 }
 ```
@@ -134,10 +142,14 @@ unsafe fn sum_avx2(data: &[f32]) -> f32 {
 | Autovectorization | Stable | Excellent | Low |
 | `wide` crate | Stable | Good | Medium |
 | Portable SIMD | Nightly | Excellent | High |
-| Intrinsics | Stable | None | Maximum |
+| Intrinsics | Stable per supported architecture | Architecture-specific | Maximum |
+
+Compile-time `target_feature` is not runtime dispatch. A portable binary needs
+a scalar baseline plus a checked dispatch path, and tests on hardware or an
+emulator that actually executes every advertised path.
 
 ## See Also
 
 - [opt-target-cpu](./opt-target-cpu.md) - Enable SIMD features
-- [opt-bounds-check](./opt-bounds-check.md) - Unchecked access for SIMD
+- [opt-bounds-check](./opt-bounds-check.md) - verify safe hot loops before unchecked access
 - [perf-profile-first](./perf-profile-first.md) - Identify vectorization opportunities

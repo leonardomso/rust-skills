@@ -1,15 +1,21 @@
 # perf-black-box-bench
 
-> Use black_box in benchmarks
+> Use `std::hint::black_box` to reduce benchmark optimizer artifacts
 
 ## Why It Matters
 
-The compiler aggressively optimizes code, potentially eliminating computations whose results aren't used. In benchmarks, this can lead to measuring nothing instead of the actual code. `std::hint::black_box()` prevents the compiler from optimizing away values, ensuring accurate measurements.
+The compiler may eliminate unused work or precompute constant inputs, leaving a
+benchmark that measures less than intended. `std::hint::black_box` asks the
+compiler to be pessimistic about a value. It is a best-effort optimization
+barrier, not a correctness or timing guarantee: the function under test may
+still inline, surrounding work may still optimize, and benchmark design,
+warm-up, noise, and representative inputs still matter.
 
 ## Bad
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn benchmark_bad(c: &mut Criterion) {
     c.bench_function("compute", |b| {
@@ -35,7 +41,8 @@ fn benchmark_also_bad(c: &mut Criterion) {
 ## Good
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn benchmark_good(c: &mut Criterion) {
     c.bench_function("compute", |b| {
@@ -60,10 +67,10 @@ fn benchmark_simpler(c: &mut Criterion) {
 
 | Without black_box | With black_box |
 |-------------------|----------------|
-| Input may be constant-folded | Input treated as unknown |
-| Result may be eliminated | Result must be computed |
-| Loops may be optimized away | Each iteration runs |
-| Functions may be inlined | Call semantics preserved |
+| Input may be constant-folded | Constant propagation is discouraged |
+| Result may be eliminated | Dead-result elimination is discouraged |
+| Loops may disappear | The observed value gives the loop a use |
+| Functions may be inlined | Inlining can still occur |
 
 ## Standard Library Usage
 
@@ -76,14 +83,13 @@ fn main() {
 }
 ```
 
-## Criterion's black_box
+## Criterion and `black_box`
 
-Criterion re-exports `std::hint::black_box`:
+Prefer the standard-library function. Criterion versions may re-export or
+deprecate their own helper:
 
 ```rust
-use criterion::black_box;
-
-// Equivalent to std::hint::black_box
+use std::hint::black_box;
 ```
 
 ## Pattern: Benchmark with Setup

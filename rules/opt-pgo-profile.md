@@ -1,167 +1,83 @@
 # opt-pgo-profile
 
-> Use Profile-Guided Optimization (PGO) for maximum performance
+> Adopt PGO only with representative profiles, pinned tools, and measured wins
 
 ## Why It Matters
 
-PGO uses real runtime behavior to guide compiler optimization decisions. By profiling actual workloads, the compiler learns which code paths are hot, optimizing them aggressively while deprioritizing cold paths. This can yield 10-30% performance improvements beyond standard optimizations.
+Profile-guided optimization feeds observed branch and call frequencies into later compilation. It can improve an application whose production workload is stable and well represented, but stale or biased profiles can regress another tenant, request shape, architecture, or failure path. PGO also adds a training build, workload execution, profile merge, optimized rebuild, and new provenance inputs. Treat it as an artifact pipeline, not a universal performance switch.
 
-## The PGO Process
+## Process
 
-1. **Instrument**: Build with profiling instrumentation
-2. **Profile**: Run representative workloads
-3. **Optimize**: Rebuild using collected profile data
+1. **Instrument** the exact source, lockfile, compiler, target, profile, and features intended for the candidate.
+2. **Exercise** a versioned, privacy-safe workload representing normal, peak, and important failure paths.
+3. **Merge** raw profiles with the `llvm-profdata` shipped for the pinned Rust LLVM toolchain.
+4. **Rebuild** from a clean output directory with the merged profile as a declared input.
+5. **Compare** against the non-PGO candidate on runtime objectives, size, build cost, and failure behavior.
+6. **Promote** only the measured artifact digest together with its profile-data provenance.
 
-## Step-by-Step
-
-```bash
-# Step 1: Build instrumented binary
-RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" \
-    cargo build --release
-
-# Step 2: Run representative workloads
-./target/release/my_app < test_data_1.txt
-./target/release/my_app < test_data_2.txt
-./target/release/my_app < typical_workload.txt
-
-# Step 3: Merge profile data
-llvm-profdata merge -o /tmp/pgo-data/merged.profdata /tmp/pgo-data
-
-# Step 4: Build optimized binary using profile
-RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata" \
-    cargo build --release
-```
-
-## Cargo Configuration
-
-```toml
-# Cargo.toml
-[profile.release]
-lto = "fat"
-codegen-units = 1
-opt-level = 3
-
-# PGO flags set via RUSTFLAGS environment variable
-```
-
-## Build Script
+## Example
 
 ```bash
-#!/bin/bash
-set -e
+set -euo pipefail
 
-PGO_DIR=/tmp/pgo-$(date +%s)
+PGO_ROOT="$PWD/target/pgo"
+RAW="$PGO_ROOT/raw"
+MERGED="$PGO_ROOT/merged.profdata"
 
-# Clean
-cargo clean
+rm -rf "$PGO_ROOT"
+mkdir -p "$RAW"
 
-# Instrumented build
-echo "Building instrumented binary..."
-RUSTFLAGS="-Cprofile-generate=$PGO_DIR" cargo build --release
+RUSTFLAGS="-Cprofile-generate=$RAW" \
+  cargo build --locked --profile release-service --target-dir target/pgo-instrumented
 
-# Run workloads
-echo "Collecting profile data..."
-./target/release/my_app --benchmark-mode
-./target/release/my_app < test_fixtures/typical.txt
-./target/release/my_app < test_fixtures/stress.txt
+./target/pgo-instrumented/release-service/my_app \
+  --replay-manifest tests/pgo/workload-v3.json
 
-# Merge profiles
-echo "Merging profile data..."
-llvm-profdata merge -o $PGO_DIR/merged.profdata $PGO_DIR
+rustup run 1.97.1 llvm-profdata merge \
+  --failure-mode=all-functions \
+  -o "$MERGED" "$RAW"
 
-# Optimized build
-echo "Building optimized binary..."
-RUSTFLAGS="-Cprofile-use=$PGO_DIR/merged.profdata" cargo build --release
-
-echo "Done! Optimized binary at target/release/my_app"
+RUSTFLAGS="-Cprofile-use=$MERGED -Cllvm-args=-pgo-warn-missing-function" \
+  cargo build --locked --profile release-service --target-dir target/pgo-optimized
 ```
 
-## Representative Workloads
+The concrete `llvm-profdata` invocation depends on the installed LLVM tools component and target layout. Pin and verify it; do not use an arbitrary system LLVM that may be incompatible with rustc's profile format.
 
-```rust
-// Create benchmarks that match real usage patterns
+## Representative Workload Contract
 
-// Good: actual data samples
-fn profile_workload() {
-    for file in real_customer_data_samples() {
-        process_file(&file);
-    }
-}
+- Version and hash the workload manifest and generators.
+- Sample production shapes without copying secrets, PII, tenant payloads, or credentials into build inputs.
+- Cover dominant normal traffic, large values, error handling, startup, and latency-sensitive minority paths.
+- Weight samples from observed distributions; a million repetitions of one tiny operation can distort layout and branch decisions.
+- Maintain separate target-architecture profiles when their code generation or workload differs. Do not silently reuse x86 data for Arm.
+- Expire profiles after a defined source/feature/toolchain drift threshold and make missing or stale data fail the PGO candidate rather than falling back silently.
 
-// Good: synthetic but realistic
-fn profile_synthetic() {
-    for _ in 0..10000 {
-        let data = generate_realistic_data();
-        process(&data);
-    }
-}
-
-// Bad: artificial microbenchmarks
-fn profile_bad() {
-    for _ in 0..1000000 {
-        small_operation();  // Doesn't reflect real hot paths
-    }
-}
-```
-
-## BOLT Post-Link Optimization
-
-For even more gains, combine PGO with BOLT:
+## Validation
 
 ```bash
-# After PGO build, apply BOLT
-llvm-bolt target/release/my_app \
-    -o target/release/my_app.bolt \
-    -data=perf.data \
-    -reorder-blocks=ext-tsp \
-    -reorder-functions=hfsort
-
-# BOLT can add another 5-15% on top of PGO
+hyperfine \
+  './target/release-service/my_app --replay-manifest tests/pgo/validation-v3.json' \
+  './target/pgo-optimized/release-service/my_app --replay-manifest tests/pgo/validation-v3.json'
 ```
 
-## CI/CD Integration
+Use a holdout validation workload that was not the training input. Measure product SLOs, throughput, CPU per operation, artifact size, and tail latency under controlled load. Run correctness and failure-injection tests on the optimized binary. Compiler warnings about missing or mismatched profile data are failed evidence, not noise to suppress.
 
-```yaml
-# GitHub Actions example
-jobs:
-  pgo-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install LLVM tools
-        run: sudo apt-get install llvm
-      
-      - name: Instrumented build
-        run: RUSTFLAGS="-Cprofile-generate=/tmp/pgo" cargo build --release
-      
-      - name: Run profiling workloads
-        run: ./scripts/run_profiling_workloads.sh
-      
-      - name: Merge profiles
-        run: llvm-profdata merge -o /tmp/pgo/merged.profdata /tmp/pgo
-      
-      - name: Optimized build
-        run: RUSTFLAGS="-Cprofile-use=/tmp/pgo/merged.profdata" cargo build --release
-      
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: optimized-binary
-          path: target/release/my_app
-```
+## BOLT And Other Post-Link Tools
 
-## When to Use PGO
+Post-link optimizers are a separate candidate stage with platform, binary-format, unwind, symbol, and sampling requirements. Do not stack BOLT on PGO because an unsourced percentage promises another gain. Pin the tool, retain symbols/unwind information it needs, validate crash symbolization, and compare PGO-only versus PGO-plus-post-link artifacts independently.
 
-| Use PGO | Skip PGO |
-|---------|----------|
-| Production deployments | Development builds |
-| Performance-critical apps | Libraries (users can PGO) |
-| Stable workload patterns | Highly variable workloads |
-| Sufficient profiling data | Quick iteration cycles |
+## Failure Behavior
+
+- A profile-format mismatch, missing function coverage beyond policy, corrupt data, or stale workload fails the PGO build.
+- A candidate that improves average throughput but regresses a protected tail-latency or failure-path objective is rejected.
+- A change in toolchain, target features, dependency graph, or important workload distribution triggers retraining and revalidation.
+- The profile data, workload identity, compiler identity, and optimized binary digest remain linked for audit and rollback.
+- Rollback uses the prior admitted artifact; it does not rebuild from old source with current profile data.
 
 ## See Also
 
-- [opt-lto-release](./opt-lto-release.md) - LTO works well with PGO
-- [opt-codegen-units](./opt-codegen-units.md) - Single codegen unit for PGO
-- [perf-profile-first](./perf-profile-first.md) - Profiling basics
+- [perf-profile-first](./perf-profile-first.md) - define the performance objective first
+- [perf-release-profile](perf-release-profile.md) - keep final profile policy explicit
+- [opt-lto-release](./opt-lto-release.md) - measure LTO interaction separately
+- [opt-codegen-units](./opt-codegen-units.md) - measure codegen-unit interaction
+- [proj-reproducible-runtime](proj-reproducible-runtime.md) - promote exact tested bytes

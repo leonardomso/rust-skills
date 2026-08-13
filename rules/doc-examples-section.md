@@ -4,7 +4,15 @@
 
 ## Why It Matters
 
-Examples are the most valuable part of documentation. They show users exactly how to use your API. Rust's doc tests ensure examples stay correct as code evolves.
+Examples show users how the API fits together. Runnable doctests compile and,
+unless marked `no_run`, execute with the crate's test suite. `ignore`,
+`compile_fail`, target cfgs, and external-service setup have different
+contracts; do not claim an example is continuously verified when CI skips it.
+
+Keep short, copyable calls in rustdoc. Put complete workflows that need setup,
+multiple modules, or external services under the repository's `examples/`
+directory and compile them in CI. Users and coding agents need both: a local
+answer beside the item and an end-to-end program they can run.
 
 ## Bad
 
@@ -30,19 +38,25 @@ pub struct Widget {
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use my_crate::parse;
 ///
-/// let foo = parse("hello").unwrap();
+/// let foo = parse("hello")?;
 /// assert_eq!(foo.name(), "hello");
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// Handles empty strings:
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use my_crate::parse;
 ///
-/// let foo = parse("").unwrap();
+/// let foo = parse("")?;
 /// assert!(foo.is_empty());
+/// # Ok(())
+/// # }
 /// ```
 pub fn parse(s: &str) -> Result<Foo, Error> {
     // ...

@@ -57,10 +57,13 @@ members = [
 
 # Shared dependencies - all crates use same versions
 [workspace.dependencies]
-tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", default-features = false }
+serde = { version = "1.0", default-features = false }
 tracing = "0.1"
 anyhow = "1.0"
+uuid = "1.0"
+my-app-common = { path = "crates/common", version = "0.1" }
+my-app-core = { path = "crates/core", version = "0.1" }
 
 # Shared lints
 [workspace.lints.rust]
@@ -77,18 +80,18 @@ all = "warn"
 [package]
 name = "my-app-core"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 # Inherit from workspace
-tokio = { workspace = true }
-serde = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync"] }
+serde = { workspace = true, features = ["derive"] }
 
 # Crate-specific dependencies
-uuid = "1.0"
+uuid.workspace = true
 
 # Internal dependency
-my-app-common = { path = "../common" }
+my-app-common.workspace = true
 
 [lints]
 workspace = true  # Inherit workspace lints
@@ -98,8 +101,8 @@ workspace = true  # Inherit workspace lints
 
 | Scenario | Recommendation |
 |----------|----------------|
-| Single binary/library | No workspace needed |
-| Library + CLI | Maybe, depends on size |
+| One indivisible binary/library | No workspace needed |
+| Library + CLI | Yes — the reusable library and application are independent crates |
 | Multiple related crates | Yes |
 | Shared internal libraries | Yes |
 | Microservices mono-repo | Yes |
@@ -149,11 +152,39 @@ members = ["crates/*"]
 ## Pattern: Crate Interdependencies
 
 ```toml
+# Root Cargo.toml
+[workspace.dependencies]
+my-app-core = { path = "crates/core", version = "0.1" }
+my-app-common = { path = "crates/common", version = "0.1" }
+
 # crates/server/Cargo.toml
 [dependencies]
-my-app-core = { path = "../core" }
-my-app-common = { path = "../common" }
+my-app-core.workspace = true
+my-app-common.workspace = true
 ```
+
+Every member—including a dependency used by only one crate—gets its canonical
+version and path from `[workspace.dependencies]`. Never nest a crate beneath
+another crate's directory or `src/`; keep members as siblings. A flat
+`crates/` directory works for roughly a dozen or two members. Beyond that,
+group sibling crates in domain folders, while preserving independent package
+roots. Dummy crates used only as UI-test fixtures are the narrow exception.
+
+## Read-Only Source Trees
+
+Cargo 1.97 added `resolver.lockfile-path` for environments where the source
+checkout is read-only but dependency resolution may update the lockfile:
+
+```toml
+# supplied as CI-local Cargo configuration, not committed as a developer path
+[resolver]
+lockfile-path = "/workspace-state/Cargo.lock"
+```
+
+Keep the ordinary workspace `Cargo.lock` checked in for reproducible
+application builds. Override its location only for a deliberate sandbox,
+packaging, or read-only-source workflow, and preserve the resulting lockfile as
+an input or artifact rather than resolving from scratch on every run.
 
 ## See Also
 

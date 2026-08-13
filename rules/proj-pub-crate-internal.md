@@ -132,6 +132,20 @@ pub use service::UserService;  // Only export the public API
 | `pub(crate)` internals | Only `pub` items matter | Can refactor freely |
 | Private | Maximum encapsulation | Limits crate flexibility |
 
+## Catch Accidental `pub` in Binaries
+
+Rust 1.97 added the allow-by-default `dead_code_pub_in_binary` lint. Binary
+crates can enable it to catch `pub` items that are unused within the binary and
+therefore do not form a reachable library API:
+
+```rust
+#![warn(dead_code_pub_in_binary)]
+```
+
+Treat a warning as a prompt to narrow visibility, not to add a dummy use.
+Library crates need API-aware tooling instead: downstream users may rely on a
+public item even when the defining crate does not.
+
 ## See Also
 
 - [proj-pub-super-parent](./proj-pub-super-parent.md) - Parent-only visibility

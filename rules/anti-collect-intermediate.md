@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Each `.collect()` allocates a new collection. Collecting intermediate results in a chain creates unnecessary allocations and prevents iterator fusion. Keep the chain lazy; collect only at the end.
+Collecting into an owned container such as `Vec`, `String`, or `HashMap`
+materializes intermediate state and commonly allocates. It also ends iterator
+fusion before the next pass. Keep a transform lazy while the next consumer only
+needs iteration, but collect deliberately for sorting, random access, repeated
+passes, ownership, or an API boundary. `collect()` itself is generic and does
+not universally allocate—for example, collecting into `Result` short-circuits.
 
 ## Bad
 

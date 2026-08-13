@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Floating-point arithmetic is not exact: `0.1 + 0.2 == 0.3` evaluates to `false` in Rust (and every IEEE 754 language) because neither value is representable exactly in binary. Additionally, `NaN != NaN` by the IEEE 754 standard, so equality comparisons involving `NaN` always return `false`. For sorting, `f64::partial_cmp` returns `None` on `NaN`, which makes `sort_by` panic with an inconsistent-order error. Use an epsilon tolerance for approximate equality and `f64::total_cmp` (stable since Rust 1.62) for total ordering.
+Floating-point arithmetic rounds to a finite binary representation:
+`0.1 + 0.2 == 0.3` evaluates to `false` for Rust `f64`. Additionally,
+`NaN != NaN`, so `partial_cmp` returns `None` when either operand is NaN; an
+example that unwraps that result panics. Choose a domain-specific absolute and
+relative tolerance for approximate equality, and use `f64::total_cmp` when a
+deterministic total order over every bit pattern is the contract.
 
 ## Bad
 
@@ -24,14 +29,15 @@ fn sort_scores(scores: &mut Vec<f64>) {
 ```rust
 // approximate equality with an absolute epsilon
 fn approx_eq(a: f64, b: f64, epsilon: f64) -> bool {
-    (a - b).abs() < epsilon
+    assert!(epsilon >= 0.0);
+    (a - b).abs() <= epsilon
 }
 
 fn is_unit_length(x: f64, y: f64) -> bool {
     approx_eq((x * x + y * y).sqrt(), 1.0, 1e-9)
 }
 
-// total ordering: NaN sorts after everything else (consistent, never panics)
+// IEEE totalOrder-compatible ordering, including signed NaN values.
 fn sort_scores(scores: &mut Vec<f64>) {
     scores.sort_by(|a, b| a.total_cmp(b));
 }
@@ -81,11 +87,19 @@ mod tests {
 
 ## Key Points
 
-- **Epsilon choice**: an absolute epsilon (`1e-9`) is simple but wrong for very large or very small values. For general-purpose code, a relative epsilon `(a - b).abs() / a.abs().max(b.abs()) < epsilon` is more robust — but requires handling the zero case.
+- **Tolerance choice**: an absolute tolerance alone is usually inappropriate
+  across many magnitudes. A common finite-value test accepts
+  `diff <= absolute_tolerance` or
+  `diff <= relative_tolerance * max(abs(a), abs(b))`; define explicit behavior
+  for zero, infinities, and NaNs.
 - **`f64::total_cmp`** defines a strict total order: `-NaN < -∞ < … < -0.0 < +0.0 < … < +∞ < NaN`. It never panics and is available on `f32` and `f64`.
 - **`is_nan` / `is_infinite` / `is_finite`**: use these predicates before arithmetic on untrusted floats.
-- **Equality on `f32`/`f64` with `==`** is intentionally kept in the language for cases where you need bit-exact comparison (e.g., checking whether a value changed since last write). Document such uses explicitly.
+- **Equality on `f32`/`f64` with `==`** follows IEEE numeric equality:
+  signed zeros compare equal and every NaN compares unequal. For bit-pattern
+  equality compare `to_bits()`; for domain equality define finite/NaN/zero
+  policy explicitly.
 
 ## See Also
 
 - [num-overflow-explicit](num-overflow-explicit.md) - handle integer overflow explicitly
+- [trait-ord-consistent](trait-ord-consistent.md) - keep ordered collection keys on one total order

@@ -105,12 +105,21 @@ pub mod prelude;
 
 1. **Brief description** - One-line summary
 2. **Overview** - What the module provides
-3. **Examples** - How to use it
-4. **Feature flags** - Optional functionality
-5. **See Also** - Related modules
+3. **Applicability** - When to use the subsystem and when another module is a better fit
+4. **Behavioral contract** - Observable side effects, guarantees, reentrancy, caching, threads, and global state
+5. **Subsystem specification** - Protocols, formats, state machines, or other concepts users must understand
+6. **Relevant implementation boundary** - System APIs or platform facilities that affect behavior
+7. **Examples** - How to use it
+8. **Feature flags** - Optional functionality
+9. **See Also** - Related modules
+
+Every public library module gets `//!` documentation. Use comprehensive
+standard-library modules such as `std::fmt`, `std::pin`, and `std::option` as
+depth references: module docs explain the subsystem, not merely list its items.
 
 ## See Also
 
 - [doc-all-public](./doc-all-public.md) - Documenting public items
 - [doc-examples-section](./doc-examples-section.md) - Adding examples
 - [doc-cargo-metadata](./doc-cargo-metadata.md) - Crate metadata
+- [doc-first-sentence](./doc-first-sentence.md) - First module sentence is one short standalone line

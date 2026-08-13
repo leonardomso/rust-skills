@@ -1,149 +1,108 @@
 # perf-release-profile
 
-> Optimize release profile settings
+> Treat release profiles as measured artifact policy, not a universal max-optimization preset
 
 ## Why It Matters
 
-The default release profile prioritizes compile speed over runtime performance. For production binaries, tuning the release profile can yield significant performance improvements (10-40% in some cases) at the cost of longer compile times.
+Cargo's release defaults are a reasonable general baseline. Changing LTO, codegen units, debug information, stripping, panic strategy, or size optimization changes build cost, runtime behavior, diagnostics, cache identity, and sometimes ABI/unwind behavior. There is no profile that is simultaneously fastest, smallest, cheapest to build, and easiest to operate. Benchmark representative workloads, record the exact profile with the artifact, and retain enough symbols to debug the deployed bytes.
 
-## Default Profile
-
-```toml
-[profile.release]
-opt-level = 3
-debug = false
-lto = false
-codegen-units = 16
-```
-
-## Optimized Profile
+## Bad
 
 ```toml
 [profile.release]
-opt-level = 3          # Maximum optimization
-lto = "fat"            # Full link-time optimization
-codegen-units = 1      # Better optimization, slower compile
-panic = "abort"        # Smaller binary, no unwinding
-strip = true           # Remove symbols
-
-[profile.release.package."*"]
-# Keep dependencies optimized even if main crate changes
 opt-level = 3
-```
-
-## Profile Options
-
-| Option | Values | Effect |
-|--------|--------|--------|
-| `opt-level` | 0-3, "s", "z" | Optimization level |
-| `lto` | false, "thin", "fat" | Link-time optimization |
-| `codegen-units` | 1-256 | Parallel compilation units |
-| `panic` | "unwind", "abort" | Panic behavior |
-| `strip` | true, false, "symbols", "debuginfo" | Binary stripping |
-| `debug` | true, false, 0-2 | Debug info level |
-
-## Optimization Levels
-
-| Level | Description | Use Case |
-|-------|-------------|----------|
-| `0` | No optimization | Debug builds |
-| `1` | Basic optimization | Fast compile |
-| `2` | Most optimizations | Balanced |
-| `3` | All optimizations | Maximum performance |
-| `"s"` | Optimize for size | Embedded |
-| `"z"` | Minimize size | Smallest binary |
-
-## LTO Options
-
-| Option | Compile Time | Performance | Binary Size |
-|--------|--------------|-------------|-------------|
-| `false` | Fast | Baseline | Larger |
-| `"thin"` | Medium | Good | Smaller |
-| `"fat"` | Slow | Best | Smallest |
-
-## Custom Profiles
-
-```toml
-# Fast release builds for development
-[profile.release-dev]
-inherits = "release"
-lto = false
-codegen-units = 16
-
-# Maximum performance for production
-[profile.release-prod]
-inherits = "release"
-lto = "fat"
-codegen-units = 1
-strip = true
-
-# Profiling with symbols
-[profile.profiling]
-inherits = "release"
-debug = true
-strip = false
-```
-
-Use with: `cargo build --profile release-prod`
-
-## Dev Dependencies Optimization
-
-Speed up tests and dev builds:
-
-```toml
-[profile.dev]
-opt-level = 0
-
-# Optimize dependencies even in dev
-[profile.dev.package."*"]
-opt-level = 3
-```
-
-## Benchmarking Profile
-
-```toml
-[profile.bench]
-inherits = "release"
-debug = true      # For profiling
-strip = false     # Keep symbols for flamegraphs
-lto = "fat"       # Consistent with release-prod
-```
-
-## Size vs Speed Trade-offs
-
-```toml
-# Smallest binary
-[profile.min-size]
-inherits = "release"
-opt-level = "z"
 lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
-
-# Balance size and speed
-[profile.balanced]
-inherits = "release"
-opt-level = "s"
-lto = "thin"
 ```
 
-## Workspace Configuration
+This cargo-cult preset assumes fat LTO and one codegen unit improve the product, makes panic recovery impossible, and removes production diagnostics without evidence. It also changes every release consumer rather than defining a named, reviewed artifact policy.
+
+## Good
 
 ```toml
-# In workspace Cargo.toml
-[profile.release]
-lto = "fat"
-codegen-units = 1
+# Workspace Cargo.toml
+[profile.release-service]
+inherits = "release"
+debug = "line-tables-only"
+strip = "none"
 
-# Override for specific package
-[profile.release.package.fast-compile-lib]
-lto = false
-codegen-units = 16
+# Candidates below stay only after representative benchmark and binary-size
+# evidence. Thin LTO is not automatically better for every workload.
+lto = "thin"
+codegen-units = 1
 ```
+
+Build and benchmark the same named profile used for the candidate artifact:
+
+```bash
+cargo build --locked --profile release-service
+cargo test --locked --profile release-service
+cargo bench --profile release-service
+```
+
+Keep full or split debug information in a protected symbol artifact keyed to the exact executable digest. Do not rebuild later to recover symbols.
+
+## Profile Decisions
+
+| Setting | Decision to record |
+|---|---|
+| `opt-level` | Throughput/latency/size objective and representative benchmark |
+| `lto` | `"off"` (none), `false` (thin-local when applicable), `"thin"`, or `"fat"`; build-time and runtime evidence |
+| `codegen-units` | Parallel build cost versus cross-unit optimization evidence |
+| `debug` / `split-debuginfo` | Symbolization and debugger support for every target |
+| `strip` | Which copy retains symbols and how it is associated with the artifact digest |
+| `panic` | Unwind, abort, FFI, task-isolation, and crash-restart contract |
+| `overflow-checks` | Required arithmetic failure behavior; never change accidentally between tested and shipped profiles |
+
+`panic = "abort"` can reduce some binary overhead, but it terminates the process on panic and prevents `catch_unwind`. It is a product reliability decision, not a generic performance switch. `strip = true` can reduce the shipped file but must not destroy the only symbols needed for crash analysis.
+
+## Size-Oriented Profile
+
+```toml
+[profile.release-size]
+inherits = "release"
+opt-level = "z"
+lto = "thin"
+codegen-units = 1
+debug = "line-tables-only"
+strip = "none"
+```
+
+This is a candidate for a size-constrained artifact, not a promise that `"z"`, thin LTO, or one codegen unit produces the smallest output on every target. Compare compressed and resident size, startup, steady-state performance, and build memory. Keep the debug companion.
+
+## Profiling Profile
+
+```toml
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = "none"
+```
+
+A profiling profile is useful only when it preserves the optimization choices whose behavior you are investigating. If it differs from production LTO, codegen units, target CPU, or panic strategy, label the evidence accordingly.
+
+## Development Dependencies
+
+```toml
+[profile.dev.package."*"]
+opt-level = 2
+```
+
+Per-package optimization can speed a workload dominated by slow unoptimized dependencies, but it also increases clean build time. Measure the developer loop before adopting it. Package overrides cannot set every profile key—for example, Cargo rejects `lto` and `panic` in a package override—so keep whole-artifact settings on the named profile.
+
+## Failure Behavior
+
+- A profile change creates a new candidate artifact and must pass the full test, benchmark, and rollout gates again.
+- Benchmark regressions, excessive linker memory, missing symbols, or incompatible unwind behavior fail adoption; do not hide them by raising CI timeouts.
+- Preserve a rollback artifact and its matching symbols. A rebuild from the same source is not the same promoted binary.
+- Record compiler version, target, target features, profile, and dependency lock with the artifact digest.
 
 ## See Also
 
-- [opt-lto-release](./opt-lto-release.md) - LTO details
-- [opt-codegen-units](./opt-codegen-units.md) - Codegen units
-- [opt-pgo-profile](./opt-pgo-profile.md) - Profile-guided optimization
+- [opt-lto-release](./opt-lto-release.md) - choose LTO mode from measurement
+- [opt-codegen-units](./opt-codegen-units.md) - trade build parallelism for optimization deliberately
+- [opt-pgo-profile](./opt-pgo-profile.md) - use representative profile-guided optimization
+- [proj-reproducible-runtime](proj-reproducible-runtime.md) - promote the exact tested artifact
+- [perf-profile-first](perf-profile-first.md) - measure before changing code generation

@@ -1,10 +1,10 @@
 # test-criterion-bench
 
-> Use `criterion` for benchmarking
+> Use a statistical harness such as Criterion or Divan for repeatable benchmarks
 
 ## Why It Matters
 
-Criterion provides statistically rigorous benchmarking with warmup, multiple iterations, outlier detection, and comparison between runs. It's far more reliable than simple timing with `Instant::now()`.
+Criterion provides statistically rigorous benchmarking with warmup, multiple iterations, outlier detection, and comparison between runs. Divan offers a smaller alternative with similar goals. Either is more reliable than a one-off `Instant::now()` measurement.
 
 ## Setup
 
@@ -22,7 +22,8 @@ harness = false
 
 ```rust
 // benches/my_benchmark.rs
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn fibonacci(n: u64) -> u64 {
     match n {
@@ -128,6 +129,20 @@ fn bench_parse(c: &mut Criterion) {
 }
 ```
 
+## Wall Time vs CPU Time
+
+Criterion measures elapsed wall time. That is the right user-visible measure
+for single-threaded work, but it can hide the cost of parallel code: four
+workers can finish in one second while consuming almost four CPU-seconds.
+When a benchmark starts threads or runtime workers, report both:
+
+- wall time and throughput, for latency and delivered work;
+- process CPU time summed across threads, for compute cost.
+
+Common Rust harnesses do not collect aggregate process CPU time
+automatically. Measure it with the platform profiler or process accounting
+used in production, and keep the worker count fixed between comparisons.
+
 ## Running Benchmarks
 
 ```bash
@@ -169,3 +184,4 @@ fn send_data<T: Default, const SIZE: usize>(
 
 - [perf-profile-first](perf-profile-first.md) - Profile before optimizing
 - [perf-black-box-bench](perf-black-box-bench.md) - Use black_box in benchmarks
+- [perf-batch-throughput](perf-batch-throughput.md) - compare delivered items with the CPU work used to produce them

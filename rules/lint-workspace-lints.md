@@ -140,10 +140,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      
+      - name: Rustc
+        # Cargo 1.97+: [build] warnings = "deny" in .cargo/config.toml
+        run: cargo check --workspace --all-targets
+
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-      
+
       - name: Rustdoc
         run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
@@ -168,5 +171,7 @@ missing_errors_doc = "allow"  # Override pedantic
 ## See Also
 
 - [lint-deny-correctness](./lint-deny-correctness.md) - Critical lints
+- [lint-warnings-deny-config](./lint-warnings-deny-config.md) - rustc warnings in CI via Cargo config
 - [proj-workspace-deps](./proj-workspace-deps.md) - Workspace configuration
 - [anti-unwrap-abuse](./anti-unwrap-abuse.md) - unwrap lints
+- [lint-expect-override](./lint-expect-override.md) - use `#[expect]` for local overrides

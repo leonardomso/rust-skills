@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Scoped threads (stable since Rust 1.63) guarantee that all threads spawned inside the scope join before `thread::scope` returns. This lifetime guarantee lets spawned threads borrow non-`'static` data from the enclosing stack frame — no `Arc`, no cloning, no heap allocation required. For short parallel tasks that need to read or write local data, scoped threads are simpler and cheaper than wrapping everything in `Arc<Mutex<...>>`.
+Scoped threads (stable since Rust 1.63) ensure every scoped thread is joined
+before `thread::scope` returns. That lifetime relationship lets closures borrow
+non-`'static` stack data without cloning it into `Arc`. Creating OS threads
+still consumes stacks and runtime/OS resources, and a panic is propagated from
+the scope. Use a fixed worker/data-parallel pool for frequent small jobs;
+measure before replacing one ownership design with per-call thread creation.
 
 ## Bad
 

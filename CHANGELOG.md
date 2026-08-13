@@ -4,6 +4,31 @@ All notable changes to this skill are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning for the rule set.
 
+## [Unreleased]
+
+### Added
+- Microsoft Pragmatic Rust Guidelines (v2026.6) coverage for issue #3.
+  The source audit adds original rules and revises existing guidance where
+  topic-level mappings omitted caveats or taught the inverse.
+- Executable source coverage includes a pinned 89-item Microsoft manifest,
+  source-backed inventory and nested-reference checks, focused behavioral
+  examples where runtime behavior exists, and extracted-example compilation.
+- A 431-unit audit of *Zero To Production In Rust* adds durable production
+  contracts while explicitly dispositioning obsolete and product-specific
+  tutorial recipes.
+- Rust 1.95 through 1.97 guidance for atomic update helpers, conditional
+  selection, `if let` guards, integer bit APIs, warning policy, and consistent
+  ordering implementations.
+
+### Changed
+- Pinned the compile-check toolchain and CI to Rust 1.97.1 and updated existing
+  conversion, `NonZero`, workspace, collection, cfg, lint, and unsafe/FFI
+  guidance for the 1.95–1.97 releases.
+- Added focused release-behavior checks; generated examples remain checked
+  against the reviewed baseline.
+
+Now 343 rules across 27 categories.
+
 ## [1.5.1]
 
 ### Changed
@@ -81,6 +106,7 @@ Now 218 rules across 18 categories.
 ### Added
 - Initial release: 179 rules across 14 categories.
 
+[Unreleased]: https://github.com/leonardomso/rust-skills
 [1.5.0]: https://github.com/leonardomso/rust-skills
 [1.4.0]: https://github.com/leonardomso/rust-skills
 [1.3.0]: https://github.com/leonardomso/rust-skills

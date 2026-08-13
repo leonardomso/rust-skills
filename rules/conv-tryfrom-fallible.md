@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Implement `TryFrom`, not `TryInto`; the blanket impl provides `TryInto` automatically (mirrors the `From`/`Into` relationship).
 - Use a concrete error type, not `String` or `Box<dyn Error>`, so callers can match on it.
 - When the conversion is truly infallible, implement `From` instead.
+- Rust 1.95 added `bool::try_from(integer)` for protocol fields where only `0` and `1` are valid. Prefer it over `value != 0`, which silently accepts malformed values such as `2`.
 
 ## See Also
 

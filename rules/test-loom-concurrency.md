@@ -1,10 +1,16 @@
 # test-loom-concurrency
 
-> Use `loom` to exhaustively test lock-free and concurrent code
+> Use bounded `loom` models to explore lock-free and concurrent code
 
 ## Why It Matters
 
-Probabilistic stress tests can run millions of iterations and still miss a race condition that only manifests under a specific thread interleaving. `loom` systematically explores every thread scheduling and memory-reordering permitted by the C11 memory model, turning "we ran it a lot and it seemed fine" into a proof of correctness for the interleavings that exist within the model bounds. Tokio uses loom to verify its internal synchronization primitives.
+Probabilistic stress tests can run millions of iterations and still miss a race
+that needs one specific interleaving. `loom` systematically explores schedules
+and memory-ordering choices for its instrumented primitives within configured
+model bounds. A green model proves the asserted property only for that model,
+state space, and loom-backed implementation—not for every production input,
+platform primitive, or uninstrumented code path. Tokio uses loom as one layer
+when verifying synchronization primitives.
 
 ## Bad
 
@@ -69,10 +75,9 @@ mod tests {
                 flag2.set();
             });
 
-            // All interleavings: either writer runs first or reader does.
-            // loom verifies the Acquire/Release pair holds in both cases.
+            // Within this model, the reader may run before or after the writer.
             let seen = flag.is_set();
-            writer.join().unwrap();
+            writer.join().expect("modeled writer panicked");
 
             // After join, writer must have completed; flag must be set.
             assert!(flag.is_set(), "flag must be set after join");
@@ -83,10 +88,10 @@ mod tests {
 }
 ```
 
-Run loom tests with the feature flag:
+Declare the custom cfg to rustc and run the model explicitly:
 
 ```bash
-RUSTFLAGS="--cfg loom" cargo test --test loom_flag
+RUSTFLAGS="--cfg loom --check-cfg=cfg(loom)" cargo test --test loom_flag
 ```
 
 ## Key Points
@@ -94,7 +99,8 @@ RUSTFLAGS="--cfg loom" cargo test --test loom_flag
 - Keep loom model closures **small**: combinatorial explosion grows with the number of atomic operations and threads. Test one primitive or algorithm at a time.
 - loom replaces `std::sync::atomic`, `std::sync::Mutex`, `std::thread`, and `std::cell` with instrumented equivalents — import from `loom::` under `#[cfg(loom)]`.
 - Use `loom::model(|| { ... })` as the entry point; loom runs the closure repeatedly under different schedules.
-- loom checks the C11 model — it does not detect logical bugs unrelated to concurrency.
+- Model bounds, branch limits, and state-space reductions are part of the test contract; record them when they exclude reachable production behavior.
+- loom does not detect logical bugs unrelated to concurrency or prove that the `cfg(not(loom))` implementation is structurally identical.
 
 ## See Also
 

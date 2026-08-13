@@ -1,10 +1,10 @@
 # opt-target-cpu
 
-> Use `target-cpu=native` for maximum performance on known deployment targets
+> Compile server applications for the highest CPU baseline guaranteed across the deployment fleet
 
 ## Why It Matters
 
-By default, Rust compiles for a generic x86-64 baseline (roughly Sandy Bridge era). Modern CPUs have SIMD extensions (AVX2, AVX-512), improved instructions, and micro-architectural optimizations that go unused. `target-cpu=native` enables all features of your current CPU, potentially unlocking significant speedups.
+By default, Rust compiles for a generic architecture baseline. Modern CPUs have SIMD extensions and micro-architectural improvements that go unused. A server application can select a stronger baseline when every deployment host guarantees it. `target-cpu=native` describes the build machine, not the fleet; using it for a release artifact can emit instructions that crash older hosts with `SIGILL`.
 
 ## Bad
 
@@ -18,18 +18,15 @@ By default, Rust compiles for a generic x86-64 baseline (roughly Sandy Bridge er
 ## Good
 
 ```toml
-# .cargo/config.toml - for known deployment target
-[build]
-rustflags = ["-C", "target-cpu=native"]
-
-# Or specific CPU for cross-compilation
-# rustflags = ["-C", "target-cpu=skylake"]
+# .cargo/config.toml - fleet guarantees x86-64-v3
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
 ```
 
 ## Via Environment
 
 ```bash
-# Build with native optimizations
+# Developer-only experiment on the machine that will run the artifact
 RUSTFLAGS="-C target-cpu=native" cargo build --release
 
 # Check what features are enabled
@@ -75,6 +72,9 @@ fn process_fast(data: &[u8]) -> u64 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
+/// # Safety
+///
+/// The caller must prove that the current CPU supports AVX2 before entry.
 unsafe fn process_avx2(data: &[u8]) -> u64 {
     // an AVX2-optimized path would go here; delegate to the scalar version
     process_generic(data)
@@ -93,11 +93,12 @@ RUSTFLAGS="-C target-cpu=x86-64" cargo build --release
 mv target/release/app target/release/app-generic
 
 RUSTFLAGS="-C target-cpu=x86-64-v3" cargo build --release
-mv target/release/app target/release/app-avx2
+mv target/release/app target/release/app-x86-64-v3
 
-# Select at runtime
-if supports_avx2; then
-    ./app-avx2
+# Select only after checking the complete x86-64-v3 feature baseline, not AVX2
+# alone. Prefer platform scheduling or in-process feature dispatch.
+if supports_x86_64_v3; then
+    ./app-x86-64-v3
 else
     ./app-generic
 fi
@@ -108,9 +109,9 @@ fi
 ```toml
 # .cargo/config.toml
 
-# Native builds for development
+# Production fleet baseline, guaranteed by provisioning/admission
 [target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "target-cpu=native"]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
 
 # AWS deployment (Graviton2)
 [target.aarch64-unknown-linux-gnu]
@@ -120,6 +121,11 @@ rustflags = ["-C", "target-cpu=neoverse-n1"]
 [target.x86_64-unknown-linux-gnu.deployment]
 rustflags = ["-C", "target-cpu=skylake-avx512"]
 ```
+
+This policy belongs to final application builds. A library's local target
+settings do not control how downstream applications compile it; library code
+should retain portable fallbacks and use runtime feature detection where
+needed.
 
 ## What Changes
 

@@ -42,6 +42,7 @@ CATEGORIES = [
     ("obs-",    "Observability",             "MEDIUM"),
     ("perf-",   "Performance Patterns",      "MEDIUM"),
     ("proj-",   "Project Structure",         "LOW"),
+    ("ffi-",    "FFI & Interop",             "LOW"),
     ("lint-",   "Clippy & Linting",          "LOW"),
     ("anti-",   "Anti-patterns",             "REFERENCE"),
 ]

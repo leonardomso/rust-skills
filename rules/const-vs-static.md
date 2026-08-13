@@ -4,7 +4,14 @@
 
 ## Why It Matters
 
-`const` items are substituted at each use site: the compiler copies the value inline, there is no fixed memory address, and the value counts against no storage. This is ideal for small configuration values, bitmasks, and magic numbers. `static` items live at a single address for the entire program lifetime and expose a `'static` reference — use them for large lookup tables you do not want duplicated, or when a `&'static T` is required. Avoid `static mut`: referencing it is a hard error in the 2024 edition. For mutable global state, use atomics (`AtomicUsize`, etc.) or `std::sync::OnceLock`/`std::sync::LazyLock`.
+A `const` names a value and has no unique identity: each use behaves as if the
+value appeared there. The compiler may still materialize storage when a value
+is borrowed, so "inline" is not a size guarantee. A `static` names one
+program-lifetime location and can provide a stable address. Use the semantic
+difference first, then inspect binary layout for large tables. Avoid
+`static mut`; shared or mutable references to it are denied in edition 2024,
+and unsynchronized access can be undefined behavior. Prefer injected state,
+atomics, `OnceLock`, or `LazyLock` according to the ownership contract.
 
 ## Bad
 
@@ -25,12 +32,12 @@ static TIMEOUT_MS: u64 = 5000;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{LazyLock, OnceLock};
 
-// small value: `const` — inlined at each use, no address needed
+// small value: `const` — no unique identity or stable address
 const MAX_RETRIES: u32 = 3;
 const TIMEOUT_MS: u64 = 5_000;
 const FLAG_MASK: u8 = 0b0000_1111;
 
-// large data: `static` — one copy in the binary, shareable as `&'static`
+// large data: `static` — one addressed instance, shareable as `&'static`
 static LOOKUP: [u8; 256] = [0u8; 256];
 
 fn process(byte: u8) -> u8 {
@@ -76,3 +83,5 @@ fn set_greeting(name: &str) {
 
 - [name-consts-screaming](name-consts-screaming.md) - naming `SCREAMING_SNAKE_CASE` for `const` and `static`
 - [own-mutex-interior](own-mutex-interior.md) - use `Mutex<T>` for interior mutability in multi-threaded code
+- [const-named-magic](const-named-magic.md) - name production magic numbers and document why
+- [proj-avoid-statics](proj-avoid-statics.md) - no mutable or identity statics; inject the state

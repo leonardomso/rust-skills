@@ -82,9 +82,12 @@ fn require_named_field(field: &Field) -> proc_macro2::TokenStream {
 }
 ```
 
-## Unit Testing with `proc-macro2`
+## Test Transformation Logic Outside the Proc-Macro Shim
 
-Because `proc-macro2::TokenStream` is usable outside the compiler, you can test generation logic in regular `#[test]` functions:
+Because `proc_macro2::TokenStream` is usable outside the compiler, put
+non-trivial transformation logic in a regular implementation crate and test it
+with ordinary unit or snapshot tests. Keep the `proc-macro = true` crate as a
+conversion shim. The example below belongs in that implementation crate:
 
 ```rust
 #[cfg(test)]
@@ -103,6 +106,10 @@ mod tests {
     }
 }
 ```
+
+Add `trybuild` UI tests through the public facade for successful expansions,
+rejected input, and stable diagnostic spans. Snapshot token output can help
+review large expansions, but behavior and UI tests remain the public contract.
 
 ## See Also
 

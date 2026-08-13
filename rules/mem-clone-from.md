@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-`x = y.clone()` drops x's allocation and creates a new one from y. `x.clone_from(&y)` reuses x's existing allocation if possible, avoiding the allocation overhead. For repeatedly cloning into the same variable (loops, buffers), this can significantly reduce allocator pressure.
+`Clone::clone_from` lets a type replace an existing value with a clone and may
+reuse its storage. The trait's default implementation is equivalent to clone
+plus assignment, so reuse is type/version-specific rather than guaranteed.
+For a repeatedly replaced `String`, `Vec`, or application buffer, inspect the
+concrete implementation and measure allocation behavior before preferring it.
 
 ## Bad
 
@@ -32,23 +36,25 @@ for source in sources {
     process(&buffer);
 }
 
-// If source.len() <= 1024, no allocation happens
-// Just copies bytes into existing buffer
+// Current String implementations can reuse sufficient capacity. Treat this as
+// an implementation optimization, not the generic Clone contract.
 ```
 
-## How clone_from Works
+## Illustrative Custom Implementation
 
 ```rust
-impl Clone for String {
+struct BufferText(String);
+
+impl Clone for BufferText {
     fn clone(&self) -> Self {
-        // Always allocates new memory
-        String::from(self.as_str())
+        // Produces an independent String and ordinarily allocates for content.
+        Self(String::from(self.0.as_str()))
     }
     
     fn clone_from(&mut self, source: &Self) {
         // Reuse existing capacity if possible
-        self.clear();
-        self.push_str(source);  // Only reallocates if capacity insufficient
+        self.0.clear();
+        self.0.push_str(&source.0);
     }
 }
 ```
@@ -64,7 +70,7 @@ s.clone_from(&other_string);
 let mut v: Vec<u8> = Vec::with_capacity(1000);
 v.clone_from(&other_vec);
 
-// HashMap - reuses buckets
+// HashMap - measure the concrete implementation/version
 let mut map = HashMap::with_capacity(100);
 map.clone_from(&other_map);
 
@@ -76,7 +82,8 @@ path.clone_from(&other_path);
 ## Benchmarking the Difference
 
 ```rust
-use criterion::{black_box, criterion_group, Criterion};
+use criterion::{criterion_group, Criterion};
+use std::hint::black_box;
 
 fn bench_clone_patterns(c: &mut Criterion) {
     let source = "x".repeat(1000);
@@ -95,7 +102,7 @@ fn bench_clone_patterns(c: &mut Criterion) {
         });
     });
 }
-// clone_from is typically 2-3x faster for this pattern
+// Record allocation counts and benchmark uncertainty; do not assume a ratio.
 ```
 
 ## Custom Implementations

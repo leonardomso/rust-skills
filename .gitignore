@@ -1,0 +1,6 @@
+.DS_Store
+checks/target/
+checks/check.err
+checks/check.json
+checks/manifest.json
+checks/examples/

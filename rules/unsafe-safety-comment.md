@@ -35,20 +35,22 @@ fn process(slice: &[u8]) -> u8 {
 ///
 /// # Safety
 ///
-/// - `ptr` must be valid for reads for at least `offset + 1` bytes.
-/// - `ptr` must not be null and must be properly aligned for `u8`.
-/// - The memory must not be mutated for the duration of this call.
+/// `ptr` must be non-null and derived from one allocation containing at least
+/// `offset + 1` initialized bytes. `offset` must be at most `isize::MAX`, the
+/// computed address must remain in that allocation, and no mutation that
+/// conflicts with this read may occur during the call.
 pub unsafe fn read_at(ptr: *const u8, offset: usize) -> u8 {
-    // SAFETY: caller guarantees ptr is valid for at least offset + 1 bytes,
-    // so ptr.add(offset) is in bounds and dereferenceable.
+    // SAFETY: the caller contract establishes provenance, in-bounds offset,
+    // initialization, and aliasing for this one-byte read.
     unsafe { *ptr.add(offset) }
 }
 
 fn process(slice: &[u8]) -> Option<u8> {
     if slice.len() > 10 {
-        // SAFETY: we just checked that slice has at least 11 elements,
-        // so index 10 is within bounds.
-        Some(unsafe { *slice.as_ptr().add(10) })
+        // SAFETY: slice.as_ptr() identifies slice.len() initialized bytes in
+        // one allocation; the branch proves offset 10 is in bounds, and the
+        // shared slice prevents conflicting safe mutation for the call.
+        Some(unsafe { read_at(slice.as_ptr(), 10) })
     } else {
         None
     }
@@ -70,3 +72,4 @@ fn process(slice: &[u8]) -> Option<u8> {
 - [unsafe-minimize-scope](unsafe-minimize-scope.md) - keep unsafe blocks as small as possible
 - [lint-unsafe-doc](lint-unsafe-doc.md) - enable `clippy::undocumented_unsafe_blocks`
 - [doc-safety-section](doc-safety-section.md) - include `# Safety` sections in public unsafe fns
+- [unsafe-means-ub](unsafe-means-ub.md) - unsafe means UB risk, not "this is dangerous"

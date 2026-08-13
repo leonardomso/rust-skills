@@ -10,8 +10,8 @@ adding a rule, improving an existing one, or fixing an example.
    an existing category prefix (`own-`, `err-`, `mem-`, `unsafe-`, `api-`,
    `async-`, `conc-`, `opt-`, `num-`, `type-`, `trait-`, `conv-`, `const-`,
    `serde-`, `pat-`, `macro-`, `closure-`, `coll-`, `name-`, `test-`, `doc-`,
-   `obs-`, `perf-`, `proj-`, `lint-`, `anti-`). To propose a brand-new category,
-   add it to `CATEGORIES` in `checks/gen_index.py`.
+   `obs-`, `perf-`, `proj-`, `ffi-`, `lint-`, `anti-`). To propose a
+   brand-new category, add it to `CATEGORIES` in `checks/gen_index.py`.
 
 2. **Follow the format** of existing rules exactly:
 
@@ -64,15 +64,9 @@ adding a rule, improving an existing one, or fixing an example.
 Run the same checks CI runs:
 
 ```bash
-# structure, links, index parity, and that SKILL.md/README are up to date
-python3 checks/validate.py
-python3 checks/gen_index.py --check
-
-# compile-check the examples (Rust >= 1.95)
-cd checks
-python3 gen.py
-cargo check --examples --keep-going --message-format=json > check.json
-python3 analyze.py check.json --check-baseline baseline.txt
+# Pins and validates source evidence, checks structure/index parity, runs both
+# focused behavior suites, and compile-checks extracted examples on Rust 1.97.1.
+bash checks/check.sh
 ```
 
 If the compile gate reports a real bug, fix the example. If you intentionally

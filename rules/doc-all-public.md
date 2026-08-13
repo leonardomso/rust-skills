@@ -85,7 +85,7 @@ pub enum Status {
 | Struct fields | What the field represents |
 | Enums | When to use each variant |
 | Enum variants | What state it represents |
-| Functions | What it does, parameters, return value |
+| Functions | What it does, parameter relationships in prose, return value, canonical failure sections |
 | Traits | Contract and expected behavior |
 | Trait methods | Default implementation behavior |
 | Type aliases | Why the alias exists |
@@ -110,4 +110,7 @@ missing_docs = "warn"
 
 - [doc-module-inner](./doc-module-inner.md) - Module-level documentation
 - [doc-examples-section](./doc-examples-section.md) - Adding examples
+- [doc-canonical-sections](./doc-canonical-sections.md) - Use familiar headings; do not restate the signature as a parameter table
 - [lint-missing-docs](./lint-missing-docs.md) - Enforcing documentation
+- [doc-first-sentence](./doc-first-sentence.md) - First rustdoc sentence is one short standalone line
+- [doc-inline-reexport](./doc-inline-reexport.md) - Inline first-party pub use in rustdoc

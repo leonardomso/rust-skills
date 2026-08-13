@@ -6,6 +6,11 @@
 
 Creating new `Vec`, `String`, or `HashMap` instances in hot loops generates significant allocator pressure. Clearing a collection and reusing it keeps the existing capacity, avoiding repeated allocation/deallocation cycles. This is especially impactful for frequently-executed code paths.
 
+Library APIs decide whether callers can reuse storage at all. Make the
+caller-owned-output form the core operation; an allocating convenience method
+can delegate to it. This keeps allocation policy with the caller instead of
+hiding one allocation per item behind an innocent-looking getter.
+
 ## Bad
 
 ```rust
@@ -39,12 +44,50 @@ fn format_lines(items: &[Item]) -> String {
 }
 ```
 
+## Design Reusable APIs
+
+```rust
+#[derive(Default)]
+pub struct Frame {
+    bytes: Vec<u8>,
+}
+
+pub struct Store;
+
+impl Store {
+    pub fn load_into(&self, key: u64, frame: &mut Frame) {
+        frame.bytes.clear();
+        frame.bytes.extend_from_slice(&key.to_le_bytes());
+    }
+
+    // Convenience for cold call sites; the reusable form remains available.
+    pub fn load(&self, key: u64) -> Frame {
+        let mut frame = Frame::default();
+        self.load_into(key, &mut frame);
+        frame
+    }
+}
+
+fn main() {
+    let store = Store;
+    let mut frame = Frame::default();
+    for key in 0..100 {
+        store.load_into(key, &mut frame);
+    }
+}
+```
+
+User-owned request or query objects can retain reusable collections directly.
+For heavyweight pipelines with scratch data across many stack frames, pass a
+request-scoped arena or store it in that user-owned object. Keep arenas scoped:
+values that outlive the request must not borrow its storage.
+
 ## Good
 
 ```rust
 fn process_batches(batches: &[Batch]) -> Vec<Result> {
     let mut results = Vec::with_capacity(batches.len());
-    let mut temp = Vec::new();  // Allocate once outside loop
+    let mut temp = Vec::new();  // Reuse any capacity grown by prior batches.
     
     for batch in batches {
         temp.clear();  // Reuse allocation, just reset length
@@ -68,7 +111,8 @@ fn format_lines(items: &[Item]) -> String {
     
     for item in items {
         line.clear();
-        write!(&mut line, "{}: {}", item.name, item.value).unwrap();
+        write!(&mut line, "{}: {}", item.name, item.value)
+            .expect("Display implementations must not invent formatting errors");
         output.push_str(&line);
         output.push('\n');
     }
@@ -172,3 +216,4 @@ std::thread::scope(|s| {
 - [mem-with-capacity](./mem-with-capacity.md) - Pre-allocating capacity
 - [mem-clone-from](./mem-clone-from.md) - Reusing allocations when cloning
 - [mem-write-over-format](./mem-write-over-format.md) - Avoiding format! allocations
+- [mem-arena-allocator](./mem-arena-allocator.md) - request-scoped reuse across a deep call graph

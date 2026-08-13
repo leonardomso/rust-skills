@@ -4,7 +4,11 @@
 
 ## Why It Matters
 
-Standard traits make your types interoperable with the Rust ecosystem. `Debug` enables `println!("{:?}")` and error messages. `Clone` allows explicit duplication. `PartialEq` enables `==`. Without these, users can't use your types in common patterns like testing, collections, or debugging.
+Standard traits make types interoperable with generic APIs, tests, collections,
+and diagnostics. Implement each trait only when its semantic promise is valid.
+In particular, `Debug` must redact secrets, `Clone` commits to meaningful
+duplication, `Copy` makes duplication implicit, and `Eq`/`Hash`/`Ord` must stay
+mutually consistent.
 
 ## Bad
 
@@ -53,9 +57,9 @@ let mut map: HashMap<UserId, User> = HashMap::new();
 
 | Trait | Derive When | Requirements |
 |-------|-------------|--------------|
-| `Debug` | Always for public types | All fields implement Debug |
+| `Debug` | A safe diagnostic representation is useful | Secrets are redacted; fields need not all be exposed |
 | `Clone` | Type can be duplicated | All fields implement Clone |
-| `Copy` | Small, simple types | All fields implement Copy, no Drop |
+| `Copy` | Implicit duplication matches semantics | All fields implement Copy, no Drop |
 | `PartialEq` | Comparison makes sense | All fields implement PartialEq |
 | `Eq` | Total equality | PartialEq, no floating-point fields |
 | `Hash` | Used as HashMap/HashSet key | Eq, consistent with PartialEq |
@@ -118,7 +122,19 @@ impl Debug for Password {
         write!(f, "Password([REDACTED])")
     }
 }
+
+#[test]
+fn password_debug_never_exposes_the_secret() {
+    let rendered = format!("{:?}", Password("correct horse".to_owned()));
+    assert_eq!(rendered, "Password([REDACTED])");
+    assert!(!rendered.contains("correct horse"));
+}
 ```
+
+Any public type that can hold credentials, tokens, keys, or personal data needs
+a regression test beside its custom `Debug`. Review alone proves today's
+implementation; the test prevents a future derive or field addition from
+silently exposing the value.
 
 ## Serde Traits
 

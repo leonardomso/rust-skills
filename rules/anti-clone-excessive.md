@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-`.clone()` allocates memory and copies data. When you only need to read data, borrowing (`&T`) is free. Excessive cloning wastes memory, CPU cycles, and often indicates misunderstanding of ownership.
+`.clone()` duplicates according to the type's `Clone` implementation. A handle
+clone may only increment a reference count, while cloning `String`, `Vec`, or
+an owned object graph can allocate and copy substantial data. When the callee
+only reads a value, borrowing avoids that work and makes ownership explicit.
+Treat repeated clones on measured hot paths or large values as review signals,
+not every `clone()` as an allocation.
 
 ## Bad
 

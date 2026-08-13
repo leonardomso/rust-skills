@@ -1,0 +1,1010 @@
+{
+  "schema_version": 1,
+  "source": {
+    "name": "Microsoft Pragmatic Rust Guidelines",
+    "version": "2026.6",
+    "repository": "https://github.com/microsoft/rust-guidelines",
+    "commit": "bbf7b03f3a51548f187888fb8c516e8118ebb1c2",
+    "published_count": 89
+  },
+  "coverage": [
+    {
+      "id": "M-DESIGN-FOR-AI",
+      "title": "Design with AI use in mind (M-DESIGN-FOR-AI)",
+      "source_path": "src/guidelines/ai/M-DESIGN-FOR-AI.md",
+      "source_sha256": "27fdd619878b614651e3968d8719b0e445f902693301920fbad5f4b90a51d13d",
+      "disposition": "covered",
+      "rules": [
+        "rules/doc-all-public.md",
+        "rules/doc-examples-section.md",
+        "rules/doc-module-inner.md",
+        "rules/test-observable-coverage.md",
+        "rules/test-mock-traits.md",
+        "rules/type-newtype-validated.md"
+      ]
+    },
+    {
+      "id": "M-NO-META-DESIGN-DOCUMENTATION",
+      "title": "Avoid meta design documentation (M-NO-META-DESIGN-DOCUMENTATION)",
+      "source_path": "src/guidelines/ai/M-NO-META-DESIGN-DOCUMENTATION.md",
+      "source_sha256": "1f504bfb6ed8dda79c96789ad11976eff1c158d775f740b3a645de270c71b210",
+      "disposition": "covered",
+      "rules": [
+        "rules/doc-no-meta-design.md"
+      ]
+    },
+    {
+      "id": "M-RUST-SHAPED",
+      "title": "Rust code solves Rust problems (M-RUST-SHAPED)",
+      "source_path": "src/guidelines/ai/M-RUST-SHAPED.md",
+      "source_sha256": "7f97b1a6a83bd842e963684afa3c30af38e5db4263f35b3f67136220b3eb1d9b",
+      "disposition": "covered",
+      "rules": [
+        "rules/anti-transliterated-port.md"
+      ]
+    },
+    {
+      "id": "M-SINGLE-ITEM-PATH",
+      "title": "Items are only visible through one path (M-SINGLE-ITEM-PATH)",
+      "source_path": "src/guidelines/ai/M-SINGLE-ITEM-PATH.md",
+      "source_sha256": "a4ad6c339b3f05ced26e51a478811edf6946ea953af9ba814d52c29af2d75f6d",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-pub-use-reexport.md",
+        "rules/macro-private-helpers.md"
+      ]
+    },
+    {
+      "id": "M-TAUTOLOGICAL-TESTS",
+      "title": "Tests do not assert ground truth (M-TAUTOLOGICAL-TESTS)",
+      "source_path": "src/guidelines/ai/M-TAUTOLOGICAL-TESTS.md",
+      "source_sha256": "ee15b8f9c3ab1094fd285317d3104685ceea13423c9e18b8b30195f1ed316dde",
+      "disposition": "covered",
+      "rules": [
+        "rules/test-no-tautology.md"
+      ]
+    },
+    {
+      "id": "M-APP-ERROR",
+      "title": "Applications may use Anyhow or derivatives (M-APP-ERROR)",
+      "source_path": "src/guidelines/apps/M-APP-ERROR.md",
+      "source_sha256": "a42996e7bbde22a8e1d8f295963327bb4fac710d575fb438d10ab4963ac84032",
+      "disposition": "covered",
+      "rules": [
+        "rules/err-anyhow-app.md",
+        "rules/err-canonical-struct.md"
+      ]
+    },
+    {
+      "id": "M-MIMALLOC-APPS",
+      "title": "Use mimalloc for apps (M-MIMALLOC-APPS)",
+      "source_path": "src/guidelines/apps/M-MIMALLOC-APPS.md",
+      "source_sha256": "e0a1bf27fb5df6d29113f01b734f4c005e9021eb25a8f04c600b7670ad29457f",
+      "disposition": "documented-deviation",
+      "rules": [
+        "rules/perf-global-allocator.md"
+      ]
+    },
+    {
+      "id": "M-TARGET-CPU",
+      "title": "Applications target highest viable target-cpu (M-TARGET-CPU)",
+      "source_path": "src/guidelines/apps/M-TARGET-CPU.md",
+      "source_sha256": "1047c011d9cd0e0dcb4c9055c68904e3d74e1532fcc0df9e897bc06e596edc14",
+      "disposition": "covered",
+      "rules": [
+        "rules/opt-target-cpu.md"
+      ]
+    },
+    {
+      "id": "M-PANIC-CONTINUATION",
+      "title": "Panic continuation is last resort (M-PANIC-CONTINUATION)",
+      "source_path": "src/guidelines/correctness/M-PANIC-CONTINUATION.md",
+      "source_sha256": "fc5339ac0873d715475b7d56abd97ec42e245d73f75abaf6acde41acaf2ef051",
+      "disposition": "covered",
+      "rules": [
+        "rules/err-catch-unwind-boundary.md"
+      ]
+    },
+    {
+      "id": "M-PANIC-IS-STOP",
+      "title": "Panic means 'stop the program' (M-PANIC-IS-STOP)",
+      "source_path": "src/guidelines/correctness/M-PANIC-IS-STOP.md",
+      "source_sha256": "05bbb4bd660126383c161c6aa7ed963d127f159f311885fb3e36d89c41f7fa49",
+      "disposition": "covered",
+      "rules": [
+        "rules/err-result-over-panic.md",
+        "rules/err-catch-unwind-boundary.md"
+      ]
+    },
+    {
+      "id": "M-PANIC-MESSAGE",
+      "title": "Custom panics have a helpful message (M-PANIC-MESSAGE)",
+      "source_path": "src/guidelines/correctness/M-PANIC-MESSAGE.md",
+      "source_sha256": "e02665744d93cea5836f4869b2cc4179645dac9b5780f99f8e9866594f594cbe",
+      "disposition": "covered",
+      "rules": [
+        "rules/err-panic-message.md"
+      ]
+    },
+    {
+      "id": "M-PANIC-ON-BUG",
+      "title": "Detected programming bugs are panics, not errors (M-PANIC-ON-BUG)",
+      "source_path": "src/guidelines/correctness/M-PANIC-ON-BUG.md",
+      "source_sha256": "401532810c1bbb7fb394d4b2b39c0cfe621661446c6c206ab8a5f25027a8e365",
+      "disposition": "covered",
+      "rules": [
+        "rules/err-result-over-panic.md",
+        "rules/anti-panic-expected.md"
+      ]
+    },
+    {
+      "id": "M-UNSAFE-IMPLIES-UB",
+      "title": "Unsafe implies undefined behavior (M-UNSAFE-IMPLIES-UB)",
+      "source_path": "src/guidelines/correctness/M-UNSAFE-IMPLIES-UB.md",
+      "source_sha256": "70cbae42b0caa083695a08424ca50af7ee18ce59b42f4c2b94cc93642bd39298",
+      "disposition": "covered",
+      "rules": [
+        "rules/unsafe-means-ub.md"
+      ]
+    },
+    {
+      "id": "M-UNSAFE",
+      "title": "Unsafe needs reason, should be avoided (M-UNSAFE)",
+      "source_path": "src/guidelines/correctness/M-UNSAFE.md",
+      "source_sha256": "a468a08f2dfe4428ac789c5674be1b1797210a2846f1fdb82f3c4234a1758e08",
+      "disposition": "covered",
+      "rules": [
+        "rules/unsafe-justify-use.md",
+        "rules/unsafe-miri-ci.md",
+        "rules/unsafe-safety-comment.md"
+      ]
+    },
+    {
+      "id": "M-UNSOUND",
+      "title": "All code must be sound (M-UNSOUND)",
+      "source_path": "src/guidelines/correctness/M-UNSOUND.md",
+      "source_sha256": "5b50a3b0d004c58434fef93ba98a47ba50e7088a0ae834b81a9be00d3314de69",
+      "disposition": "covered",
+      "rules": [
+        "rules/unsafe-sound-abstractions.md"
+      ]
+    },
+    {
+      "id": "M-CANONICAL-DOCS",
+      "title": "Documentation has canonical sections (M-CANONICAL-DOCS)",
+      "source_path": "src/guidelines/docs/M-CANONICAL-DOCS.md",
+      "source_sha256": "bcbedff93f65d4b716ba85ab108c824620174598a63fd50a5696edd8fdc1e9f2",
+      "disposition": "covered",
+      "rules": [
+        "rules/doc-canonical-sections.md"
+      ]
+    },
+    {
+      "id": "M-DOC-INLINE",
+      "title": "Mark `pub use` items with `#[doc(inline)]` (M-DOC-INLINE)",
+      "source_path": "src/guidelines/docs/M-DOC-INLINE.md",
+      "source_sha256": "a456d121faa3f76ef6faba2f319699d7de55a0e3867483fd9a96e7681958b23c",
+      "disposition": "covered",
+      "rules": [
+        "rules/doc-inline-reexport.md"
+      ]
+    },
+    {
+      "id": "M-FIRST-DOC-SENTENCE",
+      "title": "First sentence is one line; approx. 15 words (M-FIRST-DOC-SENTENCE)",
+      "source_path": "src/guidelines/docs/M-FIRST-DOC-SENTENCE.md",
+      "source_sha256": "ba87c83d05af795b954aedb57598880abda8730be6b8a103e4b2c2cfcc8f8ec7",
+      "disposition": "covered",
+      "rules": [
+        "rules/doc-first-sentence.md"
+      ]
+    },
+    {
+      "id": "M-MODULE-DOCS",
+      "title": "Has comprehensive module documentation (M-MODULE-DOCS)",
+      "source_path": "src/guidelines/docs/M-MODULE-DOCS.md",
+      "source_sha256": "1d100b1b849a3084b7d61c236cb764ae2a8810ef26b91f4995aed4df6f37c394",
+      "disposition": "covered",
+      "rules": [
+        "rules/doc-module-inner.md"
+      ]
+    },
+    {
+      "id": "M-FFI-NAMING",
+      "title": "FFI crates follow established naming conventions (M-FFI-NAMING)",
+      "source_path": "src/guidelines/ffi/M-FFI-NAMING.md",
+      "source_sha256": "0bdfee56ff008f0ac1098d7a9916929b5a8572b5f1eee3e34a5ee24534c9614a",
+      "disposition": "covered",
+      "rules": [
+        "rules/ffi-sys-vs-ffi-name.md"
+      ]
+    },
+    {
+      "id": "M-FFI-TRANSLATES",
+      "title": "Business logic belongs in core crates, FFI only translates (M-FFI-TRANSLATES)",
+      "source_path": "src/guidelines/ffi/M-FFI-TRANSLATES.md",
+      "source_sha256": "0ce63fc687739527220bef6e114319fca1d9cbc0db1806c5148313dc244dbf50",
+      "disposition": "covered",
+      "rules": [
+        "rules/ffi-logic-in-core.md"
+      ]
+    },
+    {
+      "id": "M-ISOLATE-DLL-STATE",
+      "title": "Isolate DLL state between FFI libraries (M-ISOLATE-DLL-STATE)",
+      "source_path": "src/guidelines/ffi/M-ISOLATE-DLL-STATE.md",
+      "source_sha256": "e964119927c0a14bbe18c7837cd2b47606e5b8c3b30b55ab280e723dd150373d",
+      "disposition": "covered",
+      "rules": [
+        "rules/ffi-dll-portable-state.md"
+      ]
+    },
+    {
+      "id": "M-FEATURES-ADDITIVE",
+      "title": "Features are additive (M-FEATURES-ADDITIVE)",
+      "source_path": "src/guidelines/libs/building/M-FEATURES-ADDITIVE.md",
+      "source_sha256": "e09fba5def8df3a96fb999ad27ca96746a34dd5ef65cf0632b54fbfbba98119c",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-feature-additive.md"
+      ]
+    },
+    {
+      "id": "M-OOBE",
+      "title": "Libraries work out of the box (M-OOBE)",
+      "source_path": "src/guidelines/libs/building/M-OOBE.md",
+      "source_sha256": "4b4cfaab09a78c859389da24ed4e941b0f8b2a91cf29b3d28f608d0af89a01a8",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-works-out-of-box.md"
+      ]
+    },
+    {
+      "id": "M-SYS-CRATES",
+      "title": "Native `-sys` crates compile without dependencies (M-SYS-CRATES)",
+      "source_path": "src/guidelines/libs/building/M-SYS-CRATES.md",
+      "source_sha256": "4928f08a6567558f0904d03c2021a768010010d06be8d9bf59e9095debe3b903",
+      "disposition": "covered",
+      "rules": [
+        "rules/ffi-sys-crate-builds.md"
+      ]
+    },
+    {
+      "id": "M-DONT-LEAK-TYPES",
+      "title": "Don't leak external types (M-DONT-LEAK-TYPES)",
+      "source_path": "src/guidelines/libs/interop/M-DONT-LEAK-TYPES.md",
+      "source_sha256": "cc0089b788c102ad4f00e039229ba1337e32e67c415b15876d924afd50f6dc85",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-std-types-boundary.md"
+      ]
+    },
+    {
+      "id": "M-ESCAPE-HATCHES",
+      "title": "Native escape hatches (M-ESCAPE-HATCHES)",
+      "source_path": "src/guidelines/libs/interop/M-ESCAPE-HATCHES.md",
+      "source_sha256": "b419f1ac467619bc3a7f58d8ab8bba92a19eb7b9a5786e1e725de6b8cd36a640",
+      "disposition": "covered",
+      "rules": [
+        "rules/ffi-native-escape-hatch.md"
+      ]
+    },
+    {
+      "id": "M-FOREIGN-REEXPORTS",
+      "title": "Items come from their original crate (M-FOREIGN-REEXPORTS)",
+      "source_path": "src/guidelines/libs/interop/M-FOREIGN-REEXPORTS.md",
+      "source_sha256": "ebf07e0fcfe8c6c629fa54a44568938c683c348bc930c3d8e112870223e1d45c",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-pub-use-reexport.md",
+        "rules/macro-private-helpers.md"
+      ]
+    },
+    {
+      "id": "M-IMPL-ASREF",
+      "title": "Accept `impl AsRef<>` where feasible (M-IMPL-ASREF)",
+      "source_path": "src/guidelines/libs/interop/M-IMPL-ASREF.md",
+      "source_sha256": "1e6a2f7b441769dfd3af0c7561b200ab51217fb87ee9900a36142c3cbc7fc36e",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-impl-asref.md"
+      ]
+    },
+    {
+      "id": "M-IMPL-IO",
+      "title": "Accept `impl 'IO'` where feasible ('sans IO') (M-IMPL-IO)",
+      "source_path": "src/guidelines/libs/interop/M-IMPL-IO.md",
+      "source_sha256": "0545dc0412a196dec7660396190793798cc42e9038fc3df4ff663b023bfec205",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-impl-io.md"
+      ]
+    },
+    {
+      "id": "M-IMPL-RANGEBOUNDS",
+      "title": "Accept `impl RangeBounds<>` where feasible (M-IMPL-RANGEBOUNDS)",
+      "source_path": "src/guidelines/libs/interop/M-IMPL-RANGEBOUNDS.md",
+      "source_sha256": "4908e9472ceef116786df541a6fbfae08716ec9e82ca4cc4f9327e4042dfc018",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-impl-rangebounds.md"
+      ]
+    },
+    {
+      "id": "M-TYPES-SEND",
+      "title": "Types are Send (M-TYPES-SEND)",
+      "source_path": "src/guidelines/libs/interop/M-TYPES-SEND.md",
+      "source_sha256": "93e04abb7109b40c8a8bd6ea9dd8b39cd1ba736834cacb52f4ec2419a140a1ba",
+      "disposition": "covered",
+      "rules": [
+        "rules/async-assert-send.md"
+      ]
+    },
+    {
+      "id": "M-AVOID-STATICS",
+      "title": "Avoid statics (M-AVOID-STATICS)",
+      "source_path": "src/guidelines/libs/resilience/M-AVOID-STATICS.md",
+      "source_sha256": "3cf9e5f4cdab992aa2d44a5716cf62e639aeb07bba7469128f7cbbcbe3d2ff22",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-avoid-statics.md",
+        "rules/conc-thread-local.md"
+      ]
+    },
+    {
+      "id": "M-BUILD-RESULT",
+      "title": "Builders validate in final `.build()` (M-BUILD-RESULT)",
+      "source_path": "src/guidelines/libs/resilience/M-BUILD-RESULT.md",
+      "source_sha256": "3f35459379f3fb89e1e776e75c992e4ac066a2bc6e854f090d06db0ec26f85c6",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-builder-pattern.md",
+        "rules/type-newtype-validated.md"
+      ]
+    },
+    {
+      "id": "M-INTEGRATION-TESTS",
+      "title": "Integration tests live under `tests/` (M-INTEGRATION-TESTS)",
+      "source_path": "src/guidelines/libs/resilience/M-INTEGRATION-TESTS.md",
+      "source_sha256": "fcfa06ea4d313b29b556d251831e2bb6b7a37b909749fb1b823ba8ff15c901a1",
+      "disposition": "covered",
+      "rules": [
+        "rules/test-integration-dir.md"
+      ]
+    },
+    {
+      "id": "M-LOG-NOT-PRINT",
+      "title": "Production code uses telemetry, not println (M-LOG-NOT-PRINT)",
+      "source_path": "src/guidelines/libs/resilience/M-LOG-NOT-PRINT.md",
+      "source_sha256": "4326d4006e6255a6f105f5fa35fb308b5263eb2d53c9bf0b3f00b692344baa21",
+      "disposition": "covered",
+      "rules": [
+        "rules/obs-tracing-over-log.md"
+      ]
+    },
+    {
+      "id": "M-MOCKABLE-SYSCALLS",
+      "title": "I/O and system calls are mockable (M-MOCKABLE-SYSCALLS)",
+      "source_path": "src/guidelines/libs/resilience/M-MOCKABLE-SYSCALLS.md",
+      "source_sha256": "38fbb00a8116cc0f7d24b15b0e3e4c38a42390b2c66cddafd9025e2c3c3b46c5",
+      "disposition": "covered",
+      "rules": [
+        "rules/test-mock-traits.md"
+      ]
+    },
+    {
+      "id": "M-NO-GLOB-REEXPORTS",
+      "title": "Don't glob re-export items (M-NO-GLOB-REEXPORTS)",
+      "source_path": "src/guidelines/libs/resilience/M-NO-GLOB-REEXPORTS.md",
+      "source_sha256": "79341dd7ac382c31e7a2c74e92748b3b53687823181111a678e50e84b950b756",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-no-glob-reexport.md"
+      ]
+    },
+    {
+      "id": "M-STRONG-TYPES-GUARD",
+      "title": "Newtypes guard their invariants (M-STRONG-TYPES-GUARD)",
+      "source_path": "src/guidelines/libs/resilience/M-STRONG-TYPES-GUARD.md",
+      "source_sha256": "a937bd641c63cebbd04e0d960d466382f524898d170c95cec47af983f752369e",
+      "disposition": "covered",
+      "rules": [
+        "rules/type-newtype-validated.md"
+      ]
+    },
+    {
+      "id": "M-STRONG-TYPES",
+      "title": "Use the proper type family (M-STRONG-TYPES)",
+      "source_path": "src/guidelines/libs/resilience/M-STRONG-TYPES.md",
+      "source_sha256": "29754b48366cd97548c55518699310f061b6014a262c89c438f82459b9557f3d",
+      "disposition": "covered",
+      "rules": [
+        "rules/type-no-stringly.md"
+      ]
+    },
+    {
+      "id": "M-TEST-UTIL",
+      "title": "Test utilities are feature gated (M-TEST-UTIL)",
+      "source_path": "src/guidelines/libs/resilience/M-TEST-UTIL.md",
+      "source_sha256": "8eed85f9b21811e94ecc300f757bf254023c43693eb0b966e4db1f920ad11a38",
+      "disposition": "covered",
+      "rules": [
+        "rules/test-util-feature.md"
+      ]
+    },
+    {
+      "id": "M-ASYNC-FN",
+      "title": "Functions are `async` over returning a Future (M-ASYNC-FN)",
+      "source_path": "src/guidelines/libs/ux/M-ASYNC-FN.md",
+      "source_sha256": "d2005799932cc656f19b1f08f29612799e05c31bcc26019a640fbff3c772282b",
+      "disposition": "covered",
+      "rules": [
+        "rules/async-fn-over-future.md",
+        "rules/async-future-size.md"
+      ]
+    },
+    {
+      "id": "M-AVOID-WRAPPERS",
+      "title": "Avoid smart pointers and wrappers in APIs (M-AVOID-WRAPPERS)",
+      "source_path": "src/guidelines/libs/ux/M-AVOID-WRAPPERS.md",
+      "source_sha256": "0184fa5d6625f86f951cd049cd94f018863ef02644e1162160eff0d752acd7b5",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-no-wrapper-params.md"
+      ]
+    },
+    {
+      "id": "M-BALANCED-MODULES",
+      "title": "Modules are balanced in size and scope (M-BALANCED-MODULES)",
+      "source_path": "src/guidelines/libs/ux/M-BALANCED-MODULES.md",
+      "source_sha256": "1209d44a26d085894bdd8758573f4e5abf9f0ab41a628b0ebaf56a9456e97866",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-mod-by-feature.md",
+        "rules/doc-module-inner.md"
+      ]
+    },
+    {
+      "id": "M-COLLECTION-TRAITS",
+      "title": "Collections implement the appropriate iter traits (M-COLLECTION-TRAITS)",
+      "source_path": "src/guidelines/libs/ux/M-COLLECTION-TRAITS.md",
+      "source_sha256": "3479dffeb3303c1b778238234b4a809ab675889870348a04f78d31b8750fb672",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-impl-fromiterator.md",
+        "rules/name-iter-convention.md",
+        "rules/name-iter-type-match.md"
+      ]
+    },
+    {
+      "id": "M-DI-HIERARCHY",
+      "title": "Prefer types over generics, generics over dyn traits (M-DI-HIERARCHY)",
+      "source_path": "src/guidelines/libs/ux/M-DI-HIERARCHY.md",
+      "source_sha256": "641408417fc828619b73a8ccd6f921f3a90d52b4073d9fcf827795c16ddd14a4",
+      "disposition": "covered",
+      "rules": [
+        "rules/trait-dyn-vs-generic.md",
+        "rules/test-mock-traits.md"
+      ]
+    },
+    {
+      "id": "M-ERRORS-CANONICAL-STRUCTS",
+      "title": "Errors are canonical structs (M-ERRORS-CANONICAL-STRUCTS)",
+      "source_path": "src/guidelines/libs/ux/M-ERRORS-CANONICAL-STRUCTS.md",
+      "source_sha256": "bcac7cf95a95c1c299b5a270123e5b7ef8b187db41731c57dfeca4db0a47567e",
+      "disposition": "covered",
+      "rules": [
+        "rules/err-canonical-struct.md"
+      ]
+    },
+    {
+      "id": "M-ESSENTIAL-FN-INHERENT",
+      "title": "Essential functionality should be inherent (M-ESSENTIAL-FN-INHERENT)",
+      "source_path": "src/guidelines/libs/ux/M-ESSENTIAL-FN-INHERENT.md",
+      "source_sha256": "741b1adc816157507ef186dc43e9d28fac5e455aacf090ac9efa5fa8a0d305ec",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-inherent-core.md"
+      ]
+    },
+    {
+      "id": "M-FROM-ERROR",
+      "title": "Canonical error conversion uses `From`, not `map_err` (M-FROM-ERROR)",
+      "source_path": "src/guidelines/libs/ux/M-FROM-ERROR.md",
+      "source_sha256": "e4e064f6e90e0b9f379c08a079c63c9a6d8b5782ad3dcc2b0bf4325692e9e77d",
+      "disposition": "covered",
+      "rules": [
+        "rules/err-from-impl.md"
+      ]
+    },
+    {
+      "id": "M-INIT-BUILDER",
+      "title": "Complex type construction has builders (M-INIT-BUILDER)",
+      "source_path": "src/guidelines/libs/ux/M-INIT-BUILDER.md",
+      "source_sha256": "e9c42791d3b45ad3c29796785f9984a23dbcbfdaef98bfecc9a27ab5e516be3f",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-builder-pattern.md"
+      ]
+    },
+    {
+      "id": "M-INIT-CASCADED",
+      "title": "Complex type initialization hierarchies are cascaded (M-INIT-CASCADED)",
+      "source_path": "src/guidelines/libs/ux/M-INIT-CASCADED.md",
+      "source_sha256": "d2cac66f08c73c66cda4f875e5a43be5d63f302764f4c886b02ec8edac21d09a",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-init-cascaded.md"
+      ]
+    },
+    {
+      "id": "M-NO-PRELUDE",
+      "title": "Don't define preludes (M-NO-PRELUDE)",
+      "source_path": "src/guidelines/libs/ux/M-NO-PRELUDE.md",
+      "source_sha256": "085f30be8814e1953f9857f1a51e86899e33e0514dc8b74e2d51ab2fe7f0df6b",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-prelude-module.md"
+      ]
+    },
+    {
+      "id": "M-PARAMETER-CONSISTENCY",
+      "title": "Parameter ordering is consistent (M-PARAMETER-CONSISTENCY)",
+      "source_path": "src/guidelines/libs/ux/M-PARAMETER-CONSISTENCY.md",
+      "source_sha256": "221baa98432792cdfefea6b2181390f0c0384e1dc227e10b09c67970af287f3a",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-param-order.md"
+      ]
+    },
+    {
+      "id": "M-SERVICES-CLONE",
+      "title": "Services are Clone (M-SERVICES-CLONE)",
+      "source_path": "src/guidelines/libs/ux/M-SERVICES-CLONE.md",
+      "source_sha256": "2c311ab12ebd5c3cbf195b40caf12e188f3aea48a3e796719976559c2e3397b3",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-service-clone.md"
+      ]
+    },
+    {
+      "id": "M-SIMPLE-ABSTRACTIONS",
+      "title": "Abstractions don't visibly nest (M-SIMPLE-ABSTRACTIONS)",
+      "source_path": "src/guidelines/libs/ux/M-SIMPLE-ABSTRACTIONS.md",
+      "source_sha256": "d1c23cb536c9d573f78749190c79279ff1c723556c04bcf676d6963f4e465b64",
+      "disposition": "covered",
+      "rules": [
+        "rules/anti-over-abstraction.md",
+        "rules/trait-dyn-vs-generic.md"
+      ]
+    },
+    {
+      "id": "M-EXAMPLE-OVER-PROC",
+      "title": "Prefer 'macros by example' over proc macros (M-EXAMPLE-OVER-PROC)",
+      "source_path": "src/guidelines/macros/M-EXAMPLE-OVER-PROC.md",
+      "source_sha256": "0298bb9934a1e6d4d08e00273c26cded506bbfc7c20e1eb8c587a6e2ade124ab",
+      "disposition": "covered",
+      "rules": [
+        "rules/macro-declarative-before-proc.md"
+      ]
+    },
+    {
+      "id": "M-MACRO-HELPERS",
+      "title": "Third party items come from hidden `_private` module (M-MACRO-HELPERS)",
+      "source_path": "src/guidelines/macros/M-MACRO-HELPERS.md",
+      "source_sha256": "f5d6bb0267c4989f0af6a13ba2bc77ab444b966d4e00e3688de0408339122658",
+      "disposition": "covered",
+      "rules": [
+        "rules/macro-private-helpers.md"
+      ]
+    },
+    {
+      "id": "M-MACRO-LAST-RESORT",
+      "title": "Macros are a last resort (M-MACRO-LAST-RESORT)",
+      "source_path": "src/guidelines/macros/M-MACRO-LAST-RESORT.md",
+      "source_sha256": "a9ddc862887fb526b1c14fd1e1074e3c29a1748e0882cee6c654aa0df230627d",
+      "disposition": "covered",
+      "rules": [
+        "rules/macro-prefer-functions.md"
+      ]
+    },
+    {
+      "id": "M-MACRO-MAIN-CRATE",
+      "title": "Macros assume main crate (M-MACRO-MAIN-CRATE)",
+      "source_path": "src/guidelines/macros/M-MACRO-MAIN-CRATE.md",
+      "source_sha256": "54a36ca6f8410ea1be77fff645a9211dd947983bf7f6159fecb9af45354e075f",
+      "disposition": "covered",
+      "rules": [
+        "rules/macro-proc-two-crate.md"
+      ]
+    },
+    {
+      "id": "M-MACROS-DONT-LIE",
+      "title": "Macros don't lie about signatures (M-MACROS-DONT-LIE)",
+      "source_path": "src/guidelines/macros/M-MACROS-DONT-LIE.md",
+      "source_sha256": "7b0cbd29fd750e53021826c01acbe4370f76a770c50f81cbb21909256492f350",
+      "disposition": "covered",
+      "rules": [
+        "rules/macro-no-rewrite-item.md"
+      ]
+    },
+    {
+      "id": "M-PROC-IMPL",
+      "title": "Proc macros should have separate impl crate incl. tests (M-PROC-IMPL)",
+      "source_path": "src/guidelines/macros/M-PROC-IMPL.md",
+      "source_sha256": "c22dfc901798d8c42becdba9f7e070d9ceddc93cda47c3d87df8319ff349c53a",
+      "disposition": "covered",
+      "rules": [
+        "rules/macro-proc-two-crate.md",
+        "rules/macro-proc-syn-quote.md"
+      ]
+    },
+    {
+      "id": "M-PROC-IMPLIED-ITEMS",
+      "title": "Proc macros don't produce implied or hidden items (M-PROC-IMPLIED-ITEMS)",
+      "source_path": "src/guidelines/macros/M-PROC-IMPLIED-ITEMS.md",
+      "source_sha256": "51db507f7782ac371ed193aa3283e268eab7a54ad3892ce24bfe0b1798bccc6e",
+      "disposition": "covered",
+      "rules": [
+        "rules/macro-no-implied-items.md"
+      ]
+    },
+    {
+      "id": "M-ASYNC-STACK-SIZE",
+      "title": "Hot `async` functions reduce stack size (M-ASYNC-STACK-SIZE)",
+      "source_path": "src/guidelines/performance/M-ASYNC-STACK-SIZE.md",
+      "source_sha256": "256613e0bd3d3f1eefb9da146c4c3ae95eb294c4926d7c4862fbeda52899c3d4",
+      "disposition": "covered",
+      "rules": [
+        "rules/async-future-size.md"
+      ]
+    },
+    {
+      "id": "M-AVOID-INDIRECTION",
+      "title": "Nested type hierarchies should avoid needless indirection (M-AVOID-INDIRECTION)",
+      "source_path": "src/guidelines/performance/M-AVOID-INDIRECTION.md",
+      "source_sha256": "ce0d424d5498f4852786ccb8bc48c0c0ed820df75c12aa404d19583033499cc2",
+      "disposition": "covered",
+      "rules": [
+        "rules/opt-cache-friendly.md"
+      ]
+    },
+    {
+      "id": "M-BOX-DST",
+      "title": "Use boxed slices and strings for immutable owned sequences (M-BOX-DST)",
+      "source_path": "src/guidelines/performance/M-BOX-DST.md",
+      "source_sha256": "f3b90a5543a439357615e37058b0201fb42ea0ae160dc2976f20b0896ebb06da",
+      "disposition": "covered",
+      "rules": [
+        "rules/mem-boxed-slice.md"
+      ]
+    },
+    {
+      "id": "M-FAST-HASHER",
+      "title": "Use a fast hasher where possible (M-FAST-HASHER)",
+      "source_path": "src/guidelines/performance/M-FAST-HASHER.md",
+      "source_sha256": "ddabe360c153ce886457b83d8620ce7bbfdbf6927cf095b6f6d5edc1f641b95c",
+      "disposition": "covered",
+      "rules": [
+        "rules/perf-ahash.md"
+      ]
+    },
+    {
+      "id": "M-HOTPATH",
+      "title": "Identify, profile, optimize the hot path early (M-HOTPATH)",
+      "source_path": "src/guidelines/performance/M-HOTPATH.md",
+      "source_sha256": "b5b10b25693c65245a03c82c15c984dd4ef482d9b7ecc93a8036ff94854ab7be",
+      "disposition": "covered",
+      "rules": [
+        "rules/perf-profile-first.md",
+        "rules/test-criterion-bench.md"
+      ]
+    },
+    {
+      "id": "M-INITIAL-CAPACITY",
+      "title": "Collections are created with sufficient initial capacity (M-INITIAL-CAPACITY)",
+      "source_path": "src/guidelines/performance/M-INITIAL-CAPACITY.md",
+      "source_sha256": "f9372a09965d75e4d2b7a7dc473e3088a988b055f25958869141c90e6d48ef31",
+      "disposition": "covered",
+      "rules": [
+        "rules/mem-with-capacity.md"
+      ]
+    },
+    {
+      "id": "M-LOG-OVERHEAD",
+      "title": "Library telemetry does not tank performance (M-LOG-OVERHEAD)",
+      "source_path": "src/guidelines/performance/M-LOG-OVERHEAD.md",
+      "source_sha256": "d108e37eebae24f5555d0b02cb13ff261a13421d265050df3c5b732a033ce3df",
+      "disposition": "covered",
+      "rules": [
+        "rules/obs-named-events.md",
+        "rules/obs-levels-filter.md",
+        "rules/obs-structured-fields.md"
+      ]
+    },
+    {
+      "id": "M-MEM-REUSE",
+      "title": "Reuse allocations where possible (M-MEM-REUSE)",
+      "source_path": "src/guidelines/performance/M-MEM-REUSE.md",
+      "source_sha256": "d0e3fc3a11afb1d8a0d9e0a905b1dac906689d6fd2cd554fc2d78b7340f96233",
+      "disposition": "covered",
+      "rules": [
+        "rules/mem-reuse-collections.md",
+        "rules/mem-arena-allocator.md"
+      ]
+    },
+    {
+      "id": "M-SHRINK-TO-FIT",
+      "title": "Shrink collections to fit after building (M-SHRINK-TO-FIT)",
+      "source_path": "src/guidelines/performance/M-SHRINK-TO-FIT.md",
+      "source_sha256": "02c17a71797d1ec6b1493108e622b65f256663a7516fc12b163731865dd04eaf",
+      "disposition": "covered",
+      "rules": [
+        "rules/mem-shrink-to-fit.md"
+      ]
+    },
+    {
+      "id": "M-THROUGHPUT",
+      "title": "Optimize for throughput, avoid empty cycles (M-THROUGHPUT)",
+      "source_path": "src/guidelines/performance/M-THROUGHPUT.md",
+      "source_sha256": "51f3546a9d750d63ef89e62c6aceb93a0e491ab969f25b02af6f552b30b40fc8",
+      "disposition": "covered",
+      "rules": [
+        "rules/perf-batch-throughput.md"
+      ]
+    },
+    {
+      "id": "M-YIELD-POINTS",
+      "title": "Long-running tasks should have yield points (M-YIELD-POINTS)",
+      "source_path": "src/guidelines/performance/M-YIELD-POINTS.md",
+      "source_sha256": "dd3bf7613e38c4566eb29634e48af1899dad0ebef2bda096906a98e1c7112b3b",
+      "disposition": "covered",
+      "rules": [
+        "rules/async-yield-cpu.md"
+      ]
+    },
+    {
+      "id": "M-CARGO-WORKSPACE",
+      "title": "Common settings come from the workspace Cargo.toml (M-CARGO-WORKSPACE)",
+      "source_path": "src/guidelines/project/M-CARGO-WORKSPACE.md",
+      "source_sha256": "6637fafad5d73875f365788574cde9a444996b1ab6583651ec421923f6c420d9",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-workspace-deps.md",
+        "rules/lint-workspace-lints.md"
+      ]
+    },
+    {
+      "id": "M-CRATES-FLAT-FOLDER",
+      "title": "All crates are siblings in one folder (M-CRATES-FLAT-FOLDER)",
+      "source_path": "src/guidelines/project/M-CRATES-FLAT-FOLDER.md",
+      "source_sha256": "493395b7821014c0917cce0a141716db55ec9af3213f9ecbd4271f640f2326e0",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-workspace-large.md"
+      ]
+    },
+    {
+      "id": "M-CRATES-IN-WORKSPACE",
+      "title": "The workspace lists and versions all crates (M-CRATES-IN-WORKSPACE)",
+      "source_path": "src/guidelines/project/M-CRATES-IN-WORKSPACE.md",
+      "source_sha256": "5efe7b41a03133c14e8d1af837c9f6625f668cd21e0333cba596f5b0a2175b4c",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-workspace-deps.md",
+        "rules/proj-workspace-large.md"
+      ]
+    },
+    {
+      "id": "M-LATEST-EDITION",
+      "title": "New crates target latest edition (M-LATEST-EDITION)",
+      "source_path": "src/guidelines/project/M-LATEST-EDITION.md",
+      "source_sha256": "af2afc76626952e2e029fc5d3d22f45c3fa444de7b3f57ce6a79d236eab47d03",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-latest-edition.md"
+      ]
+    },
+    {
+      "id": "M-MSRV",
+      "title": "MSRV is conservatively updated (M-MSRV)",
+      "source_path": "src/guidelines/project/M-MSRV.md",
+      "source_sha256": "daf1a7ecefd0687bfb46464c876cbacbef3faadc0123f51463d2fbbeb43f09dd",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-msrv-declare.md"
+      ]
+    },
+    {
+      "id": "M-DOCUMENTED-MAGIC",
+      "title": "Magic values are documented (M-DOCUMENTED-MAGIC)",
+      "source_path": "src/guidelines/universal/M-DOCUMENTED-MAGIC.md",
+      "source_sha256": "4b7fdcdce408ee0d1b8e5ac051943aef24a39de53c8f462f8d2192ac088ab0dd",
+      "disposition": "covered",
+      "rules": [
+        "rules/const-named-magic.md"
+      ]
+    },
+    {
+      "id": "M-LINT-OVERRIDE-EXPECT",
+      "title": "Lint overrides should use `#[expect]` (M-LINT-OVERRIDE-EXPECT)",
+      "source_path": "src/guidelines/universal/M-LINT-OVERRIDE-EXPECT.md",
+      "source_sha256": "9a472b53c0867603b5c7737e999c63cb0d5075c5c937832b32fbd5a0a542e26d",
+      "disposition": "covered",
+      "rules": [
+        "rules/lint-expect-override.md"
+      ]
+    },
+    {
+      "id": "M-LOG-STRUCTURED",
+      "title": "Use structured logging with message templates (M-LOG-STRUCTURED)",
+      "source_path": "src/guidelines/universal/M-LOG-STRUCTURED.md",
+      "source_sha256": "55d8ab3a4ea2966e898e36b11fdd08c5f39aaa9ea078ae7c14df7b3d6014a517",
+      "disposition": "covered",
+      "rules": [
+        "rules/obs-named-events.md",
+        "rules/obs-structured-fields.md"
+      ]
+    },
+    {
+      "id": "M-PUBLIC-DEBUG",
+      "title": "Public types are Debug (M-PUBLIC-DEBUG)",
+      "source_path": "src/guidelines/universal/M-PUBLIC-DEBUG.md",
+      "source_sha256": "2eb1126ebda797c660cf90be531469b2f8ac92901a813c3fe850d8f4393fa4cc",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-common-traits.md",
+        "rules/obs-no-sensitive-data.md"
+      ]
+    },
+    {
+      "id": "M-PUBLIC-DISPLAY",
+      "title": "Public types meant to be read are Display (M-PUBLIC-DISPLAY)",
+      "source_path": "src/guidelines/universal/M-PUBLIC-DISPLAY.md",
+      "source_sha256": "b7c6b92f0d61a03ca31df14698dcca11e7894a708bf2fbdfa4779ace865d983e",
+      "disposition": "covered",
+      "rules": [
+        "rules/type-display-vs-debug.md",
+        "rules/obs-no-sensitive-data.md"
+      ]
+    },
+    {
+      "id": "M-REGULAR-FN",
+      "title": "Prefer regular over associated functions (M-REGULAR-FN)",
+      "source_path": "src/guidelines/universal/M-REGULAR-FN.md",
+      "source_sha256": "ee1c2a28cf049a67ec79f66814062fdfc7e4c9db009eaf9d8bdae2f8dae95bf7",
+      "disposition": "covered",
+      "rules": [
+        "rules/api-free-functions.md"
+      ]
+    },
+    {
+      "id": "M-SHORT-NAMES",
+      "title": "Names of items are short (M-SHORT-NAMES)",
+      "source_path": "src/guidelines/universal/M-SHORT-NAMES.md",
+      "source_sha256": "654fcf2f4567273345353070f04cc5ae0d79c0b9f40f6d3b19420c9a19f533f4",
+      "disposition": "covered",
+      "rules": [
+        "rules/name-short-items.md"
+      ]
+    },
+    {
+      "id": "M-SMALLER-CRATES",
+      "title": "If in doubt, split the crate (M-SMALLER-CRATES)",
+      "source_path": "src/guidelines/universal/M-SMALLER-CRATES.md",
+      "source_sha256": "f372a18bb3713872c43450e5cfebfe9fb6732159bc19dd80992f2f378c947d63",
+      "disposition": "covered",
+      "rules": [
+        "rules/proj-split-crates.md"
+      ]
+    },
+    {
+      "id": "M-STATIC-VERIFICATION",
+      "title": "Use static verification (M-STATIC-VERIFICATION)",
+      "source_path": "src/guidelines/universal/M-STATIC-VERIFICATION.md",
+      "source_sha256": "a3e82046fdfc25783071b6da737e2d3101c21e5f4645f2900cbd2cfafea908e8",
+      "disposition": "covered",
+      "rules": [
+        "rules/lint-static-verification.md"
+      ]
+    },
+    {
+      "id": "M-UPSTREAM-GUIDELINES",
+      "title": "Follow the upstream guidelines (M-UPSTREAM-GUIDELINES)",
+      "source_path": "src/guidelines/universal/M-UPSTREAM-GUIDELINES.md",
+      "source_sha256": "86cc9e2065029cbd6253b2674ac9fe90c672e068ba9ab15332820eff0887034d",
+      "disposition": "covered",
+      "rules": [
+        "rules/name-as-free.md",
+        "rules/name-no-get-prefix.md",
+        "rules/api-common-traits.md",
+        "rules/api-default-impl.md",
+        "rules/proj-feature-additive.md"
+      ]
+    },
+    {
+      "id": "M-WEASEL-WORDS",
+      "title": "Names are free of weasel words (M-WEASEL-WORDS)",
+      "source_path": "src/guidelines/universal/M-WEASEL-WORDS.md",
+      "source_sha256": "336296500c8d4ac22707415bf68f9f382dd2d000fe161d2f171915119f619135",
+      "disposition": "covered",
+      "rules": [
+        "rules/name-no-weasel.md"
+      ]
+    }
+  ],
+  "tree_audit": {
+    "normative_guideline_files": 89,
+    "include_bearing_section_readmes": 13,
+    "navigation_and_context_pages_reviewed": [
+      {
+        "source_path": "src/SUMMARY.md",
+        "source_sha256": "792d1339627af3106beb5f8555c32afbb2030cfc7cad214972fcc8ebc8992c27"
+      },
+      {
+        "source_path": "src/guidelines/README.md",
+        "source_sha256": "866298aae5a439716bb7655469ac10838f06c90801f53a2c511c406dbd439a4f"
+      },
+      {
+        "source_path": "src/guidelines/checklist/README.md",
+        "source_sha256": "6a2e3da4dd627f4a326a6f6dc81e28084705729a3cb0a6999d7f961a27baeb90"
+      },
+      {
+        "source_path": "src/guidelines/libs/README.md",
+        "source_sha256": "fa34f8ccedbaf66dd197694f43040c4124bed5f2bf68f3d815a10d97fe9c36b4"
+      },
+      {
+        "source_path": "src/guidelines/safety/README.md",
+        "source_sha256": "f316e51bfeae20bd24c4cb6085bb9819ba4499bd248ffec60b93ced17df39cb2"
+      },
+      {
+        "source_path": "src/agents/README.md",
+        "source_sha256": "e2e77d5a4753860184a8a886da11c93cf609aa5584fdedc564f7d430823ace70"
+      },
+      {
+        "source_path": "src/changelog/README.md",
+        "source_sha256": "1439602214fccbaccd240620227d500d3763f03739bf10cd44f508af3abc9686"
+      },
+      {
+        "source_path": "src/FAQ/README.md",
+        "source_sha256": "fc6460ec9a867883085083d834d5eaad978f6f0bc12f4faf10de5c3b39013424"
+      }
+    ],
+    "internal_link_occurrences": 30,
+    "external_link_occurrences": 84,
+    "unique_external_targets": 73,
+    "normative_links_followed": true,
+    "source_link_defects": [
+      {
+        "source_path": "src/guidelines/checklist/README.md",
+        "reference": "M-SYS-CRATES",
+        "problem": "points to libs/resilience; owning section is libs/building"
+      },
+      {
+        "source_path": "src/guidelines/docs/M-MODULE-DOCS.md",
+        "reference": "M-DOC-FIRST-SENTENCE",
+        "problem": "declared ID is M-FIRST-DOC-SENTENCE"
+      },
+      {
+        "source_path": "src/guidelines/libs/ux/M-AVOID-WRAPPERS.md",
+        "reference": "M-ABSTRACTIONS-DONT-NEST",
+        "problem": "declared ID is M-SIMPLE-ABSTRACTIONS"
+      },
+      {
+        "source_path": "src/guidelines/libs/ux/M-DI-HIERARCHY.md",
+        "reference": "M-ABSTRACTIONS-DONT-NEST",
+        "problem": "declared ID is M-SIMPLE-ABSTRACTIONS"
+      },
+      {
+        "source_path": "src/guidelines/libs/interop/M-IMPL-IO.md",
+        "reference": "M-RUNTIME-ABSTRACTED",
+        "problem": "referenced guideline is absent from v2026.6"
+      },
+      {
+        "source_path": "src/guidelines/libs/resilience/M-MOCKABLE-SYSCALLS.md",
+        "reference": "M-RUNTIME-ABSTRACTED",
+        "problem": "referenced guideline is absent from v2026.6"
+      }
+    ]
+  }
+}

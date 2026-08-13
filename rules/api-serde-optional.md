@@ -182,3 +182,4 @@ serde = "1.0"
 - [lint-deny-correctness](./lint-deny-correctness.md) - Feature testing
 - [serde-try-from-validate](./serde-try-from-validate.md) - Validate while deserializing
 - [serde-rename-all](./serde-rename-all.md) - Match external naming conventions
+- [api-std-types-boundary](./api-std-types-boundary.md) - leak a third-party type only when it is the contract

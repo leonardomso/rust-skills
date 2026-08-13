@@ -1,10 +1,15 @@
 # own-rwlock-readers
 
-> Use `RwLock<T>` when reads significantly outnumber writes
+> Benchmark `RwLock<T>` for read-heavy shared state; do not assume readers make it faster
 
 ## Why It Matters
 
-`Mutex<T>` allows only one thread to access data at a time, even for reads. `RwLock<T>` allows multiple concurrent readers OR one exclusive writer. For read-heavy workloads, this dramatically improves throughput by eliminating unnecessary serialization of read operations.
+`Mutex<T>` permits one holder, while `RwLock<T>` permits multiple readers or
+one writer. That extra state and coordination has a cost. A read-heavy workload
+may improve when critical sections are long enough and readers actually run in
+parallel, but a short critical section, cache-line contention, writer pressure,
+or an oversubscribed runtime can make `RwLock` slower. Choose from measured
+contention and tail latency, not a read/write percentage.
 
 ## Bad
 
@@ -32,21 +37,22 @@ use std::sync::{Arc, RwLock};
 let config = Arc::new(RwLock::new(Config::load()));
 
 fn get_setting(config: &RwLock<Config>, key: &str) -> String {
-    let guard = config.read().unwrap(); // Multiple threads can hold read lock
+    let guard = config.read().expect("configuration lock poisoned");
     guard.get(key).to_string()
 }
 
 fn update_setting(config: &RwLock<Config>, key: &str, value: &str) {
-    let mut guard = config.write().unwrap(); // Exclusive access for writes
+    let mut guard = config.write().expect("configuration lock poisoned");
     guard.set(key, value);
 }
 
-// 100 threads reading = parallel execution
+// Readers may proceed concurrently when the scheduler and workload allow it
 ```
 
 ## parking_lot::RwLock
 
-Prefer `parking_lot::RwLock` for better performance:
+`parking_lot::RwLock` offers a smaller API and additional lock operations, but
+it is a dependency and not an automatic performance win:
 
 ```rust
 use parking_lot::RwLock;
@@ -74,17 +80,20 @@ RwLock has overhead for tracking readers. It can be slower than Mutex when:
 
 | Scenario | Better Choice |
 |----------|---------------|
-| Writes are frequent (>20% of operations) | `Mutex` |
+| Writes or writer latency matter | Benchmark `Mutex` and `RwLock` |
 | Lock held very briefly | `Mutex` |
 | Single-threaded | `RefCell` |
 | Reads dominate, lock held longer | `RwLock` |
 
 ## Write Starvation
 
-Standard `RwLock` may starve writers if readers are continuous. `parking_lot::RwLock` is fair by default.
+Fairness policy for `std::sync::RwLock` is platform-dependent.
+`parking_lot::RwLock` uses an eventual-fairness policy, not strict FIFO.
+Whichever primitive you choose, exercise writer progress under sustained read
+load and record the latency objective.
 
 ```rust
-// parking_lot is writer-fair, preventing starvation
+// parking_lot provides explicit fair unlock operations where policy needs them
 use parking_lot::RwLock;
 
 // Or use std with explicit fairness (nightly)

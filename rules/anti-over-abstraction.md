@@ -72,6 +72,18 @@ struct MemoryStorage { data: HashMap<String, Vec<u8>> }
 | Deep trait bounds | `where T: A + B + C + D + E` |
 | Phantom generics | Type parameters not used meaningfully |
 
+For a service-like public type, one visible wrapper level is a useful ceiling.
+`Service<Backend<Store<Clock>>>` makes construction, errors, and compiler
+diagnostics part of every caller's work. Containers are different:
+`Vec<Arc<Item>>` describes the data and composes naturally. Judge a wrapper by
+whether users must name it, whether it composes with ordinary types, how much
+bound syntax it exposes, and whether it disrupts inference.
+
+Type-level machinery can be justified when it creates a dramatically simpler
+surface—tuple handlers in Axum or query tuples in an ECS are established
+examples. Prove that usability gain; do not treat nesting itself as evidence
+of flexibility.
+
 ## When to Generalize
 
 Generalize when:

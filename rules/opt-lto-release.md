@@ -1,135 +1,89 @@
 # opt-lto-release
 
-> Enable LTO in release builds
+> Benchmark LTO modes on final binaries; do not assume fat LTO wins
 
 ## Why It Matters
 
-Link-Time Optimization (LTO) enables optimizations across crate boundaries that aren't possible during normal compilation. This includes cross-crate inlining, dead code elimination, and devirtualization. Typically provides 5-20% performance improvement.
+Link-time optimization can expose cross-codegen-unit and cross-crate optimization opportunities, but it increases link time and memory and can change runtime performance or binary size in either direction. Compiler version, target, codegen units, dependency graph, and workload all matter. Libraries do not control the final link profile; application owners choose and verify LTO on the complete artifact.
 
 ## Bad
 
 ```toml
-# Cargo.toml - default release profile
 [profile.release]
-opt-level = 3
-# No LTO = missed optimization opportunities
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
 ```
+
+This mixes LTO with unrelated panic and symbol policies, declares fat LTO optimal without evidence, and makes rollback/debugging harder.
 
 ## Good
 
 ```toml
-# Cargo.toml - optimized release profile
-[profile.release]
-opt-level = 3
-lto = "fat"          # Maximum optimization
-codegen-units = 1    # Better optimization (single codegen unit)
-panic = "abort"      # Smaller binary, no unwind tables
-strip = true         # Remove symbols for smaller binary
+[profile.release-lto-candidate]
+inherits = "release"
+lto = "thin"
 ```
 
-## LTO Options Explained
+Compare that candidate with the unmodified release profile and, when justified by the product's unit-cost or latency objective, a separate fat-LTO candidate:
 
 ```toml
-# No LTO (default)
+[profile.release-fat-lto-candidate]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+```
+
+Use identical source, lockfile, toolchain, target features, benchmark inputs, and symbol policy. Record wall time, linker peak memory, artifact size, startup, throughput, tail latency, and the resulting binary digest.
+
+## Cargo LTO Values
+
+```toml
+# Disable LTO.
+lto = "off"
+
+# Cargo's default. Performs thin-local LTO across local codegen units when
+# codegen-units > 1 and opt-level > 0; otherwise performs no LTO.
 lto = false
 
-# Thin LTO - fast compilation, most benefits
+# Thin LTO across the dependency graph.
 lto = "thin"
 
-# Fat LTO - slowest compilation, maximum optimization
+# Fat LTO across the dependency graph.
 lto = "fat"
-# Equivalent to:
-lto = true
-
-# Thin-local - LTO within each crate only
-lto = "off"
+# `true` is an alias for `"fat"`.
 ```
 
-## Trade-offs
+`false` and `"off"` are deliberately different. Keep that distinction in reviews and generated configuration.
 
-| Setting | Compile Time | Binary Size | Performance |
-|---------|--------------|-------------|-------------|
-| `lto = false` | Fast | Larger | Baseline |
-| `lto = "thin"` | Medium | Smaller | +5-15% |
-| `lto = "fat"` | Slow | Smallest | +10-20% |
+## Decision Contract
 
-## Evidence from Production
+| Candidate | Expected trade-off to verify |
+|---|---|
+| `"off"` | Lowest LTO work, but not necessarily fastest build or largest binary |
+| `false` | Cargo default thin-local behavior when applicable |
+| `"thin"` | Cross-crate optimization with a scalable LTO design |
+| `"fat"` | Broadest whole-graph analysis and usually the highest link resource cost |
 
-Many production crates enable fat LTO and `codegen-units = 1` in their release
-profiles for maximum performance. For example, ripgrep ships a `release-lto`
-profile (see the Cargo Book for profile documentation:
-<https://doc.rust-lang.org/cargo/reference/profiles.html>):
+Do not publish percentage gains or size rankings without the benchmark, target, compiler, and workload that produced them. Thin can match or beat fat; no LTO can win; codegen-units can interact with every result.
 
-```toml
-# A common pattern in performance-critical crates
-[profile.release]
-overflow-checks = true
-lto = "fat"
-codegen-units = 1
+## Operational Requirements
 
-# Named profile for explicit LTO builds (e.g. ripgrep's release-lto)
-[profile.release-lto]
-inherits = "release"
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-strip = "symbols"
-```
+- Apply LTO to final application artifacts, not as a library crate's claimed runtime guarantee.
+- Keep debug/symbol artifacts associated with the exact optimized executable digest.
+- Run tests and representative benchmarks with the candidate profile; a default-profile unit test does not exercise the final code-generation policy.
+- Bound linker CPU, memory, and wall time in CI. Resource exhaustion is a failed candidate, not a reason to raise limits indefinitely.
+- Re-evaluate after compiler, linker, target CPU, or dependency-graph changes.
+- Treat an LTO change as a new artifact requiring admission and rollout evidence.
 
-## Complete Optimized Profile
+## Cross-Language LTO
 
-```toml
-[profile.release]
-opt-level = 3        # Maximum optimization
-lto = "fat"          # Link-time optimization
-codegen-units = 1    # Single codegen unit for better optimization
-panic = "abort"      # Remove panic unwinding code
-strip = true         # Strip symbols
-debug = false        # No debug info
-
-# For benchmarking (need some debug info for profiling)
-[profile.bench]
-inherits = "release"
-debug = true
-strip = false
-
-# Fast dev builds with optimized dependencies
-[profile.dev]
-opt-level = 0
-debug = true
-
-[profile.dev.package."*"]
-opt-level = 3        # Optimize dependencies even in dev
-```
-
-## When to Use Each
-
-| Situation | LTO Setting |
-|-----------|-------------|
-| Development | `false` (fast compiles) |
-| CI builds | `"thin"` (balance) |
-| Release binaries | `"fat"` (max perf) |
-| Libraries (crates.io) | `false` (users choose) |
-
-## Measuring Impact
-
-```bash
-# Build without LTO
-cargo build --release
-hyperfine ./target/release/myapp
-
-# Build with LTO
-# (after adding lto = "fat" to Cargo.toml)
-cargo build --release
-hyperfine ./target/release/myapp
-
-# Compare binary sizes
-ls -la target/release/myapp
-```
+Cargo does not natively configure linker-plugin LTO for arbitrary non-Rust inputs. A cross-language setup requires a pinned compatible clang/LLVM/linker toolchain, bitcode-producing native dependencies, explicit build inputs, and target-specific integration tests. Do not paste global workstation `RUSTFLAGS` and assume the C/C++ and Rust toolchains share an LTO format.
 
 ## See Also
 
-- [opt-codegen-units](opt-codegen-units.md) - Use codegen-units = 1
-- [opt-pgo-profile](opt-pgo-profile.md) - Profile-guided optimization
-- [perf-release-profile](perf-release-profile.md) - Full release profile settings
+- [perf-release-profile](./perf-release-profile.md) - make the whole release profile an artifact policy
+- [opt-codegen-units](./opt-codegen-units.md) - measure interaction with codegen units
+- [opt-pgo-profile](./opt-pgo-profile.md) - use representative runtime profiles
+- [perf-profile-first](./perf-profile-first.md) - benchmark before adopting optimization flags

@@ -110,6 +110,8 @@ fn main() {
 
 - If your collection wraps an existing standard container, delegate `from_iter` and `extend` to the inner container's own implementations for maximum efficiency.
 - `FromIterator` + `Extend` enable `collect` to call `extend` on a pre-allocated collection when possible, avoiding extra allocations.
+- Implement an accurate `size_hint()` on custom iterators; an incorrect lower bound can break unsafe consumers, while a useful upper bound enables allocation planning.
+- Add `DoubleEndedIterator`, `ExactSizeIterator`, and `FusedIterator` when the iterator's behavior satisfies those contracts. Do not implement marker traits aspirationally.
 
 ## See Also
 

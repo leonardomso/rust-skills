@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Generic errors like `String`, `Box<dyn Error>`, or catch-all enums obscure what can actually go wrong. Custom error types document failure modes in the type system, enable pattern matching for specific handling, and provide clear API contracts. They make your code self-documenting and help callers handle errors appropriately.
+Generic errors like `String`, `Box<dyn Error>`, or one crate-wide catch-all
+obscure what can actually go wrong. Custom error types document failure
+domains and give callers supported ways to react. Pattern matching is suitable
+for a deliberately closed application/domain enum. Public libraries that must
+add internal causes without a breaking change use an opaque struct with
+helper methods instead (`err-canonical-struct`).
 
 ## Bad
 

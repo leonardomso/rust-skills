@@ -29,9 +29,16 @@ fn sum_squares(data: &[f64]) -> f64 {
     data.par_iter().map(|x| x * x).sum()
 }
 
-fn normalize(data: &mut [f64]) {
+fn normalize(data: &mut [f64]) -> Result<(), &'static str> {
+    if data.is_empty() || data.par_iter().any(|x| !x.is_finite()) {
+        return Err("normalization requires finite, non-empty input");
+    }
     let max = data.par_iter().cloned().reduce(|| f64::NEG_INFINITY, f64::max);
+    if max == 0.0 {
+        return Err("normalization divisor is zero");
+    }
     data.par_iter_mut().for_each(|x| *x /= max);
+    Ok(())
 }
 
 fn keep_positive(data: &[f64]) -> Vec<f64> {
@@ -39,8 +46,8 @@ fn keep_positive(data: &[f64]) -> Vec<f64> {
 }
 
 fn sort_large(data: &mut [f64]) {
-    // parallel unstable sort — faster than std sort for large slices
-    data.par_sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+    // Benchmark the parallel threshold; total_cmp defines NaN ordering.
+    data.par_sort_unstable_by(|a, b| a.total_cmp(b));
 }
 ```
 
@@ -50,9 +57,9 @@ fn sort_large(data: &mut [f64]) {
 |---------|----------|
 | Import | `use rayon::prelude::*;` enables `.par_iter()` on slices and most collections |
 | IO-bound work | Use async (`tokio`, `async-std`), not rayon — rayon threads block |
-| Small collections | Sequential is often faster due to thread-spawn overhead; profile first |
+| Small collections | Sequential may win because scheduling/splitting overhead dominates; profile first |
 | Minimum chunk size | Rayon's `with_min_len()` / `with_max_len()` tune granularity |
-| Shared state | Use `Mutex` or atomic operations; rayon does not prevent data races |
+| Shared state | Safe APIs enforce `Send`/`Sync`; synchronize intentional shared mutation and watch contention |
 
 ## When to Use
 

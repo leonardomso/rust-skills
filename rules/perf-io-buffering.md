@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Every unbuffered read or write to a file or socket is a syscall. Calling `read()` byte-by-byte or line-by-line without buffering can issue millions of syscalls per second, each with kernel-transition overhead that dwarfs the actual data transfer. `BufReader` and `BufWriter` batch those operations into large internal buffer reads and writes, cutting syscall count by orders of magnitude. This is one of the highest-impact, lowest-effort performance fixes available for IO-heavy code.
+Small `Read` or `Write` calls on an unbuffered OS file or socket can each reach
+the kernel. Byte-at-a-time loops may therefore issue enormous numbers of
+syscalls. `BufReader` and `BufWriter` batch those operations, but another
+buffering layer is redundant for an already buffered transport and write
+buffering changes flush and latency behavior. Measure the actual adapter and
+workload before choosing a non-default capacity.
 
 ## Bad
 
@@ -14,7 +19,7 @@ use std::io::{Read, Write};
 
 // Every read call goes to the OS — catastrophic for line-by-line processing
 fn count_lines_slow(path: &str) -> std::io::Result<usize> {
-    let file = File::open(path)?;
+    let mut file = File::open(path)?;
     let mut count = 0usize;
     let mut byte = [0u8; 1];
     loop {
@@ -48,7 +53,7 @@ fn write_records_slow(path: &str, records: &[String]) -> std::io::Result<()> {
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 
-// BufReader batches OS reads; lines() iterates safely without extra allocation per line
+// BufReader batches OS reads; lines() still produces one owned String per line
 fn count_lines_fast(path: &str) -> io::Result<usize> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
@@ -87,9 +92,9 @@ fn process_large_file(path: &str) -> io::Result<()> {
 ## Key Points
 
 - `BufWriter::flush()?` must be called explicitly. When a `BufWriter` is dropped, it attempts to flush, but any resulting error is **silently discarded**. Always flush before the writer goes out of scope.
-- The default buffer size for both `BufReader` and `BufWriter` is 8 KiB. For sequential reads of large files, a larger buffer (32–512 KiB) can improve throughput by reducing the number of `read` syscalls further.
+- Buffer capacity is an implementation detail and can change between Rust releases. A larger buffer can improve sequential throughput, but it also increases per-connection memory.
 - `BufReader` implements `BufRead`, which provides `lines()`, `read_line()`, and `read_until()` — use these instead of reading bytes manually.
-- Network streams (`TcpStream`, etc.) benefit equally from buffering, since each `write` on an unbuffered stream may send a tiny TCP segment.
+- Network streams may benefit from buffering many small writes, but protocol framing and latency requirements determine when to flush.
 - If you wrap a type that is already internally buffered (e.g., `tokio::io::BufWriter` in async code), adding another layer is redundant.
 
 ## See Also

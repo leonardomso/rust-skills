@@ -1,10 +1,15 @@
 # serde-skip-empty
 
-> Omit empty fields with `skip_serializing_if`
+> Omit empty fields only when the wire contract equates empty and absent
 
 ## Why It Matters
 
-Serializing `None` values as `null` and empty collections as `[]` bloats payloads, clutters logs, and can confuse clients that distinguish between a missing key and an explicit null. `#[serde(skip_serializing_if = "predicate")]` conditionally drops a field from output when the predicate returns true, keeping the wire format lean. `#[serde(skip)]` goes further and excludes a field from both serialization and deserialization entirely.
+`#[serde(skip_serializing_if = "predicate")]` can reduce payload size, but
+missing, `null`, and empty often mean different things in PATCH requests,
+configuration overlays, event schemas, and compatibility protocols. Use it
+only when the versioned wire contract explicitly assigns the same meaning to
+the omitted value. `#[serde(skip)]` removes a field from both directions and is
+appropriate for internal state, not as an accidental compatibility change.
 
 ## Bad
 
@@ -68,7 +73,9 @@ Produces: `{"id":1,"name":"Alice"}` — absent fields are simply omitted.
   - A custom function for more complex conditions
 - `#[serde(skip)]` removes the field from **both** directions. The type must implement `Default` so deserialization can still construct the struct (serde fills it with `Default::default()`).
 - `#[serde(skip_serializing)]` skips only on the way out; `#[serde(skip_deserializing)]` skips only on the way in — useful when reading legacy fields you no longer write.
-- Pair `skip_serializing_if` with `#[serde(default)]` so that a missing key on deserialization also produces the empty/`None` value rather than a hard error.
+- Pair `skip_serializing_if` with `#[serde(default)]` only when missing input is
+  defined to produce that default. Otherwise require the field so omission
+  fails closed.
 
 ## See Also
 

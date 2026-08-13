@@ -1,10 +1,20 @@
 # async-no-lock-await
 
-> Never hold `Mutex`/`RwLock` across `.await`
+> Never hold a synchronous lock across `.await`; make async lock scope an explicit ownership contract
 
 ## Why It Matters
 
-Holding a lock across an `.await` point can cause deadlocks and severely hurt performance. The task may be suspended while holding the lock, blocking all other tasks waiting for it - potentially indefinitely.
+Holding a synchronous lock across `.await` can block an executor thread and
+deadlock work needed by the suspended future. An async mutex does not block the
+thread while waiting, and its guard is designed to cross `.await`, but it still
+serializes every waiter for the whole suspended operation.
+
+Default to extracting owned data, releasing the guard, and awaiting afterward.
+Keep an async guard across `.await` only when exclusive ownership of the
+resource is the actual protocol—for example, one framed connection whose
+request and response must not interleave. Bound that operation with a deadline,
+keep unrelated state outside the guard, and prefer a dedicated owner task when
+the protocol grows.
 
 ## Bad
 
@@ -128,23 +138,60 @@ async fn read_heavy(state: &RwLock<State>) {
 ## std::sync::Mutex vs tokio::sync::Mutex
 
 ```rust
-// Prefer std::sync::Mutex for work that does NOT span an .await —
-// it is simpler, faster, and avoids the async overhead.
-// Only reach for tokio::sync::Mutex when you genuinely must hold
-// the lock across an .await point (rare; usually a sign to redesign).
+use std::time::Duration;
 
-// std::sync::Mutex in async (quick, non-awaiting operation — preferred):
-async fn quick_update(state: &std::sync::Mutex<State>) {
-    state.lock().unwrap().counter += 1;  // No await inside lock scope, OK
+struct State {
+    counter: u64,
 }
 
-// tokio::sync::Mutex (only when the lock scope must span an .await):
-async fn must_await_inside(state: &tokio::sync::Mutex<State>) {
-    let mut guard = state.lock().await;
-    // Only justified if you truly need the lock held across an async op
-    // (usually you don't — extract data first, then release the lock)
+struct Connection;
+struct Message;
+struct Response;
+
+impl Connection {
+    async fn send_and_receive(
+        &mut self,
+        _message: Message,
+    ) -> std::io::Result<Response> {
+        Ok(Response)
+    }
+}
+
+const REQUEST_DEADLINE: Duration = Duration::from_secs(2);
+
+// A standard mutex can fit a short, non-awaiting critical section when
+// contention and executor blocking have been measured and bounded.
+
+fn quick_update(state: &std::sync::Mutex<State>) -> std::io::Result<()> {
+    let mut state = state
+        .lock()
+        .map_err(|_| std::io::Error::other("state mutex poisoned"))?;
+    state.counter = state
+        .counter
+        .checked_add(1)
+        .ok_or_else(|| std::io::Error::other("counter overflow"))?;
+    Ok(())
+}
+
+// tokio::sync::Mutex when exclusive resource ownership is the protocol:
+async fn request(
+    connection: &tokio::sync::Mutex<Connection>,
+    message: Message,
+) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
+    let mut connection = connection.lock().await;
+    let response = tokio::time::timeout(
+        REQUEST_DEADLINE,
+        connection.send_and_receive(message),
+    )
+    .await??;
+    Ok(response)
 }
 ```
+
+The second form intentionally serializes a connection whose wire protocol
+permits one in-flight exchange. Prefer an owner task and bounded request queue
+when that makes shutdown, backpressure, and failure handling clearer. It is not
+a license to hold shared application-state locks during arbitrary network I/O.
 
 ## See Also
 

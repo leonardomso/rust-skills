@@ -58,19 +58,28 @@ process_user(order_handle);  // Error: expected Handle<User>, found Handle<Order
 
 ```rust
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 
 // Owns T conceptually (like Box<T>)
 struct Container<T> {
-    ptr: *mut T,
+    ptr: NonNull<T>,
     _marker: PhantomData<T>,  // Acts like we own a T
 }
 
-// Drop will be called on T when Container drops
+impl<T> Container<T> {
+    fn new(value: Box<T>) -> Self {
+        Self {
+            ptr: NonNull::from(Box::leak(value)),
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<T> Drop for Container<T> {
     fn drop(&mut self) {
-        unsafe {
-            std::ptr::drop_in_place(self.ptr);
-        }
+        // SAFETY: new obtained ptr from exactly one Box allocation; Container
+        // retains unique ownership and reconstructs that Box exactly once.
+        unsafe { drop(Box::from_raw(self.ptr.as_ptr())) };
     }
 }
 ```
@@ -88,7 +97,16 @@ struct Ref<'a, T> {
 
 // Compiler tracks lifetime correctly
 impl<'a, T> Ref<'a, T> {
+    fn new(value: &'a T) -> Self {
+        Self {
+            ptr: value,
+            _marker: PhantomData,
+        }
+    }
+
     fn get(&self) -> &'a T {
+        // SAFETY: new stores a pointer derived from a borrow lasting for 'a,
+        // and PhantomData prevents Ref from outliving that borrow.
         unsafe { &*self.ptr }
     }
 }

@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-`format!()` allocates a new `String` every call. In hot paths (loops, frequently called functions), this creates allocation churn that impacts performance. Pre-allocate, reuse buffers, or use `write!()` to an existing buffer.
+`format!()` constructs a new `String` and ordinarily allocates when output is
+non-empty. Repeated formatting in a measured hot path can create allocator
+churn. Reuse a buffer or write directly to the destination when ownership and
+lifetime permit it, but do not complicate cold diagnostic code without a
+profile. Formatting cost can also dominate allocation cost, so benchmark the
+whole path.
 
 ## Bad
 
@@ -69,12 +74,15 @@ fn greet_to_buf(name: &str, buffer: &mut String) {
 
 ## Comparison
 
-| Approach | Allocations | Performance |
-|----------|-------------|-------------|
-| `format!()` in loop | N | Slow |
-| `write!()` to reused buffer | 1 | Fast |
-| `push_str()` + `push()` | 1 | Fastest |
-| Pre-sized `String::with_capacity()` | 1 (no realloc) | Fast |
+| Approach | Storage behavior |
+|----------|------------------|
+| `format!()` in loop | Constructs a fresh owned `String` per iteration |
+| `write!()` to reused buffer | Reuses existing capacity and may grow |
+| `push_str()` + `push()` | Reuses existing capacity without format parsing |
+| Pre-sized `String::with_capacity()` | Reserves at least the requested capacity; allocator may round |
+
+Benchmark the complete formatting and destination path. Allocation count alone
+does not establish latency, and a writer may buffer or allocate internally.
 
 ## When format! Is Fine
 

@@ -4,20 +4,26 @@
 
 ## Why It Matters
 
-Standard `String` is 24 bytes (pointer + length + capacity). For applications storing millions of short strings, this overhead dominates. Compact string libraries like `compact_str`, `smartstring`, or `ecow` store small strings inline (no heap allocation) and use optimized layouts for larger strings.
+On common 64-bit targets, `String` is three machine words
+(pointer, length, capacity). That representation and a separate allocation for
+non-empty content can matter when a process retains millions of short strings.
+Compact string crates use different inline or shared layouts, but their exact
+size and inline capacity are crate-version and target details. Measure the
+actual workload and lock the chosen dependency before making the representation
+part of a long-lived type.
 
 ## Bad
 
 ```rust
 struct User {
     id: u64,
-    // Most usernames are < 24 chars, but String is always 24 bytes + heap
+    // Most usernames are short, but each String carries three words and
+    // non-empty content ordinarily lives in a separate allocation.
     username: String,
     email: String,
 }
 
-// 1 million users = 24 bytes * 2 * 1M = 48MB just for String metadata
-// Plus all the heap allocations for actual content
+// At this scale, measure metadata, allocation overhead, and content together.
 ```
 
 ## Good
@@ -27,13 +33,12 @@ use compact_str::CompactString;
 
 struct User {
     id: u64,
-    // CompactString: 24 bytes, but strings ≤ 23 bytes are inline (no heap)
+    // CompactString can store sufficiently short strings inline.
     username: CompactString,
     email: CompactString,
 }
 
-// Most usernames fit inline = zero heap allocations
-// Same memory footprint as String but way fewer allocations
+// Verify the observed inline rate and total resident memory on the target.
 ```
 
 ## Compact String Libraries
@@ -43,7 +48,7 @@ struct User {
 ```rust
 use compact_str::CompactString;
 
-// Inline storage for strings ≤ 23 bytes
+// Short strings can use inline storage.
 let small: CompactString = "hello".into();  // No heap allocation
 
 // Automatic heap fallback for larger strings
@@ -64,10 +69,10 @@ let s = format_compact!("value: {}", 42);
 ```rust
 use smartstring::{SmartString, LazyCompact};
 
-// Default is LazyCompact: 24 bytes inline capacity
+// LazyCompact trades inline capacity against representation size.
 let s: SmartString<LazyCompact> = "short string".into();
 
-// Compact mode: 23 bytes inline on 64-bit
+// Compact mode uses a different inline layout.
 use smartstring::Compact;
 let s: SmartString<Compact> = "hello".into();
 ```
@@ -77,37 +82,37 @@ let s: SmartString<Compact> = "hello".into();
 ```rust
 use ecow::EcoString;
 
-// Clone is O(1) - shares underlying data
+// Heap-backed values can share their allocation on clone.
 let s1: EcoString = "shared data".into();
-let s2 = s1.clone();  // Cheap, shares allocation
+let s2 = s1.clone();
 
-// Copy-on-write: only allocates on mutation
+// Mutation may detach shared heap-backed data.
 let mut s3 = s1.clone();
 s3.push_str(" modified");  // Now allocates
 ```
 
-## Memory Comparison
+## Measure The Concrete Version
 
 ```rust
 use std::mem::size_of;
 
-// All 24 bytes, but different inline capacities
-assert_eq!(size_of::<String>(), 24);
-assert_eq!(size_of::<compact_str::CompactString>(), 24);
-assert_eq!(size_of::<smartstring::SmartString>(), 24);
-assert_eq!(size_of::<ecow::EcoString>(), 16);  // Even smaller!
+// Record rather than assume these values for the supported target.
+println!("String: {}", size_of::<String>());
+println!("CompactString: {}", size_of::<compact_str::CompactString>());
+println!(
+    "SmartString: {}",
+    size_of::<smartstring::SmartString<smartstring::LazyCompact>>(),
+);
 ```
 
 ## Inline Capacity
 
-| Type | Size | Inline Capacity |
-|------|------|-----------------|
-| `String` | 24 | 0 (always heap) |
-| `CompactString` | 24 | 23 bytes [^1] |
-| `SmartString<LazyCompact>` | 24 | 23 bytes |
-| `EcoString` | 16 | 15 bytes |
-
-[^1]: CompactString reserves the final byte of its 24-byte representation for a length tag, so the maximum inline string length is 23 bytes.
+Run an equivalent check for every candidate crate (including `EcoString`) in
+the application that actually depends on it. Do not freeze a table from one
+x86-64 release into a portability rule. Track object size, inline-hit rate,
+clone/mutation behavior, and total allocated bytes on every supported target.
+Empty `String` values need no content allocation, and shared/inline strings
+have different clone costs.
 
 ## When to Use
 
@@ -119,7 +124,7 @@ struct Dictionary {
 
 // ✅ Good: Frequently cloned strings
 struct Template {
-    parts: Vec<EcoString>,  // O(1) clone
+    parts: Vec<EcoString>,  // Heap-backed parts may share on clone.
 }
 
 // ❌ Don't: Hot path string manipulation

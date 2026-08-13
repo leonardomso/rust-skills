@@ -4,17 +4,21 @@
 
 ## Why It Matters
 
-`SmallVec<[T; N]>` stores up to N elements inline (on the stack), only allocating on the heap when the size exceeds N. This eliminates heap allocations for the common case while still allowing growth when needed.
+`SmallVec<[T; N]>` stores up to N elements inline wherever the collection
+value lives and moves to separately allocated storage when it grows beyond N.
+This can avoid a collection allocation for the common case while still
+allowing growth. Its larger inline representation and branchier operations are
+trade-offs to measure, and element values may allocate independently.
 
 ## Bad
 
 ```rust
-// Always heap-allocates, even for 1-2 elements
+// Non-empty Vec output ordinarily uses separate element storage.
 fn get_path_components(path: &str) -> Vec<&str> {
     path.split('/').collect()  // Usually 2-4 components
 }
 
-// Always heap-allocates for error list
+// A Vec that receives errors may allocate separate element storage.
 fn validate(input: &Input) -> Vec<ValidationError> {
     let mut errors = Vec::new();  // Usually 0-3 errors
     // validation logic...
@@ -27,12 +31,12 @@ fn validate(input: &Input) -> Vec<ValidationError> {
 ```rust
 use smallvec::{smallvec, SmallVec};
 
-// Stack-allocated for typical paths (1-8 components)
+// Inline for paths with at most eight components
 fn get_path_components(path: &str) -> SmallVec<[&str; 8]> {
     path.split('/').collect()
 }
 
-// Stack-allocated for typical error counts
+// Inline for error counts up to four
 fn validate(input: &Input) -> SmallVec<[ValidationError; 4]> {
     let mut errors = SmallVec::new();
     // validation logic...
@@ -85,13 +89,12 @@ macro_rules! make_stmts_default {
 ## Trade-offs
 
 ```rust
-// SmallVec is slightly larger than Vec
+// Object sizes are target- and crate-version-specific; inspect the target.
 use std::mem::size_of;
-// Vec<i32>: 24 bytes (ptr + len + cap)
-// SmallVec<[i32; 4]>: 32 bytes (inline storage + len + discriminant)
+println!("{}", size_of::<Vec<i32>>());
+println!("{}", size_of::<SmallVec<[i32; 4]>>());
 
-// SmallVec has branching overhead on every operation
-// (must check if inline or heap)
+// Some operations distinguish inline from spilled storage.
 
 // Profile to verify benefit!
 ```
@@ -111,7 +114,7 @@ use std::mem::size_of;
 ```rust
 use arrayvec::ArrayVec;
 
-// Fixed maximum capacity, never heap allocates
+// Fixed inline capacity; ArrayVec itself does not allocate element storage
 // Panics if you exceed capacity
 fn parse_rgb(s: &str) -> ArrayVec<u8, 3> {
     let mut components = ArrayVec::new();

@@ -1,78 +1,105 @@
 # unsafe-minimize-scope
 
-> Keep `unsafe` blocks as small as possible — mark only the operation that requires unsafety, not the surrounding safe code.
+> Keep each unsafe block limited to operations covered by one local proof
 
 ## Why It Matters
 
-When an entire function is marked `unsafe fn`, every line inside appears equally suspect to an auditor. Shrinking unsafe blocks to the minimum isolates exactly which operation violates Rust's safety invariants, making reviews tractable and bugs easier to find. The Rust 2024 edition enforces this with the `unsafe_op_in_unsafe_fn` lint: unsafe operations inside an `unsafe fn` now require their own explicit `unsafe {}` block rather than inheriting the function's unsafety implicitly.
+`unsafe fn` marks a caller contract; it does not make every operation in the body implicitly reviewed. The `unsafe_op_in_unsafe_fn` lint requires explicit unsafe blocks for unsafe operations when enabled and is warn-by-default in the Rust 2024 edition, not a language hard error. Deny it in workspace policy. Small blocks keep the proof next to the exact operation and prevent later safe logic from silently entering the trusted surface.
+
+## Configuration
+
+```toml
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "warn"
+```
 
 ## Bad
 
 ```rust
-// Entire function body marked unsafe — safe arithmetic, bounds checks,
-// and the single unsafe dereference are all equally "dangerous" to a reader.
-unsafe fn sum_at(ptr: *const i32, len: usize, index: usize) -> i32 {
-    let adjusted_len = len.saturating_sub(1); // safe — but looks unsafe
-    assert!(index <= adjusted_len);           // safe — but looks unsafe
-    let value = *ptr.add(index);              // the only actually unsafe op
-    value + 1                                 // safe — but looks unsafe
-}
-```
-
-```rust
-// Huge unsafe block wrapping safe logic inside an unsafe fn (2024 edition
-// now requires unsafe {} here anyway, but large blocks are still bad style).
-pub unsafe fn process(ptr: *const u8, len: usize) -> Vec<u8> {
+/// # Safety
+///
+/// `ptr` must identify `len` initialized bytes in one allocation.
+pub unsafe fn copy_bytes(ptr: *const u8, len: usize) -> Vec<u8> {
     unsafe {
-        let mut result = Vec::with_capacity(len); // safe
-        for i in 0..len {                         // safe
-            result.push(*ptr.add(i));             // unsafe — buried in noise
+        let mut output = Vec::with_capacity(len); // Safe policy hidden inside.
+        for index in 0..len {
+            output.push(*ptr.add(index)); // Repeats pointer proof per element.
         }
-        result
+        output
     }
 }
 ```
+
+The block includes allocation, loop control, and mutation even though only pointer-to-slice construction requires a caller proof. The contract is also incomplete.
 
 ## Good
 
 ```rust
-// Safe wrapper: the single unsafe operation is clearly isolated.
-fn sum_at(ptr: *const i32, len: usize, index: usize) -> i32 {
-    assert!(index < len, "index out of bounds");
-    // SAFETY: index < len guarantees ptr.add(index) is within the allocation.
-    let value = unsafe { *ptr.add(index) };
-    value + 1
-}
-```
-
-```rust
-// In a genuinely unsafe fn, 2024 edition still requires unsafe {} per op.
+/// Copies a raw byte region into an owned vector.
+///
 /// # Safety
 ///
-/// `ptr` must be valid for reads for `len` bytes and properly aligned.
-pub unsafe fn process(ptr: *const u8, len: usize) -> Vec<u8> {
-    let mut result = Vec::with_capacity(len); // safe — outside any unsafe block
-    for i in 0..len {
-        // SAFETY: caller guarantees ptr is valid for len bytes; i < len.
-        let byte = unsafe { *ptr.add(i) };
-        result.push(byte);
-    }
-    result
+/// `ptr` must be non-null and valid for reads of `len` initialized bytes in a
+/// single allocation for the duration of this call. `len` must not exceed
+/// `isize::MAX`, and `ptr.add(len)` must remain within that allocation. No
+/// mutation that conflicts with these reads may occur during the call.
+pub unsafe fn copy_bytes(
+    ptr: *const u8,
+    len: usize,
+) -> Result<Vec<u8>, std::collections::TryReserveError> {
+    // SAFETY: the caller contract is exactly from_raw_parts' pointer, range,
+    // initialization, and aliasing contract for this temporary shared slice.
+    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
+
+    let mut output = Vec::new();
+    output.try_reserve_exact(bytes.len())?;
+    output.extend_from_slice(bytes);
+    Ok(output)
 }
 ```
 
-## Key Points
+The safe allocation/copy policy remains outside the unsafe block and reports reservation failure. Prefer accepting `&[u8]` directly; expose the raw entry only at an FFI/platform boundary that cannot supply a Rust slice.
 
-- **2024 edition `unsafe_op_in_unsafe_fn`**: even inside an `unsafe fn`, each unsafe operation now needs its own `unsafe {}`. This is a hard error in Rust 2024.
-- A safe wrapper around a small `unsafe {}` is almost always preferable to exposing the entire function as `unsafe fn`.
-- Each small unsafe block needs its own `// SAFETY:` comment (see `unsafe-safety-comment`).
-- If multiple consecutive lines are all unsafe for the *same* invariant reason, a single block covering only those lines is acceptable.
+## Safe Wrappers Establish Preconditions
 
-## When a Larger Block Is Acceptable
+```rust
+pub fn checked_value(values: &[i32], index: usize) -> Option<i32> {
+    values.get(index)?.checked_add(1)
+}
+```
 
-If two unsafe operations share the *exact same precondition* and separating them would require re-stating the identical justification, a single block covering both is fine — but it should still be the minimum necessary scope.
+A safe function taking `(ptr, len)` cannot prove that caller-supplied raw memory is valid merely by checking `index < len`. If pointer validity remains a caller obligation, the function is unsafe. Do not use an unsafe block to hide that obligation inside a nominally safe wrapper.
+
+## One Proof Per Block
+
+```rust
+// SAFETY: src and dst are valid for len bytes, do not overlap, and dst is
+// writable and unaliased for the call.
+unsafe { std::ptr::copy_nonoverlapping(src, dst, len) };
+
+// SAFETY: out was allocated for len bytes by this allocator and the foreign
+// operation initialized exactly len bytes before returning success.
+let initialized = unsafe { std::slice::from_raw_parts(out, len) };
+```
+
+Separate blocks when operations rely on different facts, especially across a foreign call or state transition. A single block can contain tightly coupled operations only when one comment proves all of them and intervening safe code cannot invalidate the proof.
+
+## Review Rules
+
+- Keep arithmetic, bounds checks, allocation, logging, error mapping, and callbacks outside unsafe blocks.
+- Use checked arithmetic before pointer offsets and cover zero-length pointer rules explicitly.
+- Prefer safe standard operations (`get`, slice copy, `MaybeUninit`, `NonNull`) before unchecked primitives.
+- Every `unsafe fn` needs a complete `# Safety` section even when its body delegates to another unsafe API.
+- Every unsafe block needs a local `SAFETY` proof; referring only to “validated above” is insufficient when later code can change the fact.
+- Run Miri on supported Rust-only paths and use sanitizer/fuzz/cross-language tests for native boundaries.
 
 ## See Also
 
-- [unsafe-safety-comment](unsafe-safety-comment.md) - write `// SAFETY:` above every unsafe block
-- [unsafe-send-sync-manual](unsafe-send-sync-manual.md) - document invariants when manually implementing Send/Sync
+- [unsafe-safety-comment](unsafe-safety-comment.md) - state exact local proofs
+- [doc-safety-section](doc-safety-section.md) - document caller and implementor contracts
+- [lint-unsafe-doc](lint-unsafe-doc.md) - enforce unsafe documentation
+- [unsafe-sound-abstractions](unsafe-sound-abstractions.md) - never hide a UB precondition in safe APIs

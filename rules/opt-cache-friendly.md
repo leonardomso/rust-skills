@@ -4,29 +4,29 @@
 
 ## Why It Matters
 
-Cache misses are expensive—a L3 cache miss costs ~100+ cycles vs ~4 cycles for L1 hit. Data layout and access patterns determine cache efficiency. Arrays of structs (AoS) vs structs of arrays (SoA), memory locality, and access patterns can make order-of-magnitude performance differences.
+Cache misses are expensive—a L3 cache miss costs ~100+ cycles vs ~4 cycles for L1 hit. Data layout and access patterns determine cache efficiency. Arrays of structs (AoS) vs structs of arrays (SoA), memory locality, and access patterns can make order-of-magnitude performance differences. Nested `Arc` / `Box` chains levy the same tax: each extra pointer is another miss before the hot field is in hand. Copy that field next to the loop unless a measurement says the hop is cheaper, or the value is large and several owners truly share it.
 
 ## Bad
 
 ```rust
-// Array of Structs (AoS) - poor cache use when accessing one field
-struct Particle {
-    position: [f32; 3],  // 12 bytes
-    velocity: [f32; 3],  // 12 bytes
-    mass: f32,           // 4 bytes
-    id: u64,             // 8 bytes
-    flags: u8,           // 1 byte + padding
-    // Total: 40 bytes per particle
+use std::sync::Arc;
+
+struct Theme {
+    accent: u32,
 }
 
-fn update_positions(particles: &mut [Particle], dt: f32) {
-    for p in particles {
-        // Access position and velocity - 24 bytes
-        // But loads 40-byte struct per particle
-        // 16 bytes wasted per cache line load
-        p.position[0] += p.velocity[0] * dt;
-        p.position[1] += p.velocity[1] * dt;
-        p.position[2] += p.velocity[2] * dt;
+struct Palette {
+    theme: Arc<Theme>,
+}
+
+struct Stroke {
+    palette: Arc<Palette>,
+    pixels: Vec<u8>,
+}
+
+impl Stroke {
+    fn accent(&self) -> u32 {
+        self.palette.theme.accent
     }
 }
 ```
@@ -34,32 +34,40 @@ fn update_positions(particles: &mut [Particle], dt: f32) {
 ## Good
 
 ```rust
-// Struct of Arrays (SoA) - cache-efficient for field access
-struct Particles {
-    positions_x: Vec<f32>,
-    positions_y: Vec<f32>,
-    positions_z: Vec<f32>,
-    velocities_x: Vec<f32>,
-    velocities_y: Vec<f32>,
-    velocities_z: Vec<f32>,
-    masses: Vec<f32>,
-    ids: Vec<u64>,
-    flags: Vec<u8>,
+use std::sync::Arc;
+
+struct Theme {
+    accent: u32,
 }
 
-fn update_positions(p: &mut Particles, dt: f32) {
-    // Access contiguous memory - perfect cache utilization
-    for (px, vx) in p.positions_x.iter_mut().zip(&p.velocities_x) {
-        *px += vx * dt;
-    }
-    for (py, vy) in p.positions_y.iter_mut().zip(&p.velocities_y) {
-        *py += vy * dt;
-    }
-    for (pz, vz) in p.positions_z.iter_mut().zip(&p.velocities_z) {
-        *pz += vz * dt;
+struct Palette {
+    theme: Arc<Theme>,
+}
+
+struct Stroke {
+    palette: Arc<Palette>,
+    pixels: Vec<u8>,
+    accent: u32,
+}
+
+impl Stroke {
+    fn accent(&self) -> u32 {
+        self.accent
     }
 }
 ```
+
+Keep the shared `Palette` when it is large and genuinely has several owners.
+Lift only a measured hot field, and update or reconstruct the copy whenever the
+source configuration changes.
+
+## Structure of Arrays
+
+When a loop touches one field across thousands of records, splitting that hot
+field into a contiguous vector can reduce unrelated cache traffic. It is not
+automatically superior: an update that always reads a record's position and
+velocity together may be better served by a compact array of structs. Benchmark
+the actual access pattern.
 
 ## Hot/Cold Splitting
 
@@ -92,35 +100,16 @@ fn update(entities: &mut Entities, dt: f32) {
 }
 ```
 
-## Prefetching
+## Sequential Chunks
 
 ```rust
 // Process in cache-line-sized chunks
 const CACHE_LINE: usize = 64;
 
-fn process_with_prefetch(data: &mut [u8]) {
+fn process_sequentially(data: &mut [u8]) {
     for chunk in data.chunks_mut(CACHE_LINE) {
-        // Prefetch next chunk while processing current
-        // (automatic in many cases, manual for complex patterns)
+        // Contiguous traversal exposes a predictable stream to hardware.
         process_chunk(chunk);
-    }
-}
-
-// Matrix multiplication - block for cache
-fn matmul_blocked(a: &[f64], b: &[f64], c: &mut [f64], n: usize) {
-    const BLOCK: usize = 32;  // Fits in L1 cache
-    
-    for i0 in (0..n).step_by(BLOCK) {
-        for j0 in (0..n).step_by(BLOCK) {
-            for k0 in (0..n).step_by(BLOCK) {
-                // Process BLOCK x BLOCK tile
-                for i in i0..min(i0 + BLOCK, n) {
-                    for j in j0..min(j0 + BLOCK, n) {
-                        // Inner loop operates on cached data
-                    }
-                }
-            }
-        }
     }
 }
 ```
@@ -185,3 +174,5 @@ valgrind --tool=cachegrind ./my_program
 - [mem-smaller-integers](./mem-smaller-integers.md) - Smaller data fits more in cache
 - [mem-box-large-variant](./mem-box-large-variant.md) - Keep enum sizes small
 - [opt-bounds-check](./opt-bounds-check.md) - Sequential access patterns
+- [own-arc-shared](./own-arc-shared.md) - One `Arc` for genuine sharing, not a pointer per nested field
+- [perf-profile-first](./perf-profile-first.md) - Confirm pointer depth with a measurement

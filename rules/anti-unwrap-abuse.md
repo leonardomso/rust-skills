@@ -1,143 +1,117 @@
 # anti-unwrap-abuse
 
-> Don't use `.unwrap()` in production code
+> Do not turn expected input, dependency, or lifecycle failures into panics
 
 ## Why It Matters
 
-`.unwrap()` panics on `None` or `Err`, crashing your program. In production, this means lost data, failed requests, and unhappy users. It also makes debugging harder since panic messages often lack context.
+`unwrap()` panics on `None` or `Err`. In a service, a panic may abort one task, one request, or the whole process depending on runtime and panic policy; it can abandon work and trigger restart amplification. It also erases the boundary decision about retry, rejection, fallback, and observability. Return a typed error for failures that input, dependencies, configuration, shutdown, or races can cause.
 
 ## Bad
 
 ```rust
-// Crashes if file doesn't exist
 let content = std::fs::read_to_string("config.toml").unwrap();
-
-// Crashes on invalid input
-let num: i32 = user_input.parse().unwrap();
-
-// Crashes if key missing
+let port: u16 = user_input.parse().unwrap();
 let value = map.get("key").unwrap();
-
-// Crashes if channel closed
-let msg = receiver.recv().unwrap();
+let message = receiver.recv().unwrap();
 ```
+
+All four failures are possible without a Rust bug.
 
 ## Good
 
 ```rust
-// Propagate with ?
-fn load_config() -> Result<Config, Error> {
-    let content = std::fs::read_to_string("config.toml")?;
-    Ok(toml::from_str(&content)?)
+fn load_config(path: &std::path::Path) -> Result<Config, ConfigError> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|source| ConfigError::Read { path: path.to_owned(), source })?;
+    toml::from_str(&content)
+        .map_err(|source| ConfigError::Parse { path: path.to_owned(), source })
 }
 
-// Provide default
-let num: i32 = user_input.parse().unwrap_or(0);
+fn parse_port(input: &str) -> Result<u16, ConfigError> {
+    let port = input.parse::<u16>().map_err(ConfigError::Port)?;
+    if port == 0 {
+        return Err(ConfigError::ZeroPort);
+    }
+    Ok(port)
+}
 
-// Handle missing key
 let value = map.get("key").ok_or(Error::MissingKey)?;
 
-// Or use if-let
-if let Some(value) = map.get("key") {
-    process(value);
-}
-
-// Channel with proper handling
-match receiver.recv() {
-    Ok(msg) => handle(msg),
-    Err(_) => break,  // Channel closed
+while let Ok(message) = receiver.recv() {
+    handle(message)?;
 }
 ```
 
-## When unwrap() Is Acceptable
+A default is correct only when the product contract defines absence or invalidity as that value. Do not write `parse().unwrap_or(0)` when zero changes security, capacity, timeout, port, or retention behavior.
+
+## Invariants
+
+Use `expect` only when failure proves an internal invariant violation and the message states the invariant:
 
 ```rust
-// 1. Tests - panics are expected failures
+map.entry(key.clone()).or_insert(value);
+let inserted = map
+    .get(&key)
+    .expect("BUG: entry API inserted or found this key");
+use_value(inserted);
+```
+
+Prefer APIs such as `entry`, pattern matching, `NonZero*`, and validated newtypes that make the invariant direct. A prior check on mutable external state, the filesystem, network, clock, process environment, or another thread does not prove a later operation cannot fail.
+
+## Tests
+
+```rust
 #[test]
-fn test_parse() {
-    let result = parse("valid").unwrap();  // OK in tests
-    assert_eq!(result, expected);
+fn parses_valid_port() {
+    let parsed = parse_port("8080").expect("fixture is a valid non-zero port");
+    assert_eq!(parsed, 8080);
 }
-
-// 2. Const/static initialization (compile-time guaranteed)
-static REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^\d+$").unwrap()  // Known-valid pattern
-});
-
-// 3. After a check that guarantees success
-if map.contains_key("key") {
-    let value = map.get("key").unwrap();  // Just checked
-}
-// Better: use if-let or entry API instead
-
-// 4. Truly impossible cases with proof comment
-let last = vec.pop().unwrap();  
-// OK only if you just checked !vec.is_empty()
-// Better: use last() or pattern match
 ```
 
-## Alternatives to unwrap()
+A panic is an appropriate test failure, but `expect` preserves fixture intent. Add separate assertions for invalid inputs rather than unwrapping only the happy path.
+
+## Static Initialization
+
+A string literal can still become invalid when a dependency's parser changes. Preserve initialization failure when startup can report it:
 
 ```rust
-// unwrap_or - provide default
-let x = opt.unwrap_or(default);
+use std::sync::OnceLock;
 
-// unwrap_or_default - use Default trait
-let x = opt.unwrap_or_default();
+static PATTERN: OnceLock<regex::Regex> = OnceLock::new();
 
-// unwrap_or_else - compute default lazily
-let x = opt.unwrap_or_else(|| expensive_default());
-
-// ? operator - propagate errors
-let x = opt.ok_or(Error::Missing)?;
-
-// if let - handle Some/Ok case
-if let Some(x) = opt {
-    use_x(x);
+fn pattern() -> Result<&'static regex::Regex, regex::Error> {
+    if let Some(value) = PATTERN.get() {
+        return Ok(value);
+    }
+    let compiled = regex::Regex::new(r"^\d+$")?;
+    Ok(PATTERN.get_or_init(|| compiled))
 }
-
-// match - handle all cases
-match opt {
-    Some(x) => use_x(x),
-    None => handle_none(),
-}
-
-// map - transform if present
-let y = opt.map(|x| x + 1);
-
-// and_then - chain fallible operations
-let z = opt.and_then(|x| x.checked_add(1));
 ```
 
-## expect() Is Slightly Better
+For a literal whose invalidity is treated as a build bug, a narrowly scoped `expect("BUG: ...")` at startup is defensible, but it is not compile-time validation unless a build-time/const mechanism actually checks it.
 
-```rust
-// unwrap() - no context
-let file = File::open(path).unwrap();
-// Panics with: "called `Result::unwrap()` on an `Err` value: Os { code: 2, ... }"
+## Alternatives
 
-// expect() - adds context
-let file = File::open(path)
-    .expect("config file should exist at startup");
-// Panics with: "config file should exist at startup: Os { code: 2, ... }"
+- `?` propagates a typed failure while preserving its source chain.
+- `ok_or`/`ok_or_else` turns absence into a domain error.
+- `match` handles success, retry, closure, and shutdown distinctly.
+- `unwrap_or_else` supplies a fallback only when the fallback is explicitly safe and observable.
+- `checked_*` and `TryFrom` reject arithmetic/conversion failure.
+- `let ... else` keeps an expected rejection path explicit.
 
-// But still use only for invariants, not error handling
+## Enforcement
+
+```toml
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "warn"
 ```
 
-## Clippy Lint
-
-```rust
-// Enable these lints to catch unwrap usage:
-#![warn(clippy::unwrap_used)]
-#![warn(clippy::expect_used)]  // Stricter
-
-// Or per-function:
-#[allow(clippy::unwrap_used)]
-fn tests_only() { }
-```
+Use narrow test-module or invariant-specific lint overrides with a reason. Do not globally allow unwraps in binaries, examples, benchmarks, or generated operational code.
 
 ## See Also
 
-- [err-question-mark](err-question-mark.md) - Use ? for propagation
-- [err-result-over-panic](err-result-over-panic.md) - Return Result instead of panicking
-- [anti-expect-lazy](anti-expect-lazy.md) - Don't use expect for recoverable errors
+- [err-question-mark](err-question-mark.md) - propagate typed failures
+- [err-expect-bugs-only](err-expect-bugs-only.md) - reserve `expect` for proved bugs
+- [err-result-over-panic](err-result-over-panic.md) - define recoverable failure behavior
+- [num-nonzero](num-nonzero.md) - encode invalid zero states out of the type

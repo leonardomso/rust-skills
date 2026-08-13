@@ -101,9 +101,8 @@ fn hot_function(data: &[u8]) -> u64 {
     // Optimized implementation justified by benchmarks
 }
 
-// Clear, measurable benefit documented
-/// Pre-allocated buffer for repeated formatting.
-/// Benchmarks show 3x speedup for >1000 calls/sec workloads.
+// Record the benchmark artifact, inputs, target, toolchain, uncertainty, and
+// product metric that justified retaining a reusable buffer.
 struct FormatterPool {
     buffers: Vec<String>,
 }
@@ -113,11 +112,11 @@ struct FormatterPool {
 
 | Premature | Reality |
 |-----------|---------|
-| `#[inline(always)]` everywhere | Compiler usually knows better |
-| `unsafe` for bounds check removal | Iterator does this safely |
-| Custom allocator | Default is usually fine |
-| Object pooling | Allocator is fast enough |
-| Manual SIMD | Auto-vectorization works |
+| `#[inline(always)]` everywhere | Inspect optimized output and benchmark the measured call boundary |
+| `unsafe` for bounds checks | First express provable bounds safely; use unchecked access only if a retained check is measured |
+| Custom allocator | Compare representative allocation and tail-latency evidence |
+| Object pooling | Include reset correctness, peak retention, contention, and allocator evidence |
+| Manual SIMD | Compare scalar/autovectorized and target-dispatched implementations |
 
 ## Profile Tools
 
@@ -126,7 +125,7 @@ struct FormatterPool {
 perf record ./target/release/app && perf report
 
 # Flamegraph
-cargo install flamegraph
+cargo install --locked --version <reviewed-version> flamegraph
 cargo flamegraph
 
 # Criterion benchmarks

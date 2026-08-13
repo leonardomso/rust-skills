@@ -16,7 +16,7 @@ struct Config {
 }
 
 impl Config {
-    // Custom constructor - works but non-standard
+    // Constructor exists, but standard Default-based APIs cannot use it.
     fn new() -> Self {
         Config {
             timeout: Duration::from_secs(30),
@@ -63,6 +63,13 @@ impl Default for Config {
             retries: 3,
             verbose: false,
         }
+    }
+}
+
+impl Config {
+    // Keep the conventional constructor even when it is equivalent to Default.
+    fn new() -> Self {
+        Self::default()
     }
 }
 

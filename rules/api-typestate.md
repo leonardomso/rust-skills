@@ -109,14 +109,16 @@ struct RequestBuilder<State> {
     timeout: Option<Duration>,
 }
 
-impl RequestBuilder<BuilderNoUrl> {
-    fn new() -> Self {
+impl Request {
+    fn builder() -> RequestBuilder<BuilderNoUrl> {
         RequestBuilder {
             state: BuilderNoUrl,
             timeout: None,
         }
     }
-    
+}
+
+impl RequestBuilder<BuilderNoUrl> {
     fn url(self, url: &str) -> RequestBuilder<BuilderWithUrl> {
         RequestBuilder {
             state: BuilderWithUrl { url: url.to_string() },
@@ -141,10 +143,10 @@ impl RequestBuilder<BuilderWithUrl> {
 }
 
 // Compile error: build() not available
-let bad = RequestBuilder::new().build();
+let bad = Request::builder().build();
 
 // Correct: must set URL first
-let good = RequestBuilder::new()
+let good = Request::builder()
     .url("https://example.com")
     .timeout(Duration::from_secs(30))
     .build();

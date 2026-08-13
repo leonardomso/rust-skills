@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Panics unwind the stack and crash the thread (or program). They're unrecoverable from the caller's perspective. `Result<T, E>` gives callers the ability to decide how to handle errors—retry, fallback, propagate, or log. Libraries should almost never panic; applications should minimize panics to truly unrecoverable situations.
+Panics unwind the stack and crash the thread—or the process when the caller
+uses `panic = "abort"`. `Result<T, E>` is for conditions the caller can
+reasonably encounter and act on: retry, fallback, correct input, propagate, or
+log. A detected programming bug or documented contract violation is different:
+there is no useful runtime recovery value, so it should panic rather than
+inventing an error variant that callers cannot handle.
 
 ## Bad
 
@@ -71,20 +76,26 @@ fn get_cached_value(&self, key: &str) -> &Value {
     self.cache.get(key).expect("BUG: key was verified to exist")
 }
 
-// 2. Setup/initialization that can't reasonably fail
-fn main() {
-    let config = Config::load().expect("Failed to load required config");
-    // Can't run without config, panic is reasonable
+// 2. A documented precondition was violated.
+fn page_at(pages: &[Page], index: usize) -> &Page {
+    assert!(index < pages.len(), "page index {index} out of bounds");
+    &pages[index]
 }
 
-// 3. Tests
+// 3. Setup/initialization whose failure terminates this application
+fn main() {
+    let config = Config::load().expect("Failed to load required config");
+    // This is application policy, not a reusable library API.
+}
+
+// 4. Tests
 #[test]
 fn test_parse() {
     let result = parse("valid input").unwrap(); // unwrap OK in tests
     assert_eq!(result, expected);
 }
 
-// 4. Examples and prototypes
+// 5. Examples and prototypes
 fn main() {
     // Quick prototype, panic is fine
     let data = fetch_data().unwrap();
@@ -102,25 +113,43 @@ fn main() {
 | Index out of bounds (from user data) | `Result` |
 | Index out of bounds (internal bug) | Panic |
 | Violated internal invariant | Panic |
-| Unimplemented code path | Panic (`unimplemented!()`) |
-| Impossible state reached | Panic (`unreachable!()`) |
+| Violated safe API precondition | Prefer a type/`Result`; panic only when the API deliberately specifies it |
+| Unimplemented production path | Do not ship it |
+| State proved unreachable by a maintained invariant | Panic with the invariant; never use unchecked UB as an assertion |
 
-## Library vs Application
+You do not need to add an expensive check merely to detect every possible
+contract violation. Omitting a check may produce an unspecified but defined
+result; it must never make a safe API undefined. Methods whose contract
+explicitly requests a panic, such as an `unwrap`-style accessor, are also
+allowed.
+
+Code must remain minimally panic-safe even when the design treats panic as
+termination: if an unwind is caught by a host, destructors and later safe code
+must not observe memory unsafety or broken validity invariants. Const evaluation
+may use assertions or unwrap-like operations to reject an invalid constant at
+compile time.
+
+## Library Versus Application Boundary
 
 ```rust
-// Library: NEVER panic on user input
+// Library: return a typed rejection for input-controlled failure.
 pub fn parse(input: &str) -> Result<Ast, ParseError> {
-    // Always return Result
+    // ...
 }
 
-// Application: Can panic at top level for critical failures
-fn main() {
+// Application: map startup failure to diagnostics and controlled termination.
+fn main() -> std::process::ExitCode {
     if let Err(e) = run() {
-        eprintln!("Fatal error: {}", e);
-        std::process::exit(1);
+        eprintln!("startup failed: {e:#}");
+        return std::process::ExitCode::FAILURE;
     }
+    std::process::ExitCode::SUCCESS
 }
 ```
+
+Returning a failure exit status is not a panic. Keep sensitive configuration
+and credentials out of the rendered chain, and flush telemetry only within a
+bounded shutdown budget.
 
 ## See Also
 
@@ -128,3 +157,5 @@ fn main() {
 - [err-anyhow-app](./err-anyhow-app.md) - Ergonomic errors for applications
 - [err-no-unwrap-prod](./err-no-unwrap-prod.md) - Avoid unwrap in production code
 - [anti-unwrap-abuse](./anti-unwrap-abuse.md) - When unwrap is acceptable
+- [err-catch-unwind-boundary](./err-catch-unwind-boundary.md) - catch_unwind only at an isolation edge
+- [err-panic-message](./err-panic-message.md) - every intentional panic explains the violated contract

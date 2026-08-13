@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Cloning allocates new memory and copies data, while borrowing is free. Unnecessary clones can significantly impact performance, especially in hot paths or with large data structures.
+`Clone` means "duplicate according to this type's semantics." A `String` or
+owned object graph may allocate and copy data; an `Arc` clone updates a
+reference count; some clones are small inline copies. Borrowing avoids creating
+a second owned value and usually avoids that work, but it also constrains
+lifetimes and mutation. Borrow when the callee only needs access, and clone
+when independent ownership is part of the contract.
 
 ## Bad
 
@@ -22,7 +27,7 @@ fn count_words(text: &String) -> usize {
 // Clone in a loop - multiplied cost
 fn process_all(items: &[String]) {
     for item in items {
-        let copy = item.clone();  // N allocations!
+        let copy = item.clone();  // Up to N independent String allocations.
         handle(&copy);
     }
 }
@@ -39,7 +44,7 @@ fn count_words(text: &str) -> usize {
     text.split_whitespace().count()  // Just borrow
 }
 
-// Borrow in a loop - zero allocations
+// Borrow in a loop - no ownership duplication
 fn process_all(items: &[String]) {
     for item in items {
         handle(item);  // Pass reference

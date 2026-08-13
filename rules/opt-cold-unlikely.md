@@ -4,12 +4,16 @@
 
 ## Why It Matters
 
-The `#[cold]` attribute tells the compiler that a function is rarely called. The compiler uses this to optimize code layout—keeping cold code away from hot code improves instruction cache utilization. Combined with branch layout optimization, this can measurably improve performance.
+`#[cold]` is a code-generation hint that a function is unlikely to be called.
+It can influence caller optimization and code layout, but Rust does not
+guarantee a separate section, branch probability, or performance gain. Apply
+it only to an actually rare, sizeable path identified by representative
+profiles; benchmark and inspect supported-target output before retaining it.
 
 ## Bad
 
 ```rust
-// All branches treated equally
+// No profile evidence supports labeling these input failures cold.
 fn validate(input: &str) -> Result<Data, ValidationError> {
     if input.is_empty() {
         return Err(ValidationError::Empty);  // Rare
@@ -103,10 +107,12 @@ fn panic_invalid_state(state: &State) -> ! {
 ## Assertions and Invariants
 
 ```rust
-fn get_unchecked(&self, index: usize) -> &T {
+fn get_with_cold_panic(&self, index: usize) -> &T {
     if index >= self.len {
         cold_bounds_panic(index, self.len);
     }
+    // SAFETY: the branch above proves index < len, and the type invariant
+    // requires ptr to reference len initialized T values.
     unsafe { &*self.ptr.add(index) }
 }
 
@@ -120,7 +126,7 @@ fn cold_bounds_panic(index: usize, len: usize) -> ! {
 ## Combining with #[inline(never)]
 
 ```rust
-// Usually combine both for maximum effect
+// Combine only when measurement justifies both hints.
 #[cold]
 #[inline(never)]
 fn error_path() -> Error {

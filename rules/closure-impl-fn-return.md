@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-`impl Fn` in return position names the closure's concrete (but unnameable) type and enables static dispatch with no heap allocation. `Box<dyn Fn>` adds an allocation and a virtual call every time the closure is invoked. The opaque `impl Trait` syntax was designed precisely for this use case. Reach for `Box<dyn Fn>` only when the function must return *different* closure types depending on runtime conditions, or when the closure must be stored in a struct field or collection.
+`impl Fn` in return position preserves the closure's concrete (but
+unnameable) type and permits static dispatch without requiring a box.
+`Box<dyn Fn>` ordinarily allocates when the box is constructed and uses dynamic
+dispatch on each call; it does not allocate anew for every invocation. Reach
+for a boxed trait object when runtime-varying closure types or heterogeneous
+storage are the actual contract.
 
 ## Bad
 

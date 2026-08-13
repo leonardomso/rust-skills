@@ -1,15 +1,20 @@
 # mem-arrayvec
 
-> Use `ArrayVec<T, N>` for fixed-capacity collections that never heap-allocate
+> Use `ArrayVec<T, N>` when the collection itself needs fixed inline capacity
 
 ## Why It Matters
 
-`ArrayVec` from the `arrayvec` crate provides Vec-like API with a compile-time maximum capacity, storing all elements inline on the stack. Unlike `SmallVec` which can spill to heap, `ArrayVec` guarantees no heap allocation—if you exceed capacity, it returns an error or panics. This is ideal for embedded systems, real-time code, or when you have a hard upper bound.
+`ArrayVec` from the `arrayvec` crate provides a Vec-like API with a
+compile-time maximum capacity and stores its elements inline wherever the
+`ArrayVec` value lives. The collection does not allocate storage when it fills,
+but an element type may allocate internally. Exceeding capacity either returns
+an error through a checked method or panics through an infallible method. Use it
+when the capacity is a real contract, not as a silent truncation mechanism.
 
 ## Bad
 
 ```rust
-// Vec always heap-allocates, even for small collections
+// A non-empty Vec ordinarily allocates separate element storage.
 fn parse_options(input: &str) -> Vec<Option> {
     let mut options = Vec::new();  // Heap allocation
     for part in input.split(',').take(8) {  // Know we never exceed 8
@@ -31,19 +36,18 @@ fn get_flags() -> SmallVec<[Flag; 4]> {
 ```rust
 use arrayvec::ArrayVec;
 
-// Guaranteed no heap allocation
-fn parse_options(input: &str) -> ArrayVec<Option<u32>, 8> {
+// Reject input that exceeds the documented capacity.
+fn parse_options(input: &str) -> Result<ArrayVec<Option<u32>, 8>, &'static str> {
     let mut options = ArrayVec::new();
     for part in input.split(',') {
-        if options.try_push(parse_option(part)).is_err() {
-            break;  // Capacity reached, stop
-        }
+        options
+            .try_push(parse_option(part))
+            .map_err(|_| "at most eight options are allowed")?;
     }
-    options
+    Ok(options)
 }
 
-// For embedded/no_std contexts
-#[no_std]
+// In a #![no_std] crate:
 fn collect_readings() -> ArrayVec<SensorReading, 16> {
     let mut readings = ArrayVec::new();
     for sensor in SENSORS.iter() {
@@ -55,11 +59,11 @@ fn collect_readings() -> ArrayVec<SensorReading, 16> {
 
 ## ArrayVec vs SmallVec vs Vec
 
-| Type | Stack | Heap | Use When |
-|------|-------|------|----------|
-| `Vec<T>` | Never | Always | Unknown size, may grow indefinitely |
-| `SmallVec<[T; N]>` | Up to N | Beyond N | Usually small, occasionally large |
-| `ArrayVec<T, N>` | Always | Never | Hard limit, no heap allowed |
+| Type | Element storage | Use When |
+|------|-----------------|----------|
+| `Vec<T>` | Separate allocation when capacity is nonzero | Unknown size, may grow |
+| `SmallVec<[T; N]>` | Inline through N, then separate allocation | Usually small, occasionally large |
+| `ArrayVec<T, N>` | Inline and fixed at N | Hard limit is part of the contract |
 
 ## API Patterns
 
@@ -96,18 +100,18 @@ let arr: ArrayVec<_, 10> = (0..100)
     .collect();
 ```
 
-## ArrayString for Stack Strings
+## ArrayString for Inline Strings
 
 ```rust
 use arrayvec::ArrayString;
 use std::fmt::Write; // brings the write! target trait into scope
 
-// Stack-allocated string with max capacity
+// Inline string with max capacity
 let mut s: ArrayString<64> = ArrayString::new();
 s.push_str("Hello, ");
 s.push_str("world!");
 
-// No heap allocation for small strings
+// ArrayString itself uses inline storage
 fn format_code(code: u32) -> ArrayString<16> {
     let mut s = ArrayString::new();
     write!(&mut s, "CODE-{:04}", code).unwrap();

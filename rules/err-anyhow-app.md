@@ -169,9 +169,16 @@ fn handle_error(err: anyhow::Error) {
 | Library public API | `thiserror` |
 | Application code | `anyhow` |
 | CLI tools | `anyhow` |
-| Internal library code | Either |
+| Crate used only by one application | The application's chosen facade |
+| Crate used by more than one crate | A typed `thiserror` error |
 | Need to match error variants | `thiserror` |
 | Just need to report errors | `anyhow` |
+
+Choose one application-level error facade (`anyhow`, `eyre`, `ohno`, or an
+equivalent) and use it consistently across the application-owned layer. Do not
+mix several erased application error types: context, downcasting, reporting,
+and top-level termination policy should have one path. Typed library errors
+still pass through that facade via `?`.
 
 ## See Also
 

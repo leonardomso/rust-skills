@@ -4,7 +4,13 @@
 
 ## Why It Matters
 
-Defaulting to `SeqCst` (sequentially consistent) on every atomic is a common correctness-first shortcut, but it carries real cost: on x86 the difference is small, but on ARM and RISC-V weaker orderings map to cheaper instructions while `SeqCst` requires full memory barriers. More importantly, choosing the wrong ordering — even a weaker one — is a correctness bug that causes data races the compiler won't catch. Understanding the four practical levels lets you write both correct and efficient concurrent code.
+Defaulting to `SeqCst` on every atomic can impose unnecessary ordering and
+obscure the synchronization proof, but the concrete cost depends on operation,
+architecture, compiler, and surrounding code. Choosing an ordering that is too
+weak can expose stale or inconsistent state and, when non-atomic memory is
+involved, can permit a data race and undefined behavior. Write the
+happens-before argument first, use a mutex when that argument is not small and
+reviewable, and benchmark only after correctness.
 
 ## Bad
 
@@ -15,18 +21,22 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 static READY: AtomicBool = AtomicBool::new(false);
 static mut DATA: u64 = 0;
 
-// SeqCst everywhere — correct, but unnecessarily expensive
+// SeqCst everywhere obscures the intended independent counter and handoff.
 fn increment() {
     COUNTER.fetch_add(1, Ordering::SeqCst);
 }
 
 fn producer() {
+    // SAFETY: this example is intentionally bad. Concurrent access to DATA
+    // needs a proven synchronization protocol.
     unsafe { DATA = 42; }
     READY.store(true, Ordering::SeqCst); // overkill for a single flag
 }
 
 fn consumer() -> Option<u64> {
     if READY.load(Ordering::SeqCst) {
+        // SAFETY: SeqCst on READY can provide the handoff here, but raw mutable
+        // global state is needlessly hard to audit; use the atomic payload below.
         Some(unsafe { DATA })
     } else {
         None
@@ -51,7 +61,8 @@ fn total() -> u64 {
 }
 
 // Acquire/Release: paired handoff — producer writes data THEN sets flag (Release);
-// consumer loads flag (Acquire) and is guaranteed to see the preceding write.
+// consumer loads a value written by that Release (Acquire) and then observes
+// the operations sequenced before the publishing store.
 static READY: AtomicBool = AtomicBool::new(false);
 static VALUE: AtomicU64 = AtomicU64::new(0);
 
@@ -77,14 +88,16 @@ fn consumer() -> Option<u64> {
 | Ordering | Use when |
 |----------|----------|
 | `Relaxed` | Operation is atomic but needs no ordering relative to other memory (counters, stats) |
-| `Acquire` | Load that must see all stores preceding a matching `Release` on another thread |
-| `Release` | Store that must be visible before a matching `Acquire` load on another thread |
+| `Acquire` | Load/RMW that reads from a release sequence and must observe operations before it |
+| `Release` | Store/RMW that publishes preceding operations to an acquiring reader |
 | `AcqRel` | Read-modify-write (e.g. `compare_exchange`) acting as both Acquire and Release |
 | `SeqCst` | Need a single global order observed by all threads across multiple atomic variables |
 
 ## Verification with loom
 
-Use the `loom` crate to exhaustively verify ordering choices for small concurrent units — it explores all interleavings the C11 memory model permits:
+Use the `loom` crate to explore ordering choices for small concurrent units
+within an explicit bounded model. A green model proves only the instrumented
+state space you supplied:
 
 ```rust
 #[cfg(loom)]
@@ -101,6 +114,7 @@ fn test_handoff() {
 
 ## See Also
 
+- [conc-atomic-update](conc-atomic-update.md) - replace hand-written compare-exchange retry loops
 - [own-mutex-interior](own-mutex-interior.md) - prefer `Mutex<T>` when lock-free isn't required
-- [test-loom-concurrency](test-loom-concurrency.md) - exhaustively test concurrent code with loom
+- [test-loom-concurrency](test-loom-concurrency.md) - explore a bounded instrumented concurrency model
 - [conc-scoped-threads](conc-scoped-threads.md) - safely share stack data across threads

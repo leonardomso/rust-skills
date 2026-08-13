@@ -4,7 +4,14 @@
 
 ## Why It Matters
 
-The choice between `type Output;` and `<Rhs>` has two concrete consequences. First, an associated type is **part of the implementing type's identity**: callers never name it with turbofish because there is only one valid binding per impl. Second, a generic parameter allows **multiple simultaneous impls** on the same type — `impl Add<f64> for Vec2` and `impl Add<Vec2> for Vec2` can coexist, while `impl Iterator` can only define one `Item`. Using an associated type when multiple impls are needed makes those impls impossible; using a generic parameter when there is only one output forces every call site to write noisy turbofish or type annotations.
+The choice between `type Output;` and `<Rhs>` has two concrete consequences.
+An associated type has one binding per trait implementation and callers project
+it as `<T as Trait>::Output` or `T::Output` when unambiguous. A generic
+parameter permits multiple implementations for different arguments:
+`impl Add<f64> for Vec2` and `impl Add<Vec2> for Vec2` can coexist, while one
+`impl Iterator for T` defines one `Item`. Generic arguments are often inferred;
+explicit type annotations are needed only when context cannot select an
+implementation.
 
 The Rust API Guidelines (rust-lang.github.io/api-guidelines/future-proofing.html) capture the rule: prefer associated types when there is a single natural output per implementor.
 
@@ -63,7 +70,7 @@ impl Parser for NumberParser {
     }
 }
 
-// No turbofish needed — `P::Output` is unambiguous.
+// `P::Output` is unambiguous for this trait bound.
 fn run<P: Parser>(p: &P, s: &str) -> Option<P::Output> {
     p.parse(s)
 }

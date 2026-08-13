@@ -121,6 +121,12 @@ fn test_create_user() { ... }
 | Fast, isolated | May be slower |
 | `cargo test --lib` | `cargo test --test '*'` |
 
+If a behavior can be tested entirely through the public API, prefer an
+integration test under `tests/`. Keep `#[cfg(test)] mod tests` in `src/` for
+small private helpers or invariants that cannot be observed through the public
+surface. This keeps production modules readable and ensures the preferred test
+does not rely on accidental visibility.
+
 ## Running Specific Tests
 
 ```bash

@@ -60,10 +60,12 @@ workspace = true
 
 - Feature names (`feature = "serde"`, `feature = "std"`) are registered automatically by Cargo — you do not need to list them in `check-cfg`.
 - Values in `check-cfg` entries must be quoted cfg expressions: `'cfg(name)'` or `'cfg(name, values("v1", "v2"))'`.
-- The lint fires at `warn` level; promote to `deny` in CI if you want hard failures.
+- The lint fires at `warn` level; promote to `deny` in CI, or set `[build] warnings = "deny"` (Cargo 1.97+), if you want hard failures.
 
 ## See Also
 
 - [lint-workspace-lints](lint-workspace-lints.md) - configure lints at workspace level
+- [lint-warnings-deny-config](lint-warnings-deny-config.md) - deny rustc warnings in CI via Cargo config
+- [proj-cfg-select](proj-cfg-select.md) - select one conditional item or expression in one place
 - [proj-feature-additive](proj-feature-additive.md) - design features to be strictly additive
 - [lint-warn-suspicious](lint-warn-suspicious.md) - enable suspicious lint group

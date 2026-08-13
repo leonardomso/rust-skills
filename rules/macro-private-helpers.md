@@ -4,7 +4,7 @@
 
 ## Why It Matters
 
-Exported macros often need to call helper functions, use types, or invoke traits at the call site. Placing those helpers directly in the crate's public API pollutes the surface with implementation details and freezes them under semver — any rename or removal becomes a breaking change. Routing all generated references through a `#[doc(hidden)] pub mod __private` keeps the public API clean while letting you evolve internals freely.
+Exported macros often need to call helper functions, use types, or invoke traits at the call site. Placing those helpers directly in the crate's public API pollutes the surface with implementation details and freezes them under semver — any rename or removal becomes a breaking change. Requiring the caller to depend directly on a third-party helper is worse: the dependency may be absent or at an incompatible version. Routing first- and third-party references through a `#[doc(hidden)] pub mod __private` keeps generated paths stable without making those items part of the user-facing API.
 
 This is the pattern used by `serde`, `thiserror`, and many derive crates.
 
@@ -40,6 +40,7 @@ pub mod __private {
     // macro call sites), but hidden from rendered docs and clearly
     // marked as an unstable implementation detail.
     pub use crate::helpers::format_value;
+    pub use serde::Serialize;
 }
 
 // Internal module — not public.
@@ -89,6 +90,7 @@ impl ::mycrate::__private::Describe for MyStruct {
 - Name the module `__private` (double-underscore) — it signals "not part of the public API" by convention across the ecosystem.
 - Always pair with `#[doc(hidden)]` so the module is invisible in rendered documentation.
 - Reference items as `$crate::__private::...` inside macros — never as bare paths.
+- Re-export third-party traits and types used by expansions here; do not require callers to add a matching direct dependency.
 - Document in your crate's CHANGELOG or README that `__private` is exempt from semver guarantees.
 
 ## See Also
@@ -96,3 +98,4 @@ impl ::mycrate::__private::Describe for MyStruct {
 - [macro-rules-hygiene](macro-rules-hygiene.md) - `$crate` for correct path resolution
 - [macro-proc-two-crate](macro-proc-two-crate.md) - separating proc-macro and facade crates
 - [doc-all-public](doc-all-public.md) - documenting public items
+- [proj-pub-use-reexport](proj-pub-use-reexport.md) - `__private` is the hidden macro exception to one user-facing path

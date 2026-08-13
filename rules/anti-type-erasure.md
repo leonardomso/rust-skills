@@ -1,10 +1,15 @@
 # anti-type-erasure
 
-> Don't use Box<dyn Trait> when impl Trait works
+> Don't erase a concrete type when `impl Trait`, a generic, or an enum keeps the contract honest
 
 ## Why It Matters
 
-`Box<dyn Trait>` (type erasure) introduces heap allocation and dynamic dispatch overhead. When you have a single concrete type or can use generics, `impl Trait` provides the same flexibility with zero overhead through monomorphization.
+`Box<dyn Trait>` expresses owned runtime erasure. It normally adds an indirect
+call and a box for non-zero-sized values, but it also caps code growth and
+supports open heterogeneous implementations. `impl Trait` and generics retain
+one concrete type for static dispatch; an enum retains a closed heterogeneous
+set without erasure. These are different substitution contracts, not a simple
+performance ladder.
 
 ## Bad
 
@@ -19,19 +24,16 @@ fn make_handler() -> Box<dyn Fn(i32) -> i32> {
     Box::new(|x| x + 1)
 }
 
-// Vec of boxed trait objects when one type would do
-fn get_validators() -> Vec<Box<dyn Validator>> {
-    vec![
-        Box::new(LengthValidator),
-        Box::new(RegexValidator),
-    ]
+// One concrete validator type needs no erased collection
+fn get_validators() -> Vec<LengthValidator> {
+    vec![LengthValidator::new(1), LengthValidator::new(20)]
 }
 ```
 
 ## Good
 
 ```rust
-// impl Trait - zero overhead, inlined
+// impl Trait retains one concrete return type and permits static dispatch
 fn get_iterator() -> impl Iterator<Item = i32> {
     (0..10).map(|x| x * 2)
 }
@@ -86,9 +88,9 @@ struct EventLoop {
 
 | Approach | Allocation | Dispatch | Binary Size |
 |----------|------------|----------|-------------|
-| `impl Trait` | Stack/inline | Static | Larger (monomorphization) |
-| `Box<dyn Trait>` | Heap | Dynamic | Smaller |
-| Generics `<T>` | Stack/inline | Static | Larger |
+| `impl Trait` | Chosen by implementation | Static | May grow through monomorphization |
+| `Box<dyn Trait>` | Owned heap box for ordinary values | Dynamic | May reduce duplicated code |
+| Generics `<T>` | Chosen by caller | Static | May grow through monomorphization |
 
 ## impl Trait Positions
 

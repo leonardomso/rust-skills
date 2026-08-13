@@ -1,26 +1,32 @@
 # mem-thinvec
 
-> Use `ThinVec<T>` for nullable collections with minimal overhead
+> Consider `ThinVec<T>` only after measuring many sparse collection handles
 
 ## Why It Matters
 
-Standard `Vec<T>` is 24 bytes even when empty. `ThinVec` from Mozilla's `thin_vec` crate uses a single pointer (8 bytes), storing length and capacity inline with the heap allocation. For Option<Vec<T>> patterns or structs with many optional vecs, this significantly reduces memory overhead.
+`ThinVec` moves length and capacity metadata behind its pointer, reducing the
+inline handle on common targets at the cost of indirection and a third-party
+dependency. Exact size and niche behavior are implementation- and
+target-specific. It can reduce resident memory when a program holds millions of
+mostly empty collection fields; it can also regress hot access and complicate
+the dependency surface. Measure the actual type, target, allocator, and
+workload before changing a `Vec`.
 
 ## Bad
 
 ```rust
 struct TreeNode {
     value: i32,
-    // Each node pays 24 bytes for children, even leaves
-    children: Vec<TreeNode>,  // Most nodes are leaves with empty Vec
+    // The full Vec handle is present even for leaves
+    children: Vec<TreeNode>,
 }
 
 // Or using Option<Vec<T>>
 struct SparseData {
-    // Option<Vec> = 24 bytes (Vec is never null-pointer optimized)
+    // Measure Option<Vec> layout on the deployment target
     tags: Option<Vec<String>>,
     metadata: Option<Vec<Metadata>>,
-    // 48 bytes for usually-None fields
+    // Two usually-empty collection handles
 }
 ```
 
@@ -31,15 +37,15 @@ use thin_vec::ThinVec;
 
 struct TreeNode {
     value: i32,
-    // Empty ThinVec is just a null pointer - 8 bytes
+    // ThinVec stores collection metadata out of line
     children: ThinVec<TreeNode>,
 }
 
 struct SparseData {
-    // ThinVec empty = 8 bytes each
+    // Smaller inline handles on the measured target/version
     tags: ThinVec<String>,
     metadata: ThinVec<Metadata>,
-    // 16 bytes vs 48 bytes
+    // Confirm the aggregate layout with size_of
 }
 ```
 
@@ -48,25 +54,28 @@ struct SparseData {
 ```rust
 use std::mem::size_of;
 
-// Standard Vec: always 24 bytes
+// Illustrative checks for the measured deployment target, not ABI guarantees
+#[cfg(target_pointer_width = "64")]
 assert_eq!(size_of::<Vec<u8>>(), 24);
-assert_eq!(size_of::<Option<Vec<u8>>>(), 24);  // No NPO benefit
+#[cfg(target_pointer_width = "64")]
+assert_eq!(size_of::<Option<Vec<u8>>>(), 24);
 
-// ThinVec: 8 bytes (one pointer)
 use thin_vec::ThinVec;
+#[cfg(target_pointer_width = "64")]
 assert_eq!(size_of::<ThinVec<u8>>(), 8);
-assert_eq!(size_of::<Option<ThinVec<u8>>>(), 8);  // Option is free!
+#[cfg(target_pointer_width = "64")]
+assert_eq!(size_of::<Option<ThinVec<u8>>>(), 8);
 ```
 
 ## ThinVec vs Vec
 
 | Feature | `Vec<T>` | `ThinVec<T>` |
 |---------|----------|--------------|
-| Size (empty) | 24 bytes | 8 bytes |
-| Size (non-empty) | 24 bytes | 8 bytes (header on heap) |
-| Option<T> optimization | No | Yes |
+| Inline handle size | Larger in current 64-bit implementations | Smaller; header is out of line |
+| Empty collection | Inline metadata remains | Uses the crate's empty representation |
+| `Option` niche | Measure | Measure |
 | Cache locality | Better (len/cap on stack) | Worse (len/cap on heap) |
-| Iteration speed | Faster | Slightly slower |
+| Iteration speed | Measure | Measure |
 | API compatibility | Full | Vec-like |
 
 ## When to Use ThinVec
@@ -76,7 +85,7 @@ assert_eq!(size_of::<Option<ThinVec<u8>>>(), 8);  // Option is free!
 struct SparseGraph {
     nodes: Vec<Node>,
     // Most edges lists are empty or small
-    edges: Vec<ThinVec<EdgeId>>,  // Saves 16 bytes per node
+    edges: Vec<ThinVec<EdgeId>>,  // Measure aggregate savings
 }
 
 // ✅ Good: Nullable collection field
@@ -87,8 +96,8 @@ struct Document {
 
 // ❌ Avoid: Hot loops, performance-critical iteration
 fn process_hot_path(data: &ThinVec<Item>) {
-    // Every length check goes through pointer indirection
-    for item in data {  // Vec would be faster here
+    // Header access differs; benchmark a hot iteration path
+    for item in data {
         process(item);
     }
 }
@@ -96,7 +105,7 @@ fn process_hot_path(data: &ThinVec<Item>) {
 // ❌ Avoid: Few instances
 fn main() {
     let single_vec: ThinVec<i32> = ThinVec::new();
-    // Saving 16 bytes once is meaningless
+    // One handle rarely justifies an added dependency
 }
 ```
 

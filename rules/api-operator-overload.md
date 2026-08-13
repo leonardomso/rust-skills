@@ -99,7 +99,10 @@ fn main() {
 
 ## Notes
 
-- Always implement the corresponding assignment operator (`AddAssign`, `SubAssign`, etc.) when you implement the binary op.
+- Implement the corresponding assignment operator when in-place mutation has
+  the same natural semantics and a useful implementation. Do not add it merely
+  for symmetry when mutation is impossible, surprising, or materially changes
+  failure behavior.
 - Prefer implementing for both owned and `&` forms to give callers flexibility without extra copies.
 - Consider `std::ops::Mul<f64> for Vector2` (scalar multiply) alongside `Mul<Vector2>` — real-world numeric types often need several rhs types.
 

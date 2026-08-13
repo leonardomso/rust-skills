@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-A `const fn` can be called in const contexts — array lengths, `const`/`static` initializers, const-generic arguments — as well as at runtime, so marking a pure, simple function `const` widens where it can be used at zero cost. The compiler evaluates calls in const contexts during compilation, eliminating the work entirely from the binary. Current stable Rust supports most arithmetic, bitwise ops, conditionals, and slice operations in `const fn`; the main restrictions are heap allocation and most trait method calls.
+A `const fn` can be called in const contexts—array lengths, `const`/`static`
+initializers, and const-generic arguments—as well as at runtime. Marking a
+function `const` expands its public contract: calls required by a const context
+are evaluated during compilation, while ordinary calls retain normal runtime
+semantics and optimization. Const-evaluable operations evolve by Rust release,
+so use only capabilities supported by the crate's MSRV.
 
 ## Bad
 
@@ -19,7 +24,7 @@ fn magic_mask() -> u32 {
 }
 
 fn make_buf() -> [u8; 8] {
-    // runtime call — compiler cannot inline the length into the type
+    // A non-const call is not allowed in an array length.
     [0u8; header_len()]  // error: `header_len` is not a `const fn`
 }
 ```
@@ -45,16 +50,27 @@ const MASK: u32 = magic_mask();
 static HEADER: [u8; header_len()] = [0u8; header_len()];
 
 // const fn with logic — still fine on stable
-const fn align_up(n: usize, align: usize) -> usize {
-    (n + align - 1) & !(align - 1)
+const fn align_up(n: usize, align: usize) -> Option<usize> {
+    if !align.is_power_of_two() {
+        return None;
+    }
+    let mask = align - 1;
+    match n.checked_add(mask) {
+        Some(sum) => Some(sum & !mask),
+        None => None,
+    }
 }
 
-const ALIGNED: usize = align_up(13, 8); // 16, computed at compile time
+const ALIGNED: Option<usize> = align_up(13, 8); // Some(16)
 ```
 
 ## Notes
 
-Adding `const` to a function is a backwards-compatible, non-breaking change for library authors. Start with `const fn` for any pure function without heap allocation or dynamic dispatch; you can always remove it if you later need a capability that is not yet `const`-stable. Avoid `const fn` for functions that call unstable `const` features not yet stabilized on the channel you target.
+Adding `const` is generally backwards-compatible. Removing it later can break
+callers that use the function in const contexts, so treat const-evaluability as
+part of a public API's compatibility surface. Add it when the supported MSRV
+can express the durable implementation; do not promise it speculatively and
+then remove it when a non-const operation becomes convenient.
 
 ## See Also
 

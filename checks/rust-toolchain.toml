@@ -1,5 +1,5 @@
 # Pins the toolchain and target for the compile-check harness so local runs
 # match CI exactly. Any `cargo` invocation in this directory uses this.
 [toolchain]
-channel = "1.95.0"
+channel = "1.97.1"
 targets = ["x86_64-unknown-linux-gnu"]

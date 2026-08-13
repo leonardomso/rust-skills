@@ -4,9 +4,17 @@
 
 ## Why It Matters
 
-`Vec::contains` is O(n) per call. When you check membership for m items against a list of n items in a loop, the total cost is O(n × m) — quadratic. A `HashSet` reduces each check to O(1) average, making the same loop O(n + m). Use `BTreeSet` when you also need sorted iteration or range queries. Keep a `Vec` only when order matters, duplicates are intentional, or the collection is so small (say, ≤ 8 items) that the overhead of hashing outweighs the savings.
+`Vec::contains` is O(n) per call. Checking m values against n entries is
+O(n × m), which becomes quadratic when both grow together. A `HashSet` offers
+expected O(1) membership after an O(n) build; collisions and hashing cost still
+matter. Use `BTreeSet` for sorted iteration or ranges. A small `Vec` may win
+when order, compact storage, or tiny cardinality matters—measure rather than
+freezing an eight-element threshold.
 
-Deduplication follows the same rule: collecting into a `HashSet` is one line and O(n), while repeatedly removing duplicates from a sorted `Vec` is more code and no faster.
+Deduplication depends on the required output order and existing state. A
+`HashSet` is expected O(n) for unsorted input. Sorting then `dedup` is
+O(n log n), while `Vec::dedup` itself is O(n) when equal elements are already
+adjacent and avoids a second hash table.
 
 ## Bad
 
@@ -76,7 +84,7 @@ fn main() {
 |---|---|
 | Fast membership test, no ordering needed | `HashSet<T>` |
 | Membership test + sorted iteration | `BTreeSet<T>` |
-| Tiny set (≤ 8 items) | `Vec<T>` with `.contains` may be fine |
+| Small measured set | `Vec<T>` with `.contains` may be fine |
 | Keep duplicates or care about insertion order | `Vec<T>` |
 
 **Tip:** when building a `HashSet` that will be queried many times, call `HashSet::with_capacity(n)` upfront to avoid rehashing. See `mem-with-capacity`.

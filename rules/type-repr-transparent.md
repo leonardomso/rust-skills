@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-`#[repr(transparent)]` guarantees a newtype has the same memory layout as its inner type. This is essential for FFI where you need type safety in Rust but must match C ABI layouts. Without it, the compiler may add padding or change layout.
+For a valid transparent struct, `#[repr(transparent)]` gives the wrapper the
+layout and ABI of its one non-zero-sized field. Every other field must be
+zero-sized with alignment 1. This is
+useful when an FFI contract names that underlying C representation. It does not
+validate values, ownership, provenance, or calling preconditions, and it does
+not make the wrapper interchangeable with the field in Rust's type system.
 
 ## Bad
 
@@ -13,7 +18,7 @@
 struct Handle(u64);
 
 // Passing to C code might fail
-extern "C" {
+unsafe extern "C" {
     fn process_handle(h: Handle);  // May not work correctly
 }
 
@@ -28,22 +33,22 @@ struct SafePointer(*mut c_void);
 #[repr(transparent)]
 struct Handle(u64);
 
-// Safe for FFI
-extern "C" {
-    fn process_handle(h: Handle);  // Works - same layout as u64
+// ABI-compatible with a C uint64_t parameter. The call remains unsafe unless
+// every value and effect is safe for arbitrary Rust callers.
+unsafe extern "C" {
+    fn process_handle(h: Handle);
 }
 
-// FFI pointer wrapper
+// Non-null is only one invariant; do not call this pointer safe.
 #[repr(transparent)]
-struct SafePointer(*mut c_void);
+struct NonNullForeign(*mut std::ffi::c_void);
 
-impl SafePointer {
-    // Safe Rust API around raw pointer
-    pub fn new(ptr: *mut c_void) -> Option<Self> {
+impl NonNullForeign {
+    pub fn new(ptr: *mut std::ffi::c_void) -> Option<Self> {
         if ptr.is_null() {
             None
         } else {
-            Some(SafePointer(ptr))
+            Some(Self(ptr))
         }
     }
 }
@@ -63,7 +68,7 @@ assert_eq!(size_of::<Meters>(), size_of::<f64>());
 // Same alignment
 assert_eq!(align_of::<Meters>(), align_of::<f64>());
 
-// Same ABI - can pass where f64 expected
+// A C declaration for this parameter uses the field's compatible C type.
 extern "C" fn measure(distance: Meters) { ... }
 ```
 
@@ -72,7 +77,7 @@ extern "C" fn measure(distance: Meters) { ... }
 ```rust
 use std::marker::PhantomData;
 
-// PhantomData is zero-sized, doesn't affect layout
+// PhantomData is zero-sized and alignment 1.
 #[repr(transparent)]
 struct TypedHandle<T> {
     raw: u64,
@@ -99,29 +104,23 @@ assert_eq!(size_of::<Option<NonZeroHandle>>(), size_of::<u64>());
 
 ```rust
 mod ffi {
-    use std::os::raw::c_int;
-    
+    use std::ffi::c_int;
+
     #[repr(transparent)]
-    pub struct FileDescriptor(c_int);
-    
-    extern "C" {
-        pub fn open(path: *const i8, flags: c_int) -> FileDescriptor;
-        pub fn close(fd: FileDescriptor) -> c_int;
-        pub fn read(fd: FileDescriptor, buf: *mut u8, len: usize) -> isize;
+    #[derive(Clone, Copy)]
+    pub struct WidgetId(pub(super) u64);
+
+    unsafe extern "C" {
+        pub fn widget_enable(id: WidgetId) -> c_int;
     }
 }
 
-// Safe wrapper
-pub struct File {
-    fd: ffi::FileDescriptor,
-}
-
-impl File {
-    pub fn open(path: &str) -> std::io::Result<Self> {
-        let c_path = std::ffi::CString::new(path)?;
-        let fd = unsafe { ffi::open(c_path.as_ptr(), 0) };
-        // ... error handling
-        Ok(File { fd })
+pub fn enable(id: ffi::WidgetId) -> Result<(), EnableError> {
+    // SAFETY: the pinned C contract accepts every u64 ID by value, retains no
+    // Rust memory, does not call back, and reports failure through the status.
+    match unsafe { ffi::widget_enable(id) } {
+        0 => Ok(()),
+        status => Err(EnableError::Status(status)),
     }
 }
 ```
@@ -130,10 +129,10 @@ impl File {
 
 | Scenario | Use `#[repr(transparent)]`? |
 |----------|----------------------------|
-| FFI newtype wrappers | Yes |
-| Type-safe handles | Yes |
-| NonZero optimization | Yes |
-| Pure Rust newtypes | Optional (doesn't hurt) |
+| FFI newtype that must use its field's ABI | Yes, after cross-language validation |
+| Pure-Rust type-safe handle | No unless representation is a separate contract |
+| Stable niche/layout contract around `NonZero*` | Yes when the layout guarantee is required |
+| Pure Rust newtypes | Only when layout is intentionally part of the contract |
 | Multi-field structs | N/A (only for single-field) |
 
 ## See Also
@@ -141,3 +140,4 @@ impl File {
 - [type-newtype-ids](./type-newtype-ids.md) - Newtype pattern
 - [type-phantom-marker](./type-phantom-marker.md) - PhantomData usage
 - [api-newtype-safety](./api-newtype-safety.md) - Type-safe newtypes
+- [ffi-logic-in-core](./ffi-logic-in-core.md) - Keep FFI layouts in the shim crate

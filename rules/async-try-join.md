@@ -1,172 +1,129 @@
 # async-try-join
 
-> Use `try_join!` for concurrent fallible operations with early return on error
+> Use `try_join!` only when unfinished branches are safe to drop on error
 
 ## Why It Matters
 
-When running multiple fallible operations concurrently, `try_join!` returns `Err` as soon as any future fails, without waiting for the others. This provides fail-fast behavior while still running operations in parallel. For many operations, use `futures::future::try_join_all`.
+`try_join!` polls a fixed set of fallible futures concurrently in one parent task. When a branch returns `Err`, the macro returns that error and drops unfinished branch futures. Dropping a future stops polling it; it does not roll back completed effects, run arbitrary async cleanup, or guarantee cancellation of an underlying blocking syscall or remote request. The primary design question is therefore cancellation and partial effects, not “fail fast” alone.
 
 ## Bad
 
 ```rust
-// Sequential - slow and no early return benefit
-async fn fetch_all() -> Result<(A, B, C)> {
-    let a = fetch_a().await?;  // If this fails, we wait for nothing
-    let b = fetch_b().await?;  // But if this fails, we waited for A
-    let c = fetch_c().await?;
-    Ok((a, b, c))
-}
-
-// join! ignores errors
-async fn fetch_all() -> (Result<A>, Result<B>, Result<C>) {
-    let (a, b, c) = join!(fetch_a(), fetch_b(), fetch_c());
-    // All complete even if first one failed
-    (a, b, c)  // Now we have to handle three Results
+async fn create_both() -> Result<(), Error> {
+    tokio::try_join!(
+        create_external_account(),
+        charge_payment_method(),
+    )?;
+    Ok(())
 }
 ```
+
+One branch can commit while the other fails. Returning one error does not make the pair transactional and may lose the information needed to compensate or resume.
 
 ## Good
 
 ```rust
 use tokio::try_join;
 
-async fn fetch_all() -> Result<(A, B, C)> {
-    // Concurrent AND fail-fast
-    let (a, b, c) = try_join!(
-        fetch_a(),
-        fetch_b(),
-        fetch_c(),
+async fn load_inputs() -> Result<(Config, Policy), Error> {
+    // Both operations are read-only, deadline-bounded, and cancellation-safe.
+    let (config, policy) = try_join!(load_config(), load_policy())?;
+    Ok((config, policy))
+}
+```
+
+For externally visible effects, persist a workflow state or outbox record, assign idempotency keys, and make every step replayable before adding concurrency.
+
+## Preserve Error Context
+
+```rust
+use anyhow::Context;
+
+async fn load_inputs() -> anyhow::Result<(Config, Policy)> {
+    let (config, policy) = tokio::try_join!(
+        async { load_config().await.context("load configuration") },
+        async { load_policy().await.context("load policy") },
     )?;
-    
-    Ok((a, b, c))
-}
-
-// For dynamic collections
-use futures::future::try_join_all;
-
-async fn fetch_users(ids: &[u64]) -> Result<Vec<User>> {
-    let futures: Vec<_> = ids.iter()
-        .map(|id| fetch_user(*id))
-        .collect();
-    
-    try_join_all(futures).await
+    Ok((config, policy))
 }
 ```
 
-## Error Handling Patterns
+The returned error is the first one observed in polling order, not necessarily the only or earliest real-world failure. Add correlation and branch identity. Do not log secrets, credentials, raw tenant payloads, or unrestricted paths as context.
+
+## Deadlines
 
 ```rust
-// Different error types - need common error type
-async fn mixed_operations() -> Result<(A, B), Error> {
-    let (a, b) = try_join!(
-        fetch_a().map_err(Error::from),  // Convert errors
-        fetch_b().map_err(Error::from),
-    )?;
-    Ok((a, b))
-}
+use std::time::Duration;
+use tokio::time::timeout;
 
-// Collect all results, then handle errors
-async fn all_or_nothing(ids: &[u64]) -> Result<Vec<User>> {
-    try_join_all(ids.iter().map(|id| fetch_user(*id))).await
-}
+async fn fetch_pair() -> Result<(A, B), Error> {
+    let joined = async {
+        tokio::try_join!(
+            async {
+                timeout(Duration::from_secs(2), fetch_a())
+                    .await
+                    .map_err(|_| Error::Deadline("a"))?
+            },
+            async {
+                timeout(Duration::from_secs(2), fetch_b())
+                    .await
+                    .map_err(|_| Error::Deadline("b"))?
+            },
+        )
+    };
 
-// Collect successes, log failures
-async fn best_effort(ids: &[u64]) -> Vec<User> {
-    let results = futures::future::join_all(
-        ids.iter().map(|id| fetch_user(*id))
-    ).await;
-    
-    results.into_iter()
-        .filter_map(|r| match r {
-            Ok(user) => Some(user),
-            Err(e) => {
-                log::warn!("Failed to fetch user: {}", e);
-                None
-            }
-        })
-        .collect()
+    timeout(Duration::from_secs(3), joined)
+        .await
+        .map_err(|_| Error::Deadline("overall"))?
 }
 ```
 
-## Cancellation Behavior
+Per-branch deadlines protect individual dependencies; an overall deadline caps the composed operation. They must fit the caller's remaining budget. A timeout drops the future and is effective only when the underlying operation is cancellation-safe or independently bounded.
+
+## Dynamic Input
+
+Do not use `try_join_all` over request-controlled or otherwise unbounded input. It constructs and polls the whole collection concurrently. Validate the item count, then use a bounded stream:
 
 ```rust
-// try_join! cancels remaining futures on error
-async fn with_cancellation() -> Result<()> {
-    // If fetch_a() fails, fetch_b() and fetch_c() are dropped
-    // But "dropped" != "immediately stopped"
-    // They stop at their next .await point
-    
-    try_join!(
-        async {
-            fetch_a().await?;
-            cleanup_a().await;  // May not run if other future fails
-            Ok::<_, Error>(())
-        },
-        async {
-            fetch_b().await?;
-            cleanup_b().await;  // May not run if other future fails
-            Ok::<_, Error>(())
-        },
-    )?;
-    
-    Ok(())
-}
+use futures::{stream, StreamExt, TryStreamExt};
 
-// For guaranteed cleanup, use Drop guards or explicit handling
-```
+async fn fetch_users(ids: Vec<u64>) -> Result<Vec<User>, Error> {
+    const MAX_IDS: usize = 1_000;
+    const CONCURRENCY: usize = 16;
 
-## With Timeout
-
-```rust
-use tokio::time::{timeout, Duration};
-
-async fn fetch_with_timeout() -> Result<(A, B)> {
-    timeout(
-        Duration::from_secs(10),
-        try_join!(fetch_a(), fetch_b())
-    )
-    .await
-    .map_err(|_| Error::Timeout)?
-}
-
-// Per-operation timeout
-async fn individual_timeouts() -> Result<(A, B)> {
-    try_join!(
-        timeout(Duration::from_secs(5), fetch_a())
-            .map_err(|_| Error::Timeout)
-            .and_then(|r| async { r }),
-        timeout(Duration::from_secs(5), fetch_b())
-            .map_err(|_| Error::Timeout)
-            .and_then(|r| async { r }),
-    )
-}
-```
-
-## try_join! vs FuturesUnordered
-
-```rust
-use futures::stream::{FuturesUnordered, StreamExt};
-
-// try_join!: wait for all, fail fast
-let (a, b, c) = try_join!(fa, fb, fc)?;
-
-// FuturesUnordered: process as they complete
-let mut futures = FuturesUnordered::new();
-futures.push(fetch_a());
-futures.push(fetch_b());
-futures.push(fetch_c());
-
-while let Some(result) = futures.next().await {
-    match result {
-        Ok(data) => process(data),
-        Err(e) => return Err(e),  // Can fail fast manually
+    if ids.len() > MAX_IDS {
+        return Err(Error::TooManyIds);
     }
+
+    stream::iter(ids)
+        .map(|id| async move { fetch_user(id).await })
+        .buffered(CONCURRENCY)
+        .try_collect()
+        .await
 }
 ```
+
+Choose the limit from downstream quotas, connection-pool capacity, per-tenant fairness, retry amplification, and memory. If output order is irrelevant, `buffer_unordered` can reduce head-of-line blocking.
+
+## Cancellation Contract
+
+A branch used with `try_join!` should document what dropping it can leave behind:
+
+- read-only async I/O should release permits, buffers, and connection state safely;
+- protocol streams must remain reusable or be discarded after cancellation;
+- blocking work needs its own deadline/isolation because dropping the wrapper may not stop it;
+- durable effects require idempotency and persisted progress;
+- cleanup that must await cannot rely on `Drop` and needs an owned supervisor or explicit compensation path.
+
+Test cancellation at every relevant await point and inject failure after peer branches make partial progress.
+
+## Collecting Every Result
+
+Use `join!` for a small fixed tuple when every result must be observed. For a bounded dynamic set, consume a bounded stream and collect or report each result explicitly. “Best effort” still needs a success threshold, retry/dead-letter policy, bounded diagnostic cardinality, and a returned summary; silently filtering failures is not production error handling.
 
 ## See Also
 
-- [async-join-parallel](./async-join-parallel.md) - Non-fallible concurrent futures
-- [async-select-racing](./async-select-racing.md) - First-to-complete semantics
-- [err-question-mark](./err-question-mark.md) - Error propagation
+- [async-join-parallel](./async-join-parallel.md) - bound fan-out and distinguish concurrency from parallelism
+- [async-select-racing](./async-select-racing.md) - prove loser cancellation safety
+- [async-cancel-safety](async-cancel-safety.md) - test drop behavior at await boundaries
+- [api-idempotency-key](api-idempotency-key.md) - make repeated effects replay-safe

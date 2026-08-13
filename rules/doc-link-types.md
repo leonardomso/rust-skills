@@ -96,7 +96,6 @@ pub struct Config { ... }
 impl Config {
     /// Creates a new [`ConfigBuilder`].
     ///
-    /// This is equivalent to [`ConfigBuilder::new`].
     pub fn builder() -> ConfigBuilder { ... }
 }
 ```

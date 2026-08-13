@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-`Rc<T>` (Reference Counted) provides shared ownership without the atomic overhead of `Arc<T>`. In single-threaded code, `Rc` is faster because it uses non-atomic reference counting. Using `Arc` when you don't need thread-safety wastes CPU cycles on unnecessary synchronization.
+`Rc<T>` provides shared ownership using non-atomic reference counts and is
+therefore `!Send` and `!Sync`. It expresses a single-threaded ownership
+contract directly. Its count updates can be cheaper than `Arc` updates, but
+overall performance depends on clone/drop frequency, allocation, cache
+behavior, and surrounding work; choose it for the contract, then measure hot
+paths.
 
 ## Bad
 
@@ -24,7 +29,8 @@ fn build_tree() -> Arc<Node> {
 }
 ```
 
-Atomic operations have measurable overhead even without contention.
+Atomic and non-atomic count updates have different costs; do not assume the
+difference matters without measuring the actual ownership pattern.
 
 ## Good
 
@@ -52,8 +58,8 @@ fn build_tree() -> Rc<Node> {
 |----------|-----|
 | Single-threaded, shared ownership | `Rc<T>` |
 | Multi-threaded, shared ownership | `Arc<T>` |
-| Single owner, might need multiple later | Start with `Rc`, upgrade if needed |
-| Library code, unknown threading model | `Arc<T>` (safer default) |
+| Single owner | Owned value or borrow |
+| Public API with unknown threading model | Decide and document the required ownership/threading contract |
 
 ## Breaking Cycles with Weak
 
@@ -91,7 +97,7 @@ let _maybe_parent: Option<Rc<Node>> = child.parent.borrow().upgrade();
 
 ## See Also
 
-- [own-arc-shared](./own-arc-shared.md) - When you need thread-safe sharing
+- [own-arc-shared](./own-arc-shared.md) - When ownership must cross threads
 - [own-refcell-interior](./own-refcell-interior.md) - Combining Rc with interior mutability
 - [conc-thread-local](./conc-thread-local.md) - Per-thread state in single-threaded-style code
 - [mem-drop-order](./mem-drop-order.md) - Drop order matters for cyclic/`Weak` structures

@@ -33,14 +33,17 @@ unsafe extern "C" {
     // A function that is always safe to call (hypothetical pure query).
     pub safe fn rust_version_major() -> u32;
 
-    // Statics are unsafe to access unless you can guarantee no data races.
-    pub unsafe static errno: std::ffi::c_int;
+    // Mutable foreign state is unsafe to access unless its synchronization
+    // contract prevents races.
+    pub unsafe static mut FOREIGN_COUNTER: std::ffi::c_int;
 }
 
-// Call sites remain unchanged for `unsafe` items:
-fn copy_bytes(dst: *mut u8, src: *const u8, n: usize) {
-    // SAFETY: dst and src are non-overlapping, both valid for n bytes.
-    unsafe { memcpy(dst, src, n) };
+// A safe wrapper establishes the raw call's complete preconditions.
+fn copy_bytes(dst: &mut [u8], src: &[u8]) {
+    assert!(dst.len() >= src.len(), "destination is too short");
+    // SAFETY: the slices are valid for src.len() bytes; Rust's borrowing rules
+    // prevent dst from overlapping src while both references are live.
+    unsafe { memcpy(dst.as_mut_ptr(), src.as_ptr(), src.len()) };
 }
 
 // Call sites for `safe` items need no unsafe block:
@@ -63,10 +66,16 @@ Run `cargo fix --edition` to apply the mechanical part of this migration automat
 
 - The `unsafe` on the block means "I assert these declarations faithfully describe the external ABI". It does not make calls to the items safe by itself.
 - Marking an item `safe` is a promise: if that item is actually unsafe to call, adding `safe` is itself unsound — the compiler will not catch a wrong annotation.
-- `bindgen` (0.70+) and `cbindgen` have been updated to emit `unsafe extern` blocks for Rust 2024 output. Update your code generator if you use one.
-- The `extern "Rust"` ABI for cross-crate `#[no_mangle]` functions follows the same rules (see `unsafe-no-mangle-unsafe`).
+- Regenerate `bindgen` output with a release that supports Rust 2024 rather
+  than hand-editing generated blocks. `cbindgen` serves the opposite direction
+  (Rust exports to C/C++ headers) and does not replace import-side ABI review.
+- Use `std::ffi::c_*` types for C ABI declarations instead of assuming a Rust primitive has the same width. Rust 1.96 changed `c_double` to `f32` on AVR to match that platform's C ABI; a hard-coded `f64` declaration is wrong there.
+- Imports using `extern "Rust"` require the same unsafe block syntax, but the
+  Rust ABI has no cross-version stability guarantee. Use a stable C-compatible
+  ABI for independently built components (see `unsafe-no-mangle-unsafe`).
 
 ## See Also
 
 - [unsafe-no-mangle-unsafe](unsafe-no-mangle-unsafe.md) - mark `#[no_mangle]` as `#[unsafe(no_mangle)]` in Rust 2024
 - [type-repr-transparent](type-repr-transparent.md) - use `#[repr(transparent)]` for FFI newtypes
+- [ffi-logic-in-core](ffi-logic-in-core.md) - isolate raw extern declarations in the FFI crate

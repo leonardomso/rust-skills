@@ -1,11 +1,11 @@
 # Rust Skills
 
-![rules](https://img.shields.io/badge/rules-265-blue)
-![categories](https://img.shields.io/badge/categories-26-blue)
-![Rust](https://img.shields.io/badge/Rust-1.96%20%2F%202024%20edition-orange)
+![rules](https://img.shields.io/badge/rules-343-blue)
+![categories](https://img.shields.io/badge/categories-27-blue)
+![Rust](https://img.shields.io/badge/Rust-1.97.1%20%2F%202024%20edition-orange)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-265 Rust rules your AI coding agent can use to write better code. Current for Rust 1.96 (2024 edition).
+Rust rules your AI coding agent can use to write better code. Current for Rust 1.97.1 (2024 edition).
 
 Works with Claude Code, Cursor, Windsurf, Copilot, Codex, Aider, Zed, Amp, Cline, and pretty much any other agent that supports skills.
 
@@ -66,7 +66,7 @@ fn first_word(s: &str) -> Option<&str> {
 
 ## What's in here
 
-265 rules split into 26 categories:
+343 rules split into 27 categories:
 
 | Category | Rules | What it covers |
 |----------|-------|----------------|
@@ -108,7 +108,7 @@ Each rule has:
 The design is built for low token cost and easy auditing:
 
 - **[`SKILL.md`](./SKILL.md)** is a lightweight index — every rule listed as a one-line summary, grouped by category, with a link to its file. The agent reads this first.
-- **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading all 218 — progressive disclosure keeps context small.
+- **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading the whole corpus — progressive disclosure keeps context small.
 - **Prefixes** (`own-`, `err-`, `unsafe-`, `async-`, …) map directly to categories, so an agent reviewing async code can pull just `async-`, `conc-`, and `own-` rules.
 
 `CLAUDE.md` and `AGENTS.md` are symlinks to `SKILL.md`, so the same content works across agent conventions.
@@ -241,6 +241,7 @@ These rules are an independent synthesis of official Rust guidance, well-known b
 
 **Official Rust documentation**
 - [The Rust Reference](https://doc.rust-lang.org/reference/)
+- [Rust Style Guide](https://doc.rust-lang.org/nightly/style-guide/)
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 - [The Rustonomicon](https://doc.rust-lang.org/nomicon/) (unsafe code)
 - [Rust 2024 Edition Guide](https://doc.rust-lang.org/edition-guide/rust-2024/)
@@ -252,6 +253,8 @@ These rules are an independent synthesis of official Rust guidance, well-known b
 - [Rust Design Patterns](https://rust-unofficial.github.io/patterns/) — rust-unofficial
 - [Rust Atomics and Locks](https://marabos.nl/atomics/) — Mara Bos
 - [Effective Rust](https://effective-rust.com/) — David Drysdale
+- [Zero To Production In Rust](https://www.zero2prod.com/) — Luca Palmieri (audited PDF revision created 2022-03-15)
+- [Microsoft Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) v2026.6 — Microsoft ([MIT](https://github.com/microsoft/rust-guidelines/blob/main/LICENSE.md))
 
 **Tooling**
 - [Clippy lint documentation](https://rust-lang.github.io/rust-clippy/)
@@ -260,7 +263,7 @@ These rules are an independent synthesis of official Rust guidance, well-known b
 **Real-world codebases studied for idioms**
 - ripgrep, tokio, serde, clap, polars, axum, cargo, hyper, bevy, rayon, and dtolnay's crates (thiserror, anyhow, syn)
 
-This project is MIT-licensed. Referenced upstream materials remain under their own licenses — the official Rust documentation and API Guidelines are dual [MIT](https://github.com/rust-lang/rust/blob/master/LICENSE-MIT) / [Apache-2.0](https://github.com/rust-lang/rust/blob/master/LICENSE-APACHE).
+This project is MIT-licensed. Referenced upstream materials remain under their own licenses and copyrights — the official Rust documentation and API Guidelines are dual [MIT](https://github.com/rust-lang/rust/blob/master/LICENSE-MIT) / [Apache-2.0](https://github.com/rust-lang/rust/blob/master/LICENSE-APACHE), the Microsoft Pragmatic Rust Guidelines are MIT-licensed, and *Zero To Production In Rust* remains copyright Luca Palmieri.
 
 ## Contributing
 

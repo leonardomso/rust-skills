@@ -4,7 +4,13 @@
 
 ## Why It Matters
 
-The `as` cast silently truncates or wraps on narrowing (`300u32 as u8 == 44`) and produces surprising results on float-to-integer conversion (values outside range saturate to the type's min/max since Rust 1.45, but `NaN` becomes `0`). These behaviors are easy to miss during code review and impossible to catch at runtime without tests. `From`/`Into` are lossless by design and will not compile for lossy conversions; `TryFrom`/`TryInto` return `Result` and make the fallibility explicit.
+The `as` cast silently truncates or wraps on narrowing (`300u32 as u8 == 44`)
+and produces surprising results on float-to-integer conversion (finite values
+outside the destination range saturate, while `NaN` becomes `0`). These
+behaviors are easy to miss during review. Standard-library `From`
+implementations are infallible and follow the convention that conversions do
+not lose information; Rust cannot enforce that semantic contract for a custom
+implementation. `TryFrom`/`TryInto` make a representability failure explicit.
 
 ## Bad
 
@@ -39,12 +45,13 @@ fn narrow(x: u32) -> Result<u8, <u8 as TryFrom<u32>>::Error> {
     // or: x.try_into()
 }
 
-// float → integer: validate the range manually before casting
+// float → integer: this API accepts only finite, integral in-range indices
 fn float_to_index(f: f64, len: usize) -> Option<usize> {
-    if f.is_nan() || f < 0.0 || f >= len as f64 {
+    if !f.is_finite() || f < 0.0 || f.fract() != 0.0 {
         return None;
     }
-    Some(f as usize)  // `as` is acceptable here: range is verified above
+    let index = f as usize;
+    (index < len).then_some(index)
 }
 
 #[cfg(test)]
@@ -67,7 +74,8 @@ mod tests {
     fn float_to_index_rejects_nan_and_negative() {
         assert_eq!(float_to_index(f64::NAN, 10), None);
         assert_eq!(float_to_index(-1.0, 10), None);
-        assert_eq!(float_to_index(3.9, 10), Some(3));
+        assert_eq!(float_to_index(3.9, 10), None);
+        assert_eq!(float_to_index(3.0, 10), Some(3));
     }
 
     #[test]
@@ -81,12 +89,13 @@ mod tests {
 
 ## Key Points
 
-- `From<A> for B` compiles only when the conversion is always lossless. Attempting `u8::from(300u32)` is a compile error.
+- The standard library implements `From<A> for B` only for infallible
+  conversions that preserve the source value. A custom `From` implementation
+  must uphold the same convention; the compiler does not prove it.
 - `TryFrom` returns `Result<T, TryFromIntError>` from the standard library — no external crates needed.
-- Reserve `as` for:
-  - Pointer casts (e.g., `*const u8 as *mut u8`) that are intentional.
-  - Float-to-integer when you have verified the range and documented the intent.
-  - `usize` ↔ pointer-sized integer when exact semantics are required.
+- Reserve `as` for a representation change whose exact Rust semantics are the
+  contract and whose preconditions are checked. Prefer raw-pointer `.cast()`
+  methods and provenance-aware APIs over integer or mutability round trips.
 - When using `.try_into()`, the turbofish or type annotation is often needed to help inference: `let n: u8 = x.try_into()?;`
 
 ## See Also

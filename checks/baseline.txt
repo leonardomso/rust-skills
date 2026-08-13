@@ -5,9 +5,7 @@ anti-over-abstraction.md :: Rule of Three :: E0107
 anti-premature-optimize.md :: When to Optimize :: E0308
 anti-stringly-typed.md :: Good :: E0308
 anti-type-erasure.md :: impl Trait Positions :: E0107
-anti-unwrap-abuse.md :: Good :: E0267
 anti-vec-for-slice.md :: Mutable Slices :: E0428
-api-builder-must-use.md :: Good :: E0599
 api-builder-pattern.md :: Builder Variations :: E0428
 api-common-traits.md :: Manual Implementations :: E0404
 api-default-impl.md :: Builder with Default :: E0599
@@ -21,31 +19,18 @@ api-impl-into.md :: Implement From, Not Into :: E0119
 api-impl-into.md :: When NOT to Use impl Into :: E0562
 api-must-use.md :: When to Apply :: P:expected one of `->`, `<`,,P:missing parameters for function definition
 api-newtype-safety.md :: Constructor Patterns :: E0204
-api-newtype-safety.md :: Good :: E0063,E0308
-api-newtype-safety.md :: Zero-Cost Abstraction :: E0308
+api-newtype-safety.md :: Good :: E0308
 api-sealed-trait.md :: Full Pattern :: P:missing `fn` or `struct` for,P:non-item in item list
 api-serde-optional.md :: Multiple Optional Dependencies :: P:expected `;`, found `#`,P:expected `;`, found `borsh`,P:expected `;`, found `default`,P:expected `;`, found `rkyv`,P:expected `;`, found `serde`,P:expected one of `.`, `;`,
 api-serde-optional.md :: When to Make Serde Required :: P:expected `;`, found `serde`
-api-typestate.md :: Builder Typestate :: E0599
 async-bounded-channel.md :: Worker Pool Pattern :: E0107
 async-cancellation-token.md :: CancellationToken API :: E0069
 async-cancellation-token.md :: Graceful Shutdown Pattern :: E0107,E0752
 async-cancellation-token.md :: Hierarchical Cancellation :: E0277
 async-fn-in-trait.md :: Caveats :: P:expected one of `!` or
-async-join-parallel.md :: Good :: E0107
-async-join-parallel.md :: Limiting Concurrency :: E0107
-async-join-parallel.md :: When NOT to Use join! :: E0107
-async-join-parallel.md :: futures::join_all for Dynamic Collections :: E0107,E0428
 async-joinset-structured.md :: Abort on Drop :: E0069
 async-select-racing.md :: Racing Multiple of Same Type :: E0107
 async-spawn-blocking.md :: What Counts as Blocking :: P:expected one of `!`, `.`,
-async-tokio-fs.md :: Good :: E0107
-async-tokio-fs.md :: When std::fs is Acceptable :: E0428
-async-tokio-runtime.md :: Good :: E0428
-async-try-join.md :: Cancellation Behavior :: E0107
-async-try-join.md :: Error Handling Patterns :: E0107
-async-try-join.md :: Good :: E0107
-async-try-join.md :: With Timeout :: E0107
 async-watch-latest.md :: Configuration Reload Pattern :: E0308,E0369
 doc-link-types.md :: Linking to Trait Items :: E0046
 doc-question-mark.md :: Doctest Wrapper Pattern :: P:expected item after doc comment
@@ -56,28 +41,18 @@ err-from-impl.md :: Blanket From Implementations :: P:non-item in item list
 err-from-impl.md :: From with Context :: E0428
 err-lowercase-msg.md :: Rust Standard Library Convention :: P:expected `;`, found `"connection refused"`,P:expected `;`, found `"invalid digit,P:expected `;`, found `"invalid utf-8,P:expected `;`, found `"permission denied"`
 err-lowercase-msg.md :: When to Use Capitals :: P:expected statement after outer attribute
-err-question-mark.md :: Good :: E0428
 err-question-mark.md :: In main() :: E0428
 err-result-over-panic.md :: When Panic IS Appropriate :: E0428
 lint-deny-correctness.md :: Important Correctness Lints :: P:this file contains an unclosed
 lint-deny-correctness.md :: Setup :: P:expected item, found `[`
-lint-unsafe-doc.md :: Good :: E0106
-lint-unsafe-doc.md :: Unchecked Operations :: E0424
 lint-warn-complexity.md :: Examples :: E0428
 lint-warn-complexity.md :: Overly Verbose Code :: P:expected `;`, found keyword `let`
 lint-warn-complexity.md :: Unnecessary Complexity :: E0308
-lint-warn-perf.md :: Collection Inefficiencies :: P:expected `;`, found keyword `let`
-lint-warn-perf.md :: Examples :: E0428
-lint-warn-perf.md :: Inefficient Operations :: P:expected `;`, found `iter`,P:expected `;`, found `s`,P:expected `;`, found keyword `if`
 lint-warn-style.md :: Examples :: E0428
 lint-warn-style.md :: Redundant Code :: P:expected `;`, found keyword `match`
 mem-arrayvec.md :: When NOT to Use ArrayVec :: P:expected identifier, found `>`
-mem-assert-type-size.md :: Good :: E0512
-mem-assert-type-size.md :: When to Assert :: E0080
 mem-avoid-format.md :: Pre-allocate for Multiple Appends :: E0428
 mem-box-large-variant.md :: Recursive Types Require Boxing :: E0072,E0428
-mem-clone-from.md :: How clone_from Works :: E0117
-mem-compact-string.md :: Memory Comparison :: E0107
 mem-compact-string.md :: When to Use :: E0428
 mem-drop-order.md :: Controlling Drop Order for Locals :: P:expected one of `!` or
 mem-reuse-collections.md :: Good :: E0107
@@ -100,15 +75,12 @@ own-lifetime-elision.md :: Common Patterns :: P:expected one of `!`, `(`,
 own-lifetime-elision.md :: The Three Elision Rules :: P:expected one of `!`, `(`,
 own-lifetime-elision.md :: The Three Elision Rules :: P:expected one of `->`, `where`,
 own-move-large.md :: Good :: E0599
-own-refcell-interior.md :: Good :: E0599
 own-slice-over-vec.md :: Path Types Too :: E0428
 perf-chain-avoid.md :: When Chain Is Fine :: E0106
 perf-extend-batch.md :: Good :: E0107
 perf-extend-batch.md :: Pattern: Building Strings :: E0428
-proj-feature-additive.md :: Good :: P:`#[panic_handler]` function required, but not,P:unwinding panics are not supported
 proj-mod-rs-dir.md :: Consistency Rule :: P:expected `;`, found `mod_module_files`,P:expected one of `.`, `;`,
 proj-pub-super-parent.md :: Good :: E0308
-test-mock-traits.md :: Good :: E0046
 type-enum-states.md :: Avoid Boolean Flags :: E0428
 type-generic-bounds.md :: Bound Placement :: P:non-item in item list
 type-generic-bounds.md :: Conditional Trait Implementation :: E0404
@@ -119,6 +91,4 @@ type-never-diverge.md :: Standard Library Examples :: P:expected one of `where` 
 type-newtype-validated.md :: With Serde :: E0599
 type-no-stringly.md :: Good :: E0599
 type-phantom-marker.md :: Good :: E0308
-type-repr-transparent.md :: FFI Pattern :: P:extern blocks must be unsafe
-type-repr-transparent.md :: Good :: P:extern blocks must be unsafe
 type-result-fallible.md :: The ? Operator :: E0428

@@ -77,6 +77,14 @@ pub use handler::router;
 pub(crate) use service::UserService;
 ```
 
+Put the small set of essential types and constructors at the crate root, even
+when their implementation lives in a feature module. A root with dozens of
+unrelated items is too flat; a root containing only modules forces users to
+guess where the primary `Client` lives. Generated binding crates and umbrella
+facades are the exceptions because their purpose is to mirror or aggregate
+another surface. Give each public subsystem `//!` documentation that explains
+its contract.
+
 ## Shared Code
 
 ```

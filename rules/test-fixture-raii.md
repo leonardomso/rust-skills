@@ -4,7 +4,12 @@
 
 ## Why It Matters
 
-Tests often need setup and teardown—creating temp files, starting servers, setting environment variables. Using RAII (Resource Acquisition Is Initialization) with Drop ensures cleanup happens automatically, even if the test panics. This prevents test pollution and resource leaks.
+Tests often need setup and teardown for files, ports, and processes. An owned
+fixture with `Drop` runs cleanup during normal return and unwinding panics,
+which reduces pollution between tests. Destructors do not run after
+`process::abort`, a forced kill, or an intentional leak, and they cannot report
+fallible cleanup. Use unique resources and explicit bounded shutdown for
+external state; keep `Drop` as a best-effort backstop.
 
 ## Bad
 
@@ -49,43 +54,17 @@ fn test_with_temp_file() {
     assert!(result.is_ok());
 }
 
-// Custom RAII guard for environment variables
-struct EnvGuard {
-    key: String,
-    original: Option<String>,
-}
-
-impl EnvGuard {
-    fn set(key: &str, value: &str) -> Self {
-        let original = std::env::var(key).ok();
-        // SAFETY: env::set_var is unsafe since the 2024 edition (env writes are
-        // not thread-safe); env-touching tests should run single-threaded.
-        unsafe { std::env::set_var(key, value) };
-        EnvGuard {
-            key: key.to_string(),
-            original,
-        }
-    }
-}
-
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        // SAFETY: see EnvGuard::set — restored on the same single-threaded test
-        match &self.original {
-            Some(v) => unsafe { std::env::set_var(&self.key, v) },
-            None => unsafe { std::env::remove_var(&self.key) },
-        }
-    }
-}
-
 #[test]
 fn test_with_env_var() {
-    let _guard = EnvGuard::set("MY_VAR", "test_value");
-    
-    let result = read_config();
-    
-    assert!(result.is_ok());
-}  // MY_VAR automatically restored
+    // Set the environment of a child process, not process-global state shared
+    // by the parallel test harness and library/runtime threads.
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_my_app"))
+        .env("MY_VAR", "test_value")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+}
 ```
 
 ## Common RAII Patterns
@@ -103,27 +82,14 @@ fn test_with_temp_dir() {
     // dir and all contents deleted on drop
 }
 
-// Server guard
-struct TestServer {
-    handle: std::thread::JoinHandle<()>,
-    shutdown: std::sync::mpsc::Sender<()>,
-}
+// Child-process guard: the OS process is a stronger isolation boundary for a
+// server that might ignore cooperative in-process shutdown.
+struct ChildGuard(std::process::Child);
 
-impl Drop for TestServer {
+impl Drop for ChildGuard {
     fn drop(&mut self) {
-        let _ = self.shutdown.send(());
-        // Wait for server to stop
-    }
-}
-
-// Database transaction rollback
-struct TestTransaction<'a> {
-    conn: &'a mut Connection,
-}
-
-impl Drop for TestTransaction<'_> {
-    fn drop(&mut self) {
-        self.conn.execute("ROLLBACK").unwrap();
+        let _ = self.0.kill();
+        let _ = self.0.wait();
     }
 }
 ```

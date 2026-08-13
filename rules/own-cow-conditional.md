@@ -126,7 +126,7 @@ fn collect_errors<'a>(
 | Usually borrow, sometimes own | Yes |
 | Always need owned data | No, just use owned type |
 | Always borrow | No, just use reference |
-| Hot path, avoiding all allocations | Yes |
+| Hot path where the common branch can borrow | Measure; `Cow` still allocates on owned branches |
 | Returning static strings or formatted | Yes |
 
 ## See Also

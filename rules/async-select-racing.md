@@ -43,17 +43,24 @@ async fn fetch_with_timeout() -> Result<Data, Error> {
     }
 }
 
-async fn fetch_with_fallback() -> Data {
+async fn fetch_with_fallback() -> Result<Data, Error> {
     select! {
         result = fetch_primary() => {
             match result {
-                Ok(data) => data,
-                Err(_) => fetch_fallback().await.unwrap()
+                Ok(data) => Ok(data),
+                Err(primary_error) => fetch_fallback()
+                    .await
+                    .map_err(|fallback_error| {
+                        Error::BothBackends {
+                            primary: primary_error,
+                            fallback: fallback_error,
+                        }
+                    }),
             }
         }
         _ = tokio::time::sleep(Duration::from_secs(1)) => {
             // Primary too slow, use fallback
-            fetch_fallback().await.unwrap()
+            fetch_fallback().await
         }
     }
 }

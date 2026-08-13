@@ -1,10 +1,14 @@
 # own-arc-shared
 
-> Use `Arc<T>` for thread-safe shared ownership
+> Use `Arc<T>` for shared ownership that must cross thread boundaries
 
 ## Why It Matters
 
-`Arc` (Atomic Reference Counted) provides shared ownership across threads. Unlike `Rc`, its reference count is updated atomically, making it safe for concurrent access. Use it when multiple threads need to read the same data.
+`Arc` (Atomic Reference Counted) updates its ownership counts atomically, so
+the same allocation can be owned from multiple threads when `T` satisfies the
+required `Send`/`Sync` bounds. `Arc` does not make mutation or an otherwise
+non-thread-safe `T` safe. Share immutable data directly; put mutation behind an
+appropriate synchronization primitive or a message-passing boundary.
 
 ## Bad
 
@@ -71,7 +75,7 @@ Need shared ownership?
     ├── No → Use Rc<T> (cheaper, no atomic ops)
     └── Yes → Use Arc<T>
         └── Need mutation?
-            ├── No → Arc<T> is enough
+            ├── No → Arc<T> is enough when T: Send + Sync
             └── Yes → Arc<Mutex<T>> or Arc<RwLock<T>>
 ```
 
@@ -113,12 +117,12 @@ fn set_cached(cache: &Cache, key: String, value: String) {
 ## Performance Considerations
 
 ```rust
-// Arc::clone is cheap - just increments atomic counter
+// Arc::clone does not clone large_data; it updates the ownership count.
 let a = Arc::new(large_data);
-let b = Arc::clone(&a);  // Fast! No data copied
+let b = Arc::clone(&a);
 
-// But atomic operations have overhead vs Rc
-// Use Rc in single-threaded contexts for better performance
+// Atomic refcount updates have a different cost from Rc. Measure if cloning is
+// actually hot; choose Rc from the single-threaded ownership contract first.
 
 // Avoid cloning Arc in hot loops if possible
 // Bad:
@@ -141,3 +145,5 @@ for item in items {
 - [async-clone-before-await](async-clone-before-await.md) - Clone Arc before await points
 - [conc-scoped-threads](conc-scoped-threads.md) - Borrow stack data instead of Arc
 - [unsafe-send-sync-manual](unsafe-send-sync-manual.md) - Document manual Send/Sync impls
+- [api-no-wrapper-params](api-no-wrapper-params.md) - Keep Arc out of public signatures unless sharing is the API
+- [api-service-clone](api-service-clone.md) - Public services are cheap Clone handles around Arc

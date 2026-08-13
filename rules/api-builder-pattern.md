@@ -40,11 +40,16 @@ pub struct ClientBuilder {
     auth_token: Option<String>,
 }
 
-impl ClientBuilder {
-    pub fn new() -> Self {
-        Self::default()
+impl Client {
+    pub fn builder(base_url: impl Into<String>) -> ClientBuilder {
+        ClientBuilder {
+            base_url: Some(base_url.into()),
+            ..ClientBuilder::default()
+        }
     }
-    
+}
+
+impl ClientBuilder {
     /// Sets the base URL for all requests.
     pub fn base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = Some(url.into());
@@ -84,8 +89,7 @@ impl ClientBuilder {
 }
 
 // Usage - clear and self-documenting
-let client = ClientBuilder::new()
-    .base_url("https://api.example.com")
+let client = Client::builder("https://api.example.com")
     .timeout(Duration::from_secs(10))
     .max_retries(5)
     .auth_token("secret")
@@ -115,7 +119,7 @@ pub struct NoUrl;
 pub struct HasUrl(String);
 
 impl ClientBuilder<NoUrl> {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self { url: NoUrl, timeout: None }
     }
     
@@ -149,13 +153,15 @@ pub struct ClientBuilder {
     config: Config,
 }
 
-impl ClientBuilder {
-    pub fn new() -> ClientBuilder {
+impl Client {
+    pub fn builder() -> ClientBuilder {
         ClientBuilder {
             config: Config::default(),
         }
     }
-    
+}
+
+impl ClientBuilder {
     pub fn timeout(mut self, timeout: Duration) -> ClientBuilder {
         self.config.timeout = Some(timeout);
         self
@@ -180,8 +186,18 @@ impl MyBuilder {
 }
 ```
 
+## Construction Contract
+
+- Offer `Foo::builder(required...)`; do not make `FooBuilder::new()` the primary public entry point.
+- Pass required dependencies when the builder is created. Builder setters are for optional or permutation-heavy configuration.
+- Keep setters infallible and name them after the field (`timeout`, not `set_timeout`). Validate interacting options once in `build()`.
+- Two optional values do not automatically justify a builder; inherent `new` / `with_*` constructors may be clearer.
+- When required arguments themselves form semantic groups, use cascaded helper types rather than hiding them in builder state.
+
 ## See Also
 
 - [api-builder-must-use](api-builder-must-use.md) - Add #[must_use] to builders
 - [api-typestate](api-typestate.md) - Compile-time state machines
 - [api-impl-into](api-impl-into.md) - Accept impl Into for flexibility
+- [name-no-weasel](name-no-weasel.md) - Call it a Builder, not a Factory
+- [api-init-cascaded](api-init-cascaded.md) - group long required argument lists before reaching for optional builder state
