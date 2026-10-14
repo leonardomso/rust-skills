@@ -12,6 +12,7 @@ publish = false
 path = "src/lib.rs"
 
 [dependencies]
+async-trait = "=0.1.92"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["full"] }
 futures = "0.3"

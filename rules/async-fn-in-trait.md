@@ -58,20 +58,19 @@ impl Repo for PgRepo {
 
 ## Caveats
 
-**Caveat 1 — not dyn-compatible.** Native async fn in traits is not yet object-safe. You cannot write `Box<dyn Repo>` with the definition above. For dynamic dispatch you have two options:
+**Caveat 1 — not dyn-compatible.** Native async fn in traits is not dyn-compatible. You cannot write `Box<dyn Repo>` with the definition above. For dynamic dispatch, use `#[async_trait]` on the trait and its implementations to box the returned futures.
 
-- Keep `#[async_trait]` (it boxes the future, which makes the trait object-safe).
-- Use the `trait-variant` crate's `#[trait_variant::make]` macro, which generates a boxed-future variant alongside your native async trait.
+The `trait-variant` macro adds `Send` bounds to the generated trait and its returned futures for static dispatch. It does not box those futures or make the generated async-method variant dyn-compatible.
 
 ```rust
-// using trait-variant to get both a static and a dyn-compatible variant
-#[trait_variant::make(RepoSend: Send)]
+// using async-trait for a dyn-compatible trait
+#[async_trait::async_trait]
 trait Repo {
     async fn get(&self, id: u64) -> anyhow::Result<String>;
 }
 
-// `RepoSend` is the Send-bounded version; it IS dyn-compatible via boxing
-fn make_repo() -> Box<dyn RepoSend> {
+// async-trait boxes the future returned by `get`, allowing `dyn Repo`
+fn make_repo() -> Box<dyn Repo> {
     // ...
     # unimplemented!()
 }
@@ -94,7 +93,7 @@ trait Repo {
 | Scenario | Recommended approach |
 |---|---|
 | Static dispatch only (generics, `impl Trait`) | Native `async fn` in trait |
-| Need `dyn Trait` | `#[async_trait]` or `trait-variant` |
+| Need `dyn Trait` | `#[async_trait]` |
 | Multi-threaded Tokio, spawned tasks | `trait-variant` `Send` variant or explicit `+ Send` |
 | Single-threaded runtime / `LocalSet` | Native `async fn` in trait (no `Send` needed) |
 

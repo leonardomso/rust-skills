@@ -4,6 +4,12 @@ All notable changes to this skill are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning for the rule set.
 
+## [1.5.2]
+
+### Fixed
+- Corrected the `async-fn-in-trait` dyn-dispatch example and recommendation
+  to use `async-trait`.
+
 ## [1.5.1]
 
 ### Changed
