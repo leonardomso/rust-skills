@@ -5,8 +5,8 @@ Single source of truth: each rule file's `# id` header, its `> summary` line, an
 the ordered CATEGORIES config below (prefix -> title + impact). Rule order within a
 category is preserved from the current SKILL.md and any new rules are appended.
 
-  python3 checks/gen_index.py            rewrite SKILL.md + README counts
-  python3 checks/gen_index.py --check    exit 1 if they are out of date (CI)
+  python3 skills/rust/checks/gen_index.py            rewrite SKILL.md + README counts
+  python3 skills/rust/checks/gen_index.py --check    exit 1 if they are out of date (CI)
 """
 import re, sys, pathlib
 
@@ -14,7 +14,10 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 RULES = ROOT / "rules"
 SKILL = ROOT / "SKILL.md"
-README = ROOT / "README.md"
+# The README lives at the repo root, outside the skill folder. When the skill
+# folder is vendored on its own the README is absent, and count syncing is
+# skipped rather than an error.
+README = ROOT.parent.parent / "README.md"
 
 # (prefix, title, impact) in display order
 CATEGORIES = [
@@ -109,20 +112,22 @@ def render_readme(text, total, ncat):
 def main():
     table, quickref, total, ncat = build()
     skill_new = render_skill(SKILL.read_text(encoding="utf-8"), table, quickref, total, ncat)
-    readme_new = render_readme(README.read_text(encoding="utf-8"), total, ncat)
+    readme_text = README.read_text(encoding="utf-8") if README.exists() else None
 
     if "--check" in sys.argv:
         stale = []
         if skill_new != SKILL.read_text(encoding="utf-8"): stale.append("SKILL.md")
-        if readme_new != README.read_text(encoding="utf-8"): stale.append("README.md")
+        if readme_text is not None and render_readme(readme_text, total, ncat) != readme_text:
+            stale.append("README.md")
         if stale:
-            print(f"OUT OF DATE: {', '.join(stale)} — run `python3 checks/gen_index.py`")
+            print(f"OUT OF DATE: {', '.join(stale)} — run `python3 skills/rust/checks/gen_index.py`")
             sys.exit(1)
         print(f"OK: index up to date ({total} rules, {ncat} categories)")
         return
 
     SKILL.write_text(skill_new, encoding="utf-8")
-    README.write_text(readme_new, encoding="utf-8")
+    if readme_text is not None:
+        README.write_text(render_readme(readme_text, total, ncat), encoding="utf-8")
     print(f"wrote index: {total} rules across {ncat} categories")
 
 if __name__ == "__main__":

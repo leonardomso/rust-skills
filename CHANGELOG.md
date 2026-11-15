@@ -4,6 +4,15 @@ All notable changes to this skill are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning for the rule set.
 
+## [Unreleased]
+
+### Changed
+- Repository restructure: the skill now lives in `skills/rust/` as a single
+  self-contained folder (`SKILL.md`, `rules/`, `checks/`, the `AGENTS.md`/
+  `CLAUDE.md` symlinks, and a copy of the MIT `LICENSE`), so it can be vendored
+  or installed on its own without repo plumbing riding along. README, CI, and
+  contributor docs updated for the new layout; no rule content changed.
+
 ## [1.5.1]
 
 ### Changed

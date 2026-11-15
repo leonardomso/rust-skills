@@ -6,12 +6,12 @@ adding a rule, improving an existing one, or fixing an example.
 
 ## Adding or editing a rule
 
-1. **Create `rules/<prefix>-<name>.md`** with a `kebab-case` id that starts with
+1. **Create `skills/rust/rules/<prefix>-<name>.md`** with a `kebab-case` id that starts with
    an existing category prefix (`own-`, `err-`, `mem-`, `unsafe-`, `api-`,
    `async-`, `conc-`, `opt-`, `num-`, `type-`, `trait-`, `conv-`, `const-`,
    `serde-`, `pat-`, `macro-`, `closure-`, `coll-`, `name-`, `test-`, `doc-`,
    `obs-`, `perf-`, `proj-`, `lint-`, `anti-`). To propose a brand-new category,
-   add it to `CATEGORIES` in `checks/gen_index.py`.
+   add it to `CATEGORIES` in `skills/rust/checks/gen_index.py`.
 
 2. **Follow the format** of existing rules exactly:
 
@@ -50,11 +50,11 @@ adding a rule, improving an existing one, or fixing an example.
    compile harness can verify them. Keep error/log message strings lowercase
    with no trailing punctuation.
 
-4. **Regenerate the index** so `SKILL.md` and the README counts stay in sync —
-   never hand-edit the generated table or Quick Reference:
+4. **Regenerate the index** so `skills/rust/SKILL.md` and the README counts stay
+   in sync — never hand-edit the generated table or Quick Reference:
 
    ```bash
-   python3 checks/gen_index.py
+   python3 skills/rust/checks/gen_index.py
    ```
 
 5. **Add a `CHANGELOG.md` entry** under the next version.
@@ -65,11 +65,11 @@ Run the same checks CI runs:
 
 ```bash
 # structure, links, index parity, and that SKILL.md/README are up to date
-python3 checks/validate.py
-python3 checks/gen_index.py --check
+python3 skills/rust/checks/validate.py
+python3 skills/rust/checks/gen_index.py --check
 
 # compile-check the examples (Rust >= 1.95)
-cd checks
+cd skills/rust/checks
 python3 gen.py
 cargo check --examples --keep-going --message-format=json > check.json
 python3 analyze.py check.json --check-baseline baseline.txt
@@ -77,7 +77,7 @@ python3 analyze.py check.json --check-baseline baseline.txt
 
 If the compile gate reports a real bug, fix the example. If you intentionally
 added a new fragment-style snippet, refresh the baseline (see
-`checks/README.md`).
+`skills/rust/checks/README.md`).
 
 ## Style
 

@@ -9,6 +9,20 @@
 
 Works with Claude Code, Cursor, Windsurf, Copilot, Codex, Aider, Zed, Amp, Cline, and pretty much any other agent that supports skills.
 
+## Repository layout
+
+The skill is a single self-contained folder, so it can be installed or vendored on its own without dragging repo plumbing along:
+
+```
+skills/rust/         the skill — everything an agent needs travels in here
+  SKILL.md           index of all rules (AGENTS.md and CLAUDE.md symlink to it)
+  rules/             one Markdown file per rule
+  checks/            dev harness that compile-checks the rule examples
+  LICENSE            MIT
+README.md            repo overview (this file)
+CONTRIBUTING.md, CHANGELOG.md, .github/    repo plumbing, not part of the skill
+```
+
 ## Why
 
 Out of the box, coding agents write *average* Rust — they clone to dodge the borrow checker, `.unwrap()` everything, and reach for `Box<dyn Trait>` when `impl Trait` would do. These rules encode what expert Rust actually looks like: idiomatic, fast, and safe. Each rule is small and focused, so the agent pulls in only what's relevant to the code in front of it.
@@ -107,11 +121,11 @@ Each rule has:
 
 The design is built for low token cost and easy auditing:
 
-- **[`SKILL.md`](./SKILL.md)** is a lightweight index — every rule listed as a one-line summary, grouped by category, with a link to its file. The agent reads this first.
-- **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading all 218 — progressive disclosure keeps context small.
+- **[`SKILL.md`](./skills/rust/SKILL.md)** is a lightweight index — every rule listed as a one-line summary, grouped by category, with a link to its file. The agent reads this first.
+- **[`rules/`](./skills/rust/rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading all 218 — progressive disclosure keeps context small.
 - **Prefixes** (`own-`, `err-`, `unsafe-`, `async-`, …) map directly to categories, so an agent reviewing async code can pull just `async-`, `conc-`, and `own-` rules.
 
-`CLAUDE.md` and `AGENTS.md` are symlinks to `SKILL.md`, so the same content works across agent conventions.
+`CLAUDE.md` and `AGENTS.md` are symlinks to `SKILL.md` inside the skill folder, so the same content works across agent conventions.
 
 ## Manual install
 
@@ -122,12 +136,14 @@ If `add-skill` doesn't work for your setup, here's how to install manually:
 
 Global (applies to all projects):
 ```bash
-git clone https://github.com/leonardomso/rust-skills.git ~/.claude/skills/rust-skills
+git clone --depth 1 https://github.com/leonardomso/rust-skills.git /tmp/rust-skills
+cp -r /tmp/rust-skills/skills/rust ~/.claude/skills/rust-skills
 ```
 
 Or just for one project:
 ```bash
-git clone https://github.com/leonardomso/rust-skills.git .claude/skills/rust-skills
+git clone --depth 1 https://github.com/leonardomso/rust-skills.git /tmp/rust-skills
+cp -r /tmp/rust-skills/skills/rust .claude/skills/rust-skills
 ```
 </details>
 
@@ -135,7 +151,8 @@ git clone https://github.com/leonardomso/rust-skills.git .claude/skills/rust-ski
 <summary><b>OpenCode</b></summary>
 
 ```bash
-git clone https://github.com/leonardomso/rust-skills.git .opencode/skills/rust-skills
+git clone --depth 1 https://github.com/leonardomso/rust-skills.git /tmp/rust-skills
+cp -r /tmp/rust-skills/skills/rust .opencode/skills/rust-skills
 ```
 </details>
 
@@ -143,12 +160,13 @@ git clone https://github.com/leonardomso/rust-skills.git .opencode/skills/rust-s
 <summary><b>Cursor</b></summary>
 
 ```bash
-git clone https://github.com/leonardomso/rust-skills.git .cursor/skills/rust-skills
+git clone --depth 1 https://github.com/leonardomso/rust-skills.git /tmp/rust-skills
+cp -r /tmp/rust-skills/skills/rust .cursor/skills/rust-skills
 ```
 
 Or just grab the skill file:
 ```bash
-curl -o .cursorrules https://raw.githubusercontent.com/leonardomso/rust-skills/master/SKILL.md
+curl -o .cursorrules https://raw.githubusercontent.com/leonardomso/rust-skills/master/skills/rust/SKILL.md
 ```
 </details>
 
@@ -157,7 +175,7 @@ curl -o .cursorrules https://raw.githubusercontent.com/leonardomso/rust-skills/m
 
 ```bash
 mkdir -p .windsurf/rules
-curl -o .windsurf/rules/rust-skills.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/SKILL.md
+curl -o .windsurf/rules/rust-skills.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/skills/rust/SKILL.md
 ```
 </details>
 
@@ -165,12 +183,13 @@ curl -o .windsurf/rules/rust-skills.md https://raw.githubusercontent.com/leonard
 <summary><b>OpenAI Codex</b></summary>
 
 ```bash
-git clone https://github.com/leonardomso/rust-skills.git .codex/skills/rust-skills
+git clone --depth 1 https://github.com/leonardomso/rust-skills.git /tmp/rust-skills
+cp -r /tmp/rust-skills/skills/rust .codex/skills/rust-skills
 ```
 
 Or use the AGENTS.md standard:
 ```bash
-curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/SKILL.md
+curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/skills/rust/SKILL.md
 ```
 </details>
 
@@ -179,7 +198,7 @@ curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/mast
 
 ```bash
 mkdir -p .github
-curl -o .github/copilot-instructions.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/SKILL.md
+curl -o .github/copilot-instructions.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/skills/rust/SKILL.md
 ```
 </details>
 
@@ -188,12 +207,12 @@ curl -o .github/copilot-instructions.md https://raw.githubusercontent.com/leonar
 
 Add to `.aider.conf.yml`:
 ```yaml
-read: path/to/rust-skills/SKILL.md
+read: path/to/rust-skills/skills/rust/SKILL.md
 ```
 
 Or pass it directly:
 ```bash
-aider --read path/to/rust-skills/SKILL.md
+aider --read path/to/rust-skills/skills/rust/SKILL.md
 ```
 </details>
 
@@ -201,7 +220,7 @@ aider --read path/to/rust-skills/SKILL.md
 <summary><b>Zed</b></summary>
 
 ```bash
-curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/SKILL.md
+curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/skills/rust/SKILL.md
 ```
 </details>
 
@@ -209,7 +228,8 @@ curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/mast
 <summary><b>Amp</b></summary>
 
 ```bash
-git clone https://github.com/leonardomso/rust-skills.git .agents/skills/rust-skills
+git clone --depth 1 https://github.com/leonardomso/rust-skills.git /tmp/rust-skills
+cp -r /tmp/rust-skills/skills/rust .agents/skills/rust-skills
 ```
 </details>
 
@@ -218,7 +238,7 @@ git clone https://github.com/leonardomso/rust-skills.git .agents/skills/rust-ski
 
 ```bash
 mkdir -p .clinerules
-curl -o .clinerules/rust-skills.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/SKILL.md
+curl -o .clinerules/rust-skills.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/skills/rust/SKILL.md
 ```
 </details>
 
@@ -227,13 +247,13 @@ curl -o .clinerules/rust-skills.md https://raw.githubusercontent.com/leonardomso
 
 If your agent supports the [AGENTS.md](https://agents.md) standard:
 ```bash
-curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/SKILL.md
+curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/master/skills/rust/SKILL.md
 ```
 </details>
 
 ## All rules
 
-See [SKILL.md](./SKILL.md) for the full list with links to each rule file.
+See [SKILL.md](./skills/rust/SKILL.md) for the full list with links to each rule file.
 
 ## Sources & attribution
 
@@ -266,10 +286,10 @@ This project is MIT-licensed. Referenced upstream materials remain under their o
 
 PRs welcome. To add or change a rule:
 
-1. Create `rules/<prefix>-<name>.md` using a `kebab-case` id with an existing category prefix (`own-`, `err-`, `mem-`, …).
+1. Create `skills/rust/rules/<prefix>-<name>.md` using a `kebab-case` id with an existing category prefix (`own-`, `err-`, `mem-`, …).
 2. Follow the format of existing rules: a `>` one-line summary, then `## Why It Matters`, `## Bad`, `## Good`, and `## See Also` (with links that resolve).
 3. Make sure code examples compile on current stable Rust.
-4. Add the rule to the index in `SKILL.md` (Quick Reference list + the category count) so it stays in sync.
+4. Add the rule to the index in `skills/rust/SKILL.md` (Quick Reference list + the category count) so it stays in sync.
 
 ````markdown
 # prefix-rule-name
