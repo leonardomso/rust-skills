@@ -8,10 +8,10 @@ published skill.
 
 ```bash
 # structural / link / index checks (no toolchain needed)
-python3 checks/validate.py
+python3 skills/rust/checks/validate.py
 
 # compile-check the examples
-cd checks
+cd skills/rust/checks
 python3 gen.py                                              # extract blocks -> examples/
 cargo check --examples --keep-going --message-format=json > check.json
 python3 analyze.py check.json                               # classify results
