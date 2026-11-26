@@ -126,10 +126,24 @@ For repeated links or long paths:
 Enable link checking in CI:
 
 ```bash
-RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+CARGO_BUILD_WARNINGS=deny cargo doc --no-deps
 ```
 
-This fails if any intra-doc links are broken.
+This fails if any intra-doc links are broken. `build.warnings` (stable since Rust 1.97) only affects your own packages, unlike `RUSTDOCFLAGS="-D warnings"`, which also applies to the documentation of every dependency. See [lint-build-warnings](lint-build-warnings.md).
+
+## Other Rustdoc Lints Worth Keeping On
+
+| Lint | Since | What it reports |
+|------|-------|-----------------|
+| `rustdoc::broken_intra_doc_links` | warn by default | Link that does not resolve |
+| `rustdoc::invalid_markdown_table` | Rust 1.100 | Unescaped `\|` in a table cell, so the rest of the row is dropped |
+| `rustdoc::unused_footnote_definition` | Rust 1.99 | `[^1]: ...` that nothing references |
+
+```rust
+//! | closure |
+//! | ------- |
+//! | `code_with(\|arg\| arg)` |  // escape pipes inside table cells
+```
 
 ## See Also
 

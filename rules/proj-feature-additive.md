@@ -49,6 +49,9 @@ tokio = { version = "1", optional = true }
 // lib.rs — std is opt-in, no_std is the default baseline
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 #[cfg(feature = "std")]
 use std::vec::Vec;
 

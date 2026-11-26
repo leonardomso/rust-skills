@@ -41,16 +41,13 @@ for x in vec![1, 2, 3] { }  // Use array: [1, 2, 3]
 ### Inefficient Operations
 
 ```rust
-// WARN: Single-character string patterns
-s.starts_with("x")  // Use char: 'x'
-s.contains("a")     // Use char: 'a'
+// WARN (manual_retain): rebuilding a Vec with filter + collect
+v = v.into_iter().filter(|x| *x > 0).collect();
+// Use: v.retain(|x| *x > 0)
 
-// WARN: iter().nth(0) instead of first()
-iter.nth(0)  // Use: iter.first() or iter.next()
-
-// WARN: Manual saturating arithmetic
-if x > i32::MAX - y { i32::MAX } else { x + y }
-// Use: x.saturating_add(y)
+// WARN (iter_overeager_cloned): clone before the filter
+let first = v.iter().cloned().filter(|s| s.len() > 3).next();
+// Use: v.iter().find(|s| s.len() > 3).cloned()
 ```
 
 ### Collection Inefficiencies
@@ -71,11 +68,11 @@ let s = format!("{}{}", a, b);  // When both are &str, use: a.to_owned() + b
 | Lint | Improvement |
 |------|-------------|
 | `box_collection` | Use `Vec<T>` not `Box<Vec<T>>` |
-| `iter_nth` | Use `.get(n)` or `.next()` |
+| `manual_retain` | Use `retain` instead of filter + collect |
+| `iter_overeager_cloned` | Clone after the filter, not before |
 | `large_enum_variant` | Box large variants |
 | `manual_memcpy` | Use slice copy methods |
 | `redundant_allocation` | Remove double boxing |
-| `single_char_pattern` | Use `char` not `&str` |
 | `slow_vector_initialization` | Use `vec![0; n]` |
 | `unnecessary_to_owned` | Remove redundant `.to_owned()` |
 
@@ -119,15 +116,7 @@ for i in 0..100 {
 
 ## String Patterns
 
-```rust
-// Slow: str pattern
-s.contains("x");
-s.find("y");
-
-// Fast: char pattern
-s.contains('x');
-s.find('y');
-```
+`clippy::single_char_pattern` is no longer in `clippy::perf`. It lives in `clippy::pedantic`, so do not rely on the perf group to flag `s.contains("x")`. A `char` pattern is still the clearer choice.
 
 ## See Also
 

@@ -28,47 +28,41 @@ warn = ["clippy::suspicious"]
 
 ## What It Catches
 
-### Suspicious Arithmetic
+### Suspicious Operators
 
 ```rust
-// WARN: Suspicious use of + in a << expression
-let bits = 1 << 4 + 1;  // Probably meant (1 << 4) + 1 or 1 << (4 + 1)
+// suspicious_arithmetic_impl: `-` inside an `Add` impl
+impl Add for P {
+    type Output = P;
+    fn add(self, rhs: P) -> P { P(self.0 - rhs.0) }  // WARN
+}
 
-// WARN: Suspicious use of | in a + expression
-let value = x | 1 + y;  // Probably meant (x | 1) + y or x | (1 + y)
+// suspicious_assignment_formatting: `=-` looks like `-=`
+a =- b;  // WARN: this is `a = -b`
 ```
 
-### Suspicious Comparisons
+### Suspicious Control Flow and Locks
 
 ```rust
-// WARN: Almost swapped operands in a comparison
-if 5 < x && x < 3 { }  // Impossible condition
-
-// WARN: Suspicious assignment in a condition
-if (x = 5) { }  // Probably meant x == 5
+// await_holding_lock: a MutexGuard lives across an await
+async fn work(m: &Mutex<i32>) {
+    let g = m.lock().unwrap();  // WARN: held across an await point
+    other().await;
+    drop(g);
+}
 ```
 
-### Suspicious Method Calls
+### Suspicious Types and Bindings
 
 ```rust
-// WARN: Suspicious map usage
-let _: Vec<_> = vec.iter().map(|x| { 
-    println!("{}", x);  // Side effect in map
-    x
-}).collect();  // Use for_each instead
+// mutable_key_type: key with interior mutability in a hash set or map
+let s: HashSet<KeyWithCell> = HashSet::new();  // WARN
 
-// WARN: Suspicious string formatting
-let s = format!("{}", format!("{}", x));  // Redundant nested format
-```
+// redundant_locals: rebinding a variable to itself
+let x = x;  // WARN
 
-### Suspicious Casts
-
-```rust
-// WARN: Suspicious use of not on a bool
-let inverted = !x as i32;  // Did you mean (!x) as i32 or !(x as i32)?
-
-// WARN: Cast of float to int may lose precision
-let n = 3.14_f64 as i32;  // May want .round() first
+// suspicious_map: map used only for its side effects
+let n = items.iter().map(|v| { println!("{v}"); v }).count();  // WARN, use inspect
 ```
 
 ## Notable Lints in This Group
@@ -80,26 +74,11 @@ let n = 3.14_f64 as i32;  // May want .round() first
 | `suspicious_else_formatting` | Else on wrong line |
 | `suspicious_map` | Map with side effects |
 | `suspicious_op_assign_impl` | Unusual op-assign implementation |
-| `suspicious_splitn` | splitn that can't produce n parts |
 | `suspicious_unary_op_formatting` | Confusing unary operator spacing |
+| `await_holding_lock` | Lock guard held across `.await` |
+| `mutable_key_type` | Hash key with interior mutability |
 
-## Example Catches
-
-```rust
-// Caught: Suspicious double negation
-let value = --x;  // In Rust, this is -(-x), not pre-decrement
-
-// Caught: Suspicious modulo
-let remainder = x % 1;  // Always 0 for integers
-
-// Caught: Suspicious else formatting
-if condition {
-    do_something();
-}
-else {  // Weird formatting, might be a mistake
-    do_other();
-}
-```
+`suspicious_splitn`, `modulo_one`, and `almost_swapped` look like they belong here but are in `clippy::correctness`.
 
 ## When to Allow
 

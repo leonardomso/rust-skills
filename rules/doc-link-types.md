@@ -122,11 +122,8 @@ impl Iterator for MyIterator {
 ## Broken Link Detection
 
 ```bash
-# Catch broken intra-doc links
-RUSTDOCFLAGS="-D warnings" cargo doc
-
-# Or in CI
-cargo doc --no-deps 2>&1 | grep "warning: unresolved link"
+# Catch broken intra-doc links in your own crates (Rust 1.97+)
+CARGO_BUILD_WARNINGS=deny cargo doc --no-deps
 ```
 
 ```toml

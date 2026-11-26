@@ -70,6 +70,20 @@ let results = processor.process_batch(&items)?;
 assert!(results.all_succeeded());
 ```
 
+## Stray Attributes Are Errors
+
+Since Rust 1.99, an attribute in a doctest that is not followed by an item is a compile error (it used to be accepted). This usually shows up after hiding lines with `# `:
+
+```rust
+/// ```
+/// # struct Config;
+/// #[derive(Debug)]   // error: expected an item after this
+/// ```
+pub fn f() {}
+```
+
+Keep the attribute together with the item it applies to, and hide both or neither.
+
 ## What to Hide
 
 | Hide | Show |

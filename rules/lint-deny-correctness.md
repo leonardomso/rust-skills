@@ -11,40 +11,29 @@ Clippy's correctness lints catch code that is outright wrong - logic errors, und
 ```rust
 // At the top of lib.rs or main.rs
 #![deny(clippy::correctness)]
-
-// Or in Cargo.toml for workspace-wide
-[lints.clippy]
-correctness = "deny"
 ```
+
+Or in `Cargo.toml`:
+
+```toml
+[lints.clippy]
+correctness = { level = "deny", priority = -1 }
+```
+
+`clippy::correctness` is already deny-by-default. Setting it explicitly documents the intent and keeps it denied if someone adds a blanket `allow`.
 
 ## What It Catches
 
 ```rust
-// Infinite loop (iter::repeat without take)
-for x in std::iter::repeat(1) {  // ERROR: infinite iterator
-    println!("{}", x);
+// infinite_iter: consuming an infinite iterator never returns
+let n = std::iter::repeat(1).count();  // ERROR: infinite iteration
+
+// impossible_comparisons
+if x > 5 && x < 3 {  // ERROR: can never be true
 }
 
-// Comparison to NaN (always false)
-if x == f64::NAN {  // ERROR: NaN != NaN always
-    // This never executes
-}
-
-// Use after free patterns
-let r;
-{
-    let x = 5;
-    r = &x;  // ERROR: x dropped here
-}
-println!("{}", r);
-
-// Wrong equality check
-if x = 5 {  // ERROR: assignment in condition (should be ==)
-}
-
-// Useless comparisons
-if x >= 0 && x < 0 {  // ERROR: impossible condition
-}
+// self_assignment
+x = x;  // ERROR: no effect
 ```
 
 ## Important Correctness Lints
@@ -58,6 +47,7 @@ let re = Regex::new("[");  // Invalid regex
 
 // iter_next_loop - using .next() in for loop incorrectly
 for x in iter.next() {  // Should be: for x in iter
+}
 
 // never_loop - loop that never actually loops
 loop {
@@ -97,11 +87,12 @@ cargo clippy -- -D warnings
 # Check specific lint category
 cargo clippy -- -W clippy::correctness
 
-# In CI (fail on warnings)
-cargo clippy -- -D warnings -D clippy::correctness
+# In CI (fail on warnings), see lint-build-warnings
+CARGO_BUILD_WARNINGS=deny cargo clippy --all-targets
 ```
 
 ## See Also
 
 - [lint-warn-suspicious](lint-warn-suspicious.md) - Warn on suspicious code
 - [lint-warn-perf](lint-warn-perf.md) - Warn on performance issues
+- [lint-build-warnings](lint-build-warnings.md) - Deny warnings in CI with `build.warnings`

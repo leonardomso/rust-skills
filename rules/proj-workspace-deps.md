@@ -35,8 +35,8 @@ members = ["crate-a", "crate-b", "crate-c"]
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.32", features = ["full"] }
-thiserror = "1.0"
-anyhow = "1.0"
+thiserror = "2"
+anyhow = "1"
 tracing = "0.1"
 
 # crate-a/Cargo.toml
@@ -68,6 +68,26 @@ tokio = { workspace = true, features = ["net", "io-util"] }
 tokio = { workspace = true }  # Just workspace features
 ```
 
+## Turning Off Inherited Default Features
+
+Since Rust 1.99, a member on edition 2024 or later can override an inherited dependency's `default-features`:
+
+```toml
+# Root Cargo.toml
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+
+# crate-a/Cargo.toml (edition = "2024")
+[dependencies]
+serde = { workspace = true, default-features = false }  # honored on edition 2024+
+```
+
+On earlier editions, `default-features = false` next to `workspace = true` is ignored with a warning.
+
+## Finding Unused Entries
+
+Cargo's `unused_workspace_dependencies` lint (warn by default since Rust 1.100) reports `[workspace.dependencies]` entries that no member uses. See [lint-cargo-lints](lint-cargo-lints.md).
+
 ## Dev and Build Dependencies
 
 ```toml
@@ -98,7 +118,7 @@ my-utils = { path = "crates/utils" }
 my-derive = { path = "crates/derive" }
 
 # External crates
-serde = "1.0"
+serde = "1"
 
 # crate-a/Cargo.toml
 [dependencies]
@@ -136,7 +156,7 @@ resolver = "3"  # default for the 2024 edition; use "2" for 2021
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 repository = "https://github.com/user/repo"
 
@@ -153,8 +173,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Error handling
-thiserror = "1.0"
-anyhow = "1.0"
+thiserror = "2"
+anyhow = "1"
 
 # Logging
 tracing = "0.1"
@@ -183,4 +203,6 @@ proptest.workspace = true
 
 - [proj-lib-main-split](./proj-lib-main-split.md) - Workspace structure
 - [api-serde-optional](./api-serde-optional.md) - Optional dependencies
-- [lint-deny-correctness](./lint-deny-correctness.md) - Workspace lints
+- [lint-workspace-lints](./lint-workspace-lints.md) - Workspace lints
+- [lint-cargo-lints](./lint-cargo-lints.md) - Find unused dependencies
+- [proj-dependency-cooldown](./proj-dependency-cooldown.md) - Delay brand-new versions

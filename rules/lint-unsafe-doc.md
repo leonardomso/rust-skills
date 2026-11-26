@@ -45,22 +45,27 @@ impl Buffer {
 ## Good
 
 ```rust
-pub fn read_data(ptr: *const u8, len: usize) -> &[u8] {
-    // SAFETY: Caller guarantees:
-    // - ptr is valid for reads of len bytes
-    // - ptr is properly aligned for u8
-    // - the memory is initialized
-    // - no mutable references exist to this memory
-    unsafe {
-        std::slice::from_raw_parts(ptr, len)
-    }
+/// # Safety
+///
+/// - `ptr` must be valid for reads of `len` bytes and properly aligned
+/// - the memory must be initialized
+/// - no mutable references to this memory may exist for `'a`
+pub unsafe fn read_data<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
+    // SAFETY: the caller upholds the contract documented above.
+    unsafe { std::slice::from_raw_parts(ptr, len) }
+}
+
+struct Buffer {
+    data: Vec<u8>,
 }
 
 impl Buffer {
-    pub fn get_unchecked(&self, index: usize) -> &u8 {
-        debug_assert!(index < self.len(), "index out of bounds");
-        // SAFETY: We verified index < len in debug builds.
-        // Callers must ensure index is within bounds.
+    /// # Safety
+    ///
+    /// `index` must be less than `self.data.len()`.
+    pub unsafe fn get_unchecked(&self, index: usize) -> &u8 {
+        debug_assert!(index < self.data.len(), "index out of bounds");
+        // SAFETY: the caller guarantees `index` is in bounds.
         unsafe { self.data.get_unchecked(index) }
     }
 }
@@ -123,7 +128,7 @@ unsafe impl Sync for MyType {}
 [lints.clippy]
 undocumented_unsafe_blocks = "warn"
 # Also consider:
-multiple_unsafe_ops_per_block = "warn"  # One operation per block
+multiple_unsafe_ops_per_block = "warn"  # restriction group: one unsafe operation per block
 ```
 
 ## See Also

@@ -56,6 +56,24 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 workspace = true
 ```
 
+## `cfg_select!`
+
+`cfg_select!` (stable since Rust 1.95) replaces most uses of the `cfg-if` crate. It is also checked against `unexpected_cfgs`, and the `unreachable_cfg_select_predicates` lint (part of `unused`) flags arms that can never be selected.
+
+```rust
+cfg_select! {
+    unix => {
+        fn platform() -> &'static str { "unix" }
+    }
+    windows => {
+        fn platform() -> &'static str { "windows" }
+    }
+    _ => {
+        fn platform() -> &'static str { "other" }
+    }
+}
+```
+
 ## Notes
 
 - Feature names (`feature = "serde"`, `feature = "std"`) are registered automatically by Cargo — you do not need to list them in `check-cfg`.

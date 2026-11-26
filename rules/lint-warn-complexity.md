@@ -84,7 +84,7 @@ if condition {
 | `clone_on_copy` | Remove `.clone()` for Copy types |
 | `filter_next` | Use `.find()` instead |
 | `option_map_unit_fn` | Use `if let` instead |
-| `search_is_some` | Use `.any()` or `.contains()` |
+| `manual_flatten` | Use `.flatten()` instead of `for` + `if let Some` |
 | `unnecessary_cast` | Remove redundant casts |
 | `useless_conversion` | Remove `.into()` when types match |
 

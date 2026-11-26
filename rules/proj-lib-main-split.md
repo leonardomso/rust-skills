@@ -118,6 +118,18 @@ fn test_full_workflow() {
 }
 ```
 
+## Dead `pub` Items in Binaries
+
+Nothing outside a binary crate can use its `pub` items, so `pub` there does not make them reachable and `dead_code` historically stayed silent about them. Since Rust 1.97, the allow-by-default lint `dead_code_pub_in_binary` reports unused `pub` items in binary crates. Turn it on in `main.rs`-only crates, or move reusable code into `lib.rs` where `pub` means public API.
+
+```rust
+#![warn(dead_code_pub_in_binary)]
+
+pub fn unused_helper() {}  // warning: function is never used
+
+fn main() {}
+```
+
 ## Multiple Binaries
 
 ```rust

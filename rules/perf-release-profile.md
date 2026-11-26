@@ -25,11 +25,15 @@ lto = "fat"            # Full link-time optimization
 codegen-units = 1      # Better optimization, slower compile
 panic = "abort"        # Smaller binary, no unwinding
 strip = true           # Remove symbols
-
-[profile.release.package."*"]
-# Keep dependencies optimized even if main crate changes
-opt-level = 3
 ```
+
+The `release` profile already uses `opt-level = 3`. Set it explicitly only when you want to document the choice.
+
+## Built-in Profiles
+
+Cargo has the built-in profiles `dev`, `release`, `test`, `bench`, and (since Rust 1.99) `debug`. For now `debug` inherits from `dev` with no changes. It is the profile meant for debugger-oriented builds, so you can tune `dev` for fast iteration without losing a debugging profile (`cargo build --profile debug`).
+
+Incremental compilation is off by default when the `CI` environment variable is set (since Rust 1.99). Do not set `CARGO_INCREMENTAL=1` in CI: it fills the cache with data that is rarely reused.
 
 ## Profile Options
 
@@ -39,7 +43,7 @@ opt-level = 3
 | `lto` | false, "thin", "fat" | Link-time optimization |
 | `codegen-units` | 1-256 | Parallel compilation units |
 | `panic` | "unwind", "abort" | Panic behavior |
-| `strip` | true, false, "symbols", "debuginfo" | Binary stripping |
+| `strip` | true, false, "symbols", "debuginfo", "none" | Binary stripping |
 | `debug` | true, false, 0-2 | Debug info level |
 
 ## Optimization Levels
@@ -60,6 +64,10 @@ opt-level = 3
 | `false` | Fast | Baseline | Larger |
 | `"thin"` | Medium | Good | Smaller |
 | `"fat"` | Slow | Best | Smallest |
+
+## Finding Build Artifacts
+
+The final binary is still copied to `target/<profile>/<name>`. Since Rust 1.100, Cargo uses a new layout for intermediate files, and that layout is not a stable interface. Do not scrape `target/` for `.rlib`, `.d` or test binaries. Use `cargo build --message-format=json` and read the `filenames` / `executable` fields, or `cargo test --no-run --message-format=json`.
 
 ## Custom Profiles
 

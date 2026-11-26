@@ -61,6 +61,8 @@ cargo flamegraph --bin myapp -- <args>
 # Opens flamegraph.svg showing call stacks by time
 ```
 
+Rust 1.97 made the v0 symbol mangling scheme the default. Old profilers and debuggers may fail to demangle `_R...` symbols. Update them (and `rustfilt`) if names in a flamegraph look garbled.
+
 ### perf (Linux)
 
 ```bash
@@ -106,7 +108,8 @@ cargo run --release
 ### criterion (Micro-benchmarks)
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn bench_my_function(c: &mut Criterion) {
     c.bench_function("my_function", |b| {

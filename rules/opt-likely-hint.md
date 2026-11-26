@@ -50,7 +50,7 @@ fn cold_empty_error() -> Result<(), Error> {
 ## Nightly: std::hint
 
 ```rust
-// Requires nightly; still unstable as of Rust 1.96
+// Requires nightly; still unstable as of Rust 1.100
 #![feature(likely_unlikely)]
 use std::hint::{likely, unlikely};
 
@@ -70,7 +70,7 @@ fn process(data: &Data) -> i32 {
 ## Boolean Likely Wrapper (Nightly)
 
 ```rust
-// Requires nightly; still unstable as of Rust 1.96
+// Requires nightly; still unstable as of Rust 1.100
 #![feature(likely_unlikely)]
 
 #[inline(always)]
@@ -106,6 +106,8 @@ fn process(data: &Data) -> i32 {
 ```
 
 ## Stable: likely-stable Crate
+
+The `likely_stable` crate gives `likely`/`unlikely` on stable. Prefer `std::hint::cold_path()` above when you only need to mark the rare branch.
 
 ```rust
 use likely_stable::{likely, unlikely};

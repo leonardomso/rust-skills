@@ -10,7 +10,7 @@
 
 ```rust
 // Multiple potential reallocations
-fn collect_results(sources: Vec<Source>) -> Vec<Result> {
+fn collect_results(sources: Vec<Source>) -> Vec<Outcome> {
     let mut results = Vec::new();
     
     for source in sources {
@@ -43,7 +43,7 @@ fn combine(mut a: Vec<i32>, b: Vec<i32>) -> Vec<i32> {
 
 ```rust
 // Single extend with size hint
-fn collect_results(sources: Vec<Source>) -> Vec<Result> {
+fn collect_results(sources: Vec<Source>) -> Vec<Outcome> {
     let mut results = Vec::new();
     
     for source in sources {
