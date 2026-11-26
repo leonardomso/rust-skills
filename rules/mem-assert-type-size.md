@@ -30,6 +30,13 @@ struct Event {
 ## Good
 
 ```rust
+#[allow(dead_code)]
+enum EventKind {
+    Start,
+    Stop,
+}
+
+#[allow(dead_code)]
 struct Event {
     timestamp: u64,
     kind: EventKind,

@@ -80,8 +80,8 @@ mod tests {
 
 ## Key Points
 
-- **`clamp` panics if `min > max`** — this is a programming error and is caught in debug builds. If `min`/`max` come from user input, validate their order first.
-- **`f32`/`f64` `clamp`** propagates `NaN`: if `self` is `NaN`, the result is `NaN`. If `min` or `max` is `NaN`, the result is unspecified. Filter `NaN` before calling `clamp` on untrusted floats.
+- **`clamp` panics if `min > max`** — this is a programming error, and it panics in release builds too. If `min`/`max` come from user input, validate their order first.
+- **`f32`/`f64` `clamp`** propagates `NaN`: if `self` is `NaN`, the result is `NaN`. `f32::clamp` and `f64::clamp` also panic if `min` or `max` is `NaN`. Filter `NaN` out of untrusted bounds, and check `is_nan` on an untrusted value if you do not want it to propagate.
 - **Saturating vs. clamping**: `saturating_*` applies to a single arithmetic operation and stops at the type's absolute limits (`i32::MIN`/`i32::MAX`). `clamp` applies to the final value and accepts arbitrary bounds. They compose well, as shown in `apply_damage`.
 - The standard library docs for `clamp` are at `std::cmp::Ord::clamp` and `f32::clamp`.
 

@@ -128,7 +128,6 @@ async fn test_channel_communication() {
 use mockall::*;
 
 #[automock]
-#[async_trait::async_trait]
 trait Database {
     async fn get_user(&self, id: u64) -> Option<User>;
 }

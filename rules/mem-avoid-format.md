@@ -137,7 +137,7 @@ fn create_user_greeting(name: &str) -> String {
 }
 
 // Error messages (already on error path)
-return Err(format!("Invalid value: {}", value).into());
+return Err(format!("invalid value: {}", value).into());
 ```
 
 ## See Also

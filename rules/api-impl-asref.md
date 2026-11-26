@@ -61,7 +61,7 @@ fn store(p: impl Into<PathBuf>) {
 
 // Borrow<T>: like AsRef but with Eq/Hash consistency guarantee
 use std::borrow::Borrow;
-fn lookup<Q: ?Sized>(map: &HashMap<String, V>, key: &Q) -> Option<&V>
+fn lookup<'a, Q: ?Sized, V>(map: &'a HashMap<String, V>, key: &Q) -> Option<&'a V>
 where
     String: Borrow<Q>,
     Q: Hash + Eq,

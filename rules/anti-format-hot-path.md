@@ -65,6 +65,12 @@ fn greet_to_buf(name: &str, buffer: &mut String) {
     buffer.push_str(name);
     buffer.push('!');
 }
+
+// Integers: stack buffer, no allocation (stable since Rust 1.98)
+fn push_count(buffer: &mut String, n: u64) {
+    let mut digits = std::fmt::NumBuffer::new();
+    buffer.push_str(n.format_into(&mut digits));
+}
 ```
 
 ## Comparison

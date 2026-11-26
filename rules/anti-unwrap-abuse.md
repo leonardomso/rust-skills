@@ -43,10 +43,10 @@ if let Some(value) = map.get("key") {
 }
 
 // Channel with proper handling
-match receiver.recv() {
-    Ok(msg) => handle(msg),
-    Err(_) => break,  // Channel closed
+while let Ok(msg) = receiver.recv() {
+    handle(msg);
 }
+// recv() returns Err only when the channel is closed, so the loop ends cleanly
 ```
 
 ## When unwrap() Is Acceptable

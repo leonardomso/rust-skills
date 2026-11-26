@@ -79,7 +79,7 @@ struct ProductId(u64);
 ## Constructor Patterns
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Email(String);
 
 impl Email {

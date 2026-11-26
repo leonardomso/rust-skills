@@ -82,6 +82,30 @@ fn consumer() -> Option<u64> {
 | `AcqRel` | Read-modify-write (e.g. `compare_exchange`) acting as both Acquire and Release |
 | `SeqCst` | Need a single global order observed by all threads across multiple atomic variables |
 
+## Read-Modify-Write Helpers
+
+`AtomicXxx::update` (stable since Rust 1.95) retries a closure in a compare-exchange loop and returns the previous value. `try_update` is the same for closures that may decline by returning `None`. `fetch_update` is deprecated since Rust 1.99 in favour of `try_update`. Use the `AtomicXxx` names: the generic `Atomic<T>` they alias is still unstable.
+
+```rust
+use std::sync::atomic::{AtomicU32, Ordering};
+
+static IN_FLIGHT: AtomicU32 = AtomicU32::new(0);
+const LIMIT: u32 = 64;
+
+/// Claims a slot, or returns `false` when the limit is reached.
+fn try_acquire() -> bool {
+    IN_FLIGHT
+        .try_update(Ordering::Acquire, Ordering::Relaxed, |n| {
+            (n < LIMIT).then_some(n + 1)
+        })
+        .is_ok()
+}
+
+fn release() {
+    IN_FLIGHT.update(Ordering::Release, Ordering::Relaxed, |n| n - 1);
+}
+```
+
 ## Verification with loom
 
 Use the `loom` crate to exhaustively verify ordering choices for small concurrent units — it explores all interleavings the C11 memory model permits:

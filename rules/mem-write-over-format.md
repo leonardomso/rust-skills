@@ -129,6 +129,21 @@ writeln!(&mut output, "Line 2: {}", value2).unwrap();
 write!(&mut output, "Line 1: {}\n", value1).unwrap();
 ```
 
+## Integers Without the fmt Machinery
+
+Since Rust 1.98, `core::fmt::NumBuffer` and the integer method `format_into` write a decimal number into a stack buffer and return a `&str`. There is no allocation and no `fmt` dispatch.
+
+```rust
+use std::fmt::NumBuffer;
+
+fn push_id(out: &mut String, id: u32) {
+    let mut buf = NumBuffer::new();
+    out.push_str(id.format_into(&mut buf));
+}
+```
+
+Use it when you only need the digits. For mixed text and values, `write!` into a reused buffer is still the right tool.
+
 ## When format! Is Fine
 
 ```rust

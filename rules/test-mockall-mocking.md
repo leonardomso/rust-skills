@@ -11,7 +11,7 @@ Unit tests should isolate the code under test from external dependencies (databa
 ```toml
 # Cargo.toml
 [dev-dependencies]
-mockall = "0.12"
+mockall = "0.13"
 ```
 
 ## Basic Usage
@@ -172,9 +172,10 @@ fn mock_client() -> MockHttpClient {
 
 ## Async Mocking
 
+`#[automock]` handles native `async fn` in traits directly. You do not need `#[async_trait]`.
+
 ```rust
 #[automock]
-#[async_trait]
 trait AsyncDatabase {
     async fn fetch(&self, id: u64) -> Option<Data>;
 }

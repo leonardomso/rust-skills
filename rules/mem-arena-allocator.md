@@ -66,18 +66,15 @@ thread_local! {
     static SCRATCH: RefCell<Bump> = RefCell::new(Bump::with_capacity(4 * 1024));
 }
 
+/// Runs `f` with the scratch arena, then resets it. `T` cannot borrow from the
+/// arena, because `f` must work for any arena lifetime.
 fn with_scratch<T>(f: impl FnOnce(&Bump) -> T) -> T {
     SCRATCH.with(|scratch| {
-        let arena = scratch.borrow();
+        let mut arena = scratch.borrow_mut();
         let result = f(&arena);
+        arena.reset(); // reuse the memory; never call this while `f` runs
         result
     })
-}
-
-fn reset_scratch() {
-    SCRATCH.with(|scratch| {
-        scratch.borrow_mut().reset();
-    });
 }
 
 // Usage
@@ -85,14 +82,11 @@ fn process_batch(items: &[Item]) -> Vec<Output> {
     with_scratch(|arena| {
         let temp_data: Vec<&TempData> = items
             .iter()
-            .map(|item| arena.alloc(compute_temp(item)))
+            .map(|item| &*arena.alloc(compute_temp(item)))
             .collect();
-        
+
         // Use temp_data...
-        let result = finalize(&temp_data);
-        
-        reset_scratch();  // Reuse arena memory
-        result
+        finalize(&temp_data) // owned result; arena is reset after we return
     })
 }
 ```
@@ -119,6 +113,8 @@ fn put_scratchpad(scratchpad: bumpalo::Bump) {
 
 ## Bumpalo Collections
 
+Enable the `collections` cargo feature (`bumpalo = { version = "3", features = ["collections"] }`). These are bumpalo's own `Vec` and `String` types, not `std::vec::Vec`.
+
 ```rust
 use bumpalo::Bump;
 use bumpalo::collections::{Vec, String};
@@ -136,6 +132,10 @@ fn process<'a>(arena: &'a Bump, input: &str) -> Vec<'a, String<'a>> {
     results  // All allocated in arena
 }
 ```
+
+## Standard Library Allocators
+
+Since Rust 1.100 the standard `Allocator` trait and `Vec::new_in` / `Box::new_in` are stable, so you can write your own allocator without nightly. Whether a given arena crate implements std's trait is crate-specific. See [mem-allocator-api](mem-allocator-api.md).
 
 ## When to Use Arenas
 
@@ -168,4 +168,5 @@ confirm the benefit in your specific use case.
 
 - [mem-with-capacity](mem-with-capacity.md) - Pre-allocate when size is known
 - [mem-reuse-collections](mem-reuse-collections.md) - Reuse collections with clear()
-- [opt-profile-first](perf-profile-first.md) - Profile to verify benefit
+- [mem-allocator-api](mem-allocator-api.md) - Stable `Allocator` trait and `Vec::new_in`
+- [perf-profile-first](perf-profile-first.md) - Profile to verify benefit

@@ -34,9 +34,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 enum ConfigError {
-    #[error("Failed to read config file: {0}")]
+    #[error("failed to read config file: {0}")]
     Io(#[from] std::io::Error),
-    #[error("Invalid config format: {0}")]
+    #[error("invalid config format: {0}")]
     Parse(#[from] serde_json::Error),
 }
 
@@ -73,7 +73,7 @@ fn get_cached_value(&self, key: &str) -> &Value {
 
 // 2. Setup/initialization that can't reasonably fail
 fn main() {
-    let config = Config::load().expect("Failed to load required config");
+    let config = Config::load().expect("failed to load required config");
     // Can't run without config, panic is reasonable
 }
 

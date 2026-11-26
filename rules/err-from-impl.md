@@ -100,7 +100,7 @@ Sometimes you need to add context during conversion:
 ```rust
 #[derive(Error, Debug)]
 enum ConfigError {
-    #[error("Failed to read config from '{path}': {source}")]
+    #[error("failed to read config from '{path}': {source}")]
     ReadFailed {
         path: String,
         #[source]
@@ -123,7 +123,7 @@ use anyhow::{Context, Result};
 
 fn load_config(path: &str) -> Result<Config> {
     let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read config from '{}'", path))?;
+        .with_context(|| format!("failed to read config from '{}'", path))?;
     // ...
 }
 ```

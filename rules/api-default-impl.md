@@ -121,6 +121,16 @@ impl ServerBuilder {
         self.port = port;
         self
     }
+
+    fn build(self) -> Server {
+        Server { host: self.host, port: self.port, workers: self.workers }
+    }
+}
+
+struct Server {
+    host: String,
+    port: u16,
+    workers: usize,
 }
 
 // Clean initialization

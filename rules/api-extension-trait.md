@@ -88,7 +88,7 @@ impl<T, E: std::fmt::Display> ResultExt<T, E> for Result<T, E> {
 ```rust
 // itertools::Itertools
 use itertools::Itertools;
-let groups = vec![1, 1, 2, 2, 3].into_iter().group_by(|x| *x);
+let uniques: Vec<_> = vec![1, 1, 2, 2, 3].into_iter().unique().collect();
 
 // futures::StreamExt
 use futures::StreamExt;

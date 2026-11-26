@@ -114,6 +114,26 @@ struct Parent;
 
 `ManuallyDrop<T>` inhibits the compiler from inserting automatic drop calls, giving you precise control.
 
+## `DropGuard` for Inline Cleanup
+
+`std::mem::DropGuard` (stable since Rust 1.100) wraps a value and runs a closure on it when dropped, so you can attach a cleanup step without writing a new type with a `Drop` impl. `DropGuard::dismiss` returns the value without running the closure.
+
+```rust
+use std::mem::DropGuard;
+
+fn build(log: &mut Vec<String>) -> Vec<String> {
+    let mut staged = DropGuard::new(Vec::<String>::new(), |discarded| {
+        println!("discarding {} staged items", discarded.len());
+    });
+    staged.push("a".to_string()); // the guard derefs to the wrapped Vec
+    log.push("staged".to_string());
+    // success: take the value back, the closure does not run
+    DropGuard::dismiss(staged)
+}
+```
+
+The guard follows normal drop order (it is a local or a field like any other), and it also runs during unwinding.
+
 ## Key Points
 
 - Reorder struct fields to encode the correct drop sequence — the declaration is the contract.

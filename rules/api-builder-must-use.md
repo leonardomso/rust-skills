@@ -44,6 +44,14 @@ struct RequestBuilder {
 }
 
 impl RequestBuilder {
+    fn new(url: &str) -> Self {
+        Self { url: url.to_string(), timeout: None, headers: Vec::new() }
+    }
+
+    fn send(self) -> Result<(), String> {
+        Ok(())
+    }
+
     #[must_use = "builder methods return modified builder - chain or assign"]
     fn timeout(mut self, duration: Duration) -> Self {
         self.timeout = Some(duration);

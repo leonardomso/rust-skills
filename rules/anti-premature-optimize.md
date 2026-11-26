@@ -22,10 +22,8 @@ fn sum(data: &[i32]) -> i32 {
 }
 
 // Complex caching with no evidence it's needed
-lazy_static! {
-    static ref CACHE: RwLock<HashMap<String, Arc<Result>>> = 
-        RwLock::new(HashMap::new());
-}
+static CACHE: LazyLock<RwLock<HashMap<String, Arc<Result>>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 // Hand-rolled data structures "for speed"
 struct MyVec<T> {

@@ -147,6 +147,28 @@ fn test_with_defer() {
 }
 ```
 
+## std::mem::DropGuard
+
+Since Rust 1.100, `std::mem::DropGuard` gives you a scope guard in the standard library. It owns a value and passes it to a closure on drop. `DropGuard::dismiss` takes the value back and skips the closure.
+
+```rust
+use std::mem::DropGuard;
+
+#[test]
+fn test_with_drop_guard() {
+    let dir = std::env::temp_dir().join("fixture_raii_demo");
+    std::fs::create_dir_all(&dir).unwrap();
+    let _cleanup = DropGuard::new(dir.clone(), |dir| {
+        std::fs::remove_dir_all(dir).ok();
+    });
+
+    std::fs::write(dir.join("data.txt"), "test data").unwrap();
+    assert!(dir.join("data.txt").exists());
+} // directory removed here, also when the assertion panics
+```
+
+For anything beyond a throwaway guard (temp files, directories), prefer `tempfile`, which picks unique names for parallel tests.
+
 ## See Also
 
 - [test-arrange-act-assert](./test-arrange-act-assert.md) - Test structure

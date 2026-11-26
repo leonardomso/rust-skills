@@ -160,7 +160,7 @@ fn produce_results() -> Vec<Vec<Item>> {
 std::thread::scope(|s| {
     for _ in 0..4 {
         s.spawn(|| {
-            let local_buffer = Vec::new();  // Thread-local, can't share
+            let local_buffer = Vec::<u8>::new();  // Thread-local, can't share
             // ...
         });
     }

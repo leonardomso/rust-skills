@@ -51,14 +51,23 @@ enum Priority {
 
 fn process_order(status: OrderStatus, priority: Priority) {
     match status {
-        OrderStatus::Pending => { ... }
-        OrderStatus::Processing => { ... }
-        OrderStatus::Completed => { ... }
-        OrderStatus::Cancelled => { ... }
+        OrderStatus::Pending => { /* ... */ }
+        OrderStatus::Processing => { /* ... */ }
+        OrderStatus::Completed => { /* ... */ }
+        OrderStatus::Cancelled => { /* ... */ }
     }  // Exhaustive - compiler checks all cases
 }
 
 // Validated newtypes
+#[derive(Debug)]
+enum ValidationError {
+    InvalidEmail,
+}
+
+fn is_valid_email(s: &str) -> bool {
+    s.contains('@')
+}
+
 struct Email(String);
 struct PhoneNumber(String);
 struct UserId(u64);
@@ -80,8 +89,10 @@ struct User {
 }
 
 // Compile errors catch mistakes
-process_order(OrderStatus::Completed, Priority::High);  // Clear and correct
-process_order(Priority::High, OrderStatus::Pending);    // Compile error!
+fn demo() {
+    process_order(OrderStatus::Completed, Priority::High); // clear and correct
+    // process_order(Priority::High, OrderStatus::Pending); // compile error: arguments swapped
+}
 ```
 
 ## Parsing Strings to Types
