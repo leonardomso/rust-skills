@@ -1,28 +1,50 @@
 # async-clone-before-await
 
-> Clone Arc/Rc data before await points to avoid holding references across suspension
+> Clone the `Arc` handle, not its contents, before moving it into a spawned task; keep owned handles across `.await` and borrow after it
 
 ## Why It Matters
 
-References held across `.await` points extend the future's lifetime and can cause borrow checker issues or prevent `Send` bounds. Cloning `Arc`/`Rc` before the await ensures the future only holds owned data, making it `Send` and avoiding lifetime complications.
+"Clone before `.await`" is easy to over-apply. Three different constraints get confused:
+
+1. **`tokio::spawn` needs a `'static` future.** A task can't borrow the caller's locals, so it must own what it uses. The fix is `Arc::clone(&data)`, an O(1) refcount bump, moved into the `async move` block. It is not a deep copy of the data.
+2. **An owned `Arc<T>` already lives across `.await`.** If an `async fn` owns `data: Arc<Data>`, the handle keeps the allocation alive through every suspension point. Deep-cloning `data.items` first adds an O(n) copy and makes every suspended future bigger, and it buys nothing.
+3. **Whether a future is `Send` depends on what it holds, not on cloning.** Anything live across an `.await` is stored in the future. A `!Send` value such as `Rc<T>` or `std::sync::MutexGuard<T>` makes the whole future `!Send`. Cloning an `Rc` gives you another `!Send` `Rc`. To fix it, drop the value before the `.await` or use a `Send` type. A plain `&T` borrowed from an owned `Arc<T>` is fine when `T: Sync`.
+
+Deep-copying the contents is right only when you need a snapshot that won't see later changes. That is a consistency decision, so label it as one.
 
 ## Bad
 
 ```rust
+use std::rc::Rc;
 use std::sync::Arc;
 
-async fn process(data: Arc<Data>) {
-    // Borrow extends across await - future is not Send
-    let slice = &data.items[..];  // Borrow of Arc contents
-    
-    expensive_async_operation().await;  // Await with active borrow
-    
-    use_slice(slice);  // Still using the borrow
+struct Data {
+    items: Vec<u64>,
 }
 
-// Error: future cannot be sent between threads safely
-// because `&[Item]` cannot be sent between threads safely
-tokio::spawn(process(data));
+// BAD 1: the spawned task borrows the caller's local — not 'static
+fn spawn_worker(data: &Data) {
+    tokio::spawn(async move {
+        tokio::task::yield_now().await;
+        println!("{}", data.items.len()); // error: borrowed data escapes
+    });
+}
+
+// BAD 2: O(n) deep copy "to be safe" even though the Arc is already owned
+async fn process(data: Arc<Data>) {
+    let items = data.items.clone(); // copies the whole Vec, held across the await
+    tokio::task::yield_now().await;
+    println!("{}", items.len());
+}
+
+// BAD 3: cloning an Rc does not make the future Send
+async fn not_send() {
+    let rc = Rc::new(vec![1, 2, 3]);
+    let rc2 = Rc::clone(&rc); // still Rc, still !Send
+    tokio::task::yield_now().await;
+    println!("{rc2:?}");
+}
+// tokio::spawn(not_send()); // error[E0277]: `Rc<Vec<i32>>` cannot be sent between threads safely
 ```
 
 ## Good
@@ -30,142 +52,147 @@ tokio::spawn(process(data));
 ```rust
 use std::sync::Arc;
 
-async fn process(data: Arc<Data>) {
-    // Clone what you need before await
-    let items = data.items.clone();  // Owned Vec
-    
-    expensive_async_operation().await;
-    
-    use_items(&items);  // Using owned data
+struct Data {
+    items: Vec<u64>,
 }
 
-// Or clone the Arc itself
-async fn share_data(data: Arc<Data>) {
-    let data = data.clone();  // Another Arc handle
-    
-    some_async_work().await;
-    
-    process(&data);  // Safe - we own the Arc
+// Clone the handle (O(1)) and move it into the task
+fn spawn_worker(data: &Arc<Data>) -> tokio::task::JoinHandle<usize> {
+    let data = Arc::clone(data);
+    tokio::spawn(async move {
+        tokio::task::yield_now().await;
+        data.items.len() // the task owns its handle; no copy of `items`
+    })
 }
+
+// The owned Arc already survives the await: no clone at all
+async fn process(data: Arc<Data>) -> u64 {
+    tokio::task::yield_now().await;
+    data.items.iter().sum() // borrow after the await
+}
+```
+
+## Fix Ladder
+
+Use the cheapest option that works:
+
+```rust
+use std::sync::Arc;
+
+struct LargeData {
+    small_field: String,
+    blob: Vec<u8>,
+}
+
+// 1. Best: keep the owned Arc across the await, borrow after it
+async fn zero_copy(data: Arc<LargeData>) -> usize {
+    tokio::task::yield_now().await;
+    data.small_field.len() + data.blob.len()
+}
+
+// 2. Need only a small piece and want the big allocation freed during a long
+//    wait? Extract the piece, then drop the handle before suspending
+async fn extract_part(data: Arc<LargeData>) -> usize {
+    let small = data.small_field.clone();
+    drop(data); // the last handle going away frees `blob` before the await
+    tokio::task::yield_now().await;
+    small.len()
+}
+
+// 3. Deep clone only for snapshot semantics — e.g. you must act on exactly the
+//    value you validated even if a writer swaps it meanwhile. Consider
+//    `arc_swap::ArcSwap` for that instead of copying per task.
 ```
 
 ## The Send Problem
 
-```rust
-// Futures must be Send to spawn on multi-threaded runtime
-async fn not_send() {
-    let rc = Rc::new(42);  // Rc is !Send
-    
-    tokio::time::sleep(Duration::from_secs(1)).await;
-    
-    println!("{}", rc);  // rc held across await
-}
-
-tokio::spawn(not_send());  // ERROR: future is not Send
-
-// Fix: use Arc or don't hold across await
-async fn is_send() {
-    let arc = Arc::new(42);  // Arc is Send
-    
-    tokio::time::sleep(Duration::from_secs(1)).await;
-    
-    println!("{}", arc);
-}
-
-tokio::spawn(is_send());  // OK
-```
-
-## Minimizing Clones
+`Rc` uses non-atomic refcounts, so it is `!Send` whether or not you clone it. Use `Arc` if shared ownership has to cross an `.await`, or keep the `Rc` in a block that ends before the await:
 
 ```rust
-// Bad: clone everything eagerly
-async fn wasteful(data: Arc<LargeData>) {
-    let data = (*data).clone();  // Clones entire LargeData
-    async_work().await;
-    use_one_field(&data.small_field);
+use std::rc::Rc;
+use std::sync::Arc;
+
+// Arc<T> is Send + Sync when T: Send + Sync
+async fn with_arc() -> usize {
+    let shared = Arc::new(vec![1, 2, 3]);
+    tokio::task::yield_now().await;
+    shared.len()
 }
 
-// Good: clone only what you need
-async fn efficient(data: Arc<LargeData>) {
-    let small = data.small_field.clone();  // Clone only needed field
-    async_work().await;
-    use_one_field(&small);
+// Scope the !Send value so it is dropped before the suspension point
+async fn with_scoped_rc() -> usize {
+    let len = {
+        let rc = Rc::new(vec![1, 2, 3]);
+        rc.len()
+    }; // `rc` dropped here
+    tokio::task::yield_now().await;
+    len
 }
 
-// Good: if you need the whole thing, keep the Arc
-async fn arc_efficient(data: Arc<LargeData>) {
-    let data = data.clone();  // Cheap Arc clone
-    async_work().await;
-    use_data(&data);  // Access through Arc
+fn assert_send<F: Send>(_: F) {}
+
+fn check() {
+    assert_send(with_arc());
+    assert_send(with_scoped_rc());
 }
 ```
+
+`Rc` held across `.await` is fine only on single-threaded executors (`LocalSet`, `spawn_local`, a current-thread runtime with `!Send` tasks).
 
 ## Spawn Pattern
 
-```rust
-// Common pattern: clone for spawned task
-let shared = Arc::new(SharedState::new());
+Write `Arc::clone(&shared)` rather than `shared.clone()` so readers can see it is a refcount bump and not a deep copy:
 
-for i in 0..10 {
-    let shared = shared.clone();  // Clone before moving into spawn
-    tokio::spawn(async move {
-        // Task owns its Arc clone
-        shared.do_something(i).await;
-    });
+```rust
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+struct SharedState {
+    hits: AtomicU64,
 }
-```
 
-## Scope-Based Approach
+async fn fan_out() {
+    let shared = Arc::new(SharedState { hits: AtomicU64::new(0) });
+    let mut tasks = tokio::task::JoinSet::new();
 
-```rust
-// Limit borrow scope to before await
-async fn scoped(data: Arc<Data>) {
-    // Scope 1: borrow, compute, drop borrow
-    let computed = {
-        let slice = &data.items[..];  // Borrow
-        compute_something(slice)       // Use
-    };  // Borrow ends here
-    
-    // Now safe to await
-    expensive_async_operation().await;
-    
-    use_computed(computed);
+    for _ in 0..10 {
+        let shared = Arc::clone(&shared); // O(1) handle per task
+        tasks.spawn(async move {
+            tokio::task::yield_now().await;
+            shared.hits.fetch_add(1, Ordering::Relaxed);
+        });
+    }
+    tasks.join_all().await;
 }
 ```
 
 ## MutexGuard Across Await
 
-```rust
-use tokio::sync::Mutex;
+A `std::sync::MutexGuard` is `!Send`, so holding one across `.await` makes the future `!Send`. A `tokio::sync::Mutex` guard is `Send`, but holding it across I/O makes every other task wait. Take what you need inside a block so the guard is dropped before the await:
 
-// BAD: holding guard across await
-async fn bad(mutex: Arc<Mutex<Data>>) {
-    let mut guard = mutex.lock().await;
-    guard.value += 1;
-    
-    slow_operation().await;  // Guard held during await!
-    
-    guard.value += 1;
+```rust
+use std::sync::{Arc, Mutex};
+
+struct Counter {
+    value: u64,
+    label: String,
 }
 
-// GOOD: release before await
-async fn good(mutex: Arc<Mutex<Data>>) {
-    {
-        let mut guard = mutex.lock().await;
+async fn bump(mutex: Arc<Mutex<Counter>>) -> String {
+    let label = {
+        let mut guard = mutex.lock().expect("counter mutex poisoned");
         guard.value += 1;
-    }  // Guard released
-    
-    slow_operation().await;
-    
-    {
-        let mut guard = mutex.lock().await;
-        guard.value += 1;
-    }
+        guard.label.clone() // copy out only what is needed after unlocking
+    }; // guard dropped here: the future stays Send
+
+    tokio::task::yield_now().await;
+    label
 }
 ```
 
 ## See Also
 
-- [async-no-lock-await](./async-no-lock-await.md) - Lock guards across await
-- [own-arc-shared](./own-arc-shared.md) - Arc usage patterns
-- [async-spawn-blocking](./async-spawn-blocking.md) - Blocking in async
+- [async-no-lock-await](async-no-lock-await.md) - Lock guards across await
+- [own-arc-shared](own-arc-shared.md) - Arc usage patterns
+- [own-borrow-over-clone](own-borrow-over-clone.md) - Borrow instead of deep-cloning
+- [async-joinset-structured](async-joinset-structured.md) - Managing spawned tasks
