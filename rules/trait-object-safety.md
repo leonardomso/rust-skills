@@ -108,6 +108,5 @@ See the Rust Reference section "Dyn compatibility" at doc.rust-lang.org/referenc
 ## See Also
 
 - [trait-dyn-vs-generic](trait-dyn-vs-generic.md) - choose between static and dynamic dispatch deliberately
-- [anti-type-erasure](anti-type-erasure.md) - don't use `Box<dyn Trait>` when `impl Trait` works
 - [async-fn-in-trait](async-fn-in-trait.md) - native `async fn` makes a trait non-dyn-compatible
 - [api-sealed-trait](api-sealed-trait.md) - prevent external implementations of a trait

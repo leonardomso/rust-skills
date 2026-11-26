@@ -137,6 +137,6 @@ fn spawn_get<R: Repo + Send + Sync + 'static>(repo: std::sync::Arc<R>) {
 
 ## See Also
 
-- [anti-type-erasure](anti-type-erasure.md) - prefer `impl Trait` over `Box<dyn Trait>` when possible
+- [trait-dyn-vs-generic](trait-dyn-vs-generic.md) - prefer `impl Trait` over `Box<dyn Trait>` when possible
 - [async-async-fn-bounds](async-async-fn-bounds.md) - use `AsyncFn` bounds for higher-order async functions
 - [async-tokio-runtime](async-tokio-runtime.md) - use Tokio for production async runtime

@@ -91,6 +91,6 @@ fn demo_ref() {
 
 ## See Also
 
-- [anti-type-erasure](anti-type-erasure.md) - prefer `impl Trait` over `Box<dyn Trait>` when possible
+- [trait-dyn-vs-generic](trait-dyn-vs-generic.md) - prefer `impl Trait` over `Box<dyn Trait>` when possible
 - [type-generic-bounds](type-generic-bounds.md) - add trait bounds only where needed
 - [closure-fn-trait-bounds](closure-fn-trait-bounds.md) - choose the weakest `Fn` trait

@@ -1,6 +1,6 @@
 # num-cast-try-from
 
-> Avoid `as` for narrowing casts; use `From` for widening and `TryFrom` for narrowing
+> Convert numbers with `From` for widening and `TryFrom` for narrowing; keep `as` for casts you know are lossless or intentionally truncating
 
 ## Why It Matters
 

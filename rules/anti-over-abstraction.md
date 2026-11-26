@@ -1,6 +1,6 @@
 # anti-over-abstraction
 
-> Don't over-abstract with excessive generics
+> Start concrete; add generics or traits when a second real use case appears
 
 ## Why It Matters
 
@@ -117,4 +117,4 @@ pub fn process_orders<S: Storage>(storage: &S, orders: Vec<Order>) { }
 
 - [type-generic-bounds](./type-generic-bounds.md) - Minimal bounds
 - [api-sealed-trait](./api-sealed-trait.md) - Controlled extension
-- [anti-type-erasure](./anti-type-erasure.md) - When Box<dyn> is wrong
+- [trait-dyn-vs-generic](./trait-dyn-vs-generic.md) - When Box<dyn> is wrong

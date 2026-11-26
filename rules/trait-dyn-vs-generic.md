@@ -1,6 +1,6 @@
 # trait-dyn-vs-generic
 
-> Choose static dispatch (generics / `impl Trait`) vs dynamic dispatch (`dyn Trait`) deliberately
+> Default to generics and `impl Trait`; use `dyn Trait` only for mixed types, runtime choice, or plug-ins
 
 ## Why It Matters
 
@@ -24,6 +24,12 @@ impl Shape for Circle {
 fn total_area(shapes: &[Box<dyn Shape>]) -> f64 {
     shapes.iter().map(|s| s.area()).sum()
 }
+
+// Boxing returns that have one concrete type
+fn get_iterator() -> Box<dyn Iterator<Item = i32>> {
+    Box::new((0..10).map(|x| x * 2))
+}
+
 ```
 
 ## Good
@@ -66,6 +72,11 @@ fn total_area_dyn(shapes: &[Box<dyn Shape>]) -> f64 {
     shapes.iter().map(|s| s.area()).sum()
 }
 
+// Return `impl Trait` when the type is known: no heap, inlined
+fn get_iterator() -> impl Iterator<Item = i32> {
+    (0..10).map(|x| x * 2)
+}
+
 fn demo() {
     // Homogeneous slice — zero boxing, static dispatch.
     let circles = [Circle { radius: 1.0 }, Circle { radius: 2.0 }];
@@ -90,10 +101,46 @@ fn demo() {
 | Storing trait objects across calls | `dyn Trait` |
 | Returning erased type from `fn` | `Box<dyn Trait>` or `impl Trait` (static) |
 | Binary size matters, many monomorphisations | `dyn Trait` |
+| Closed, known set of types | `enum` |
 | Plug-in / callback registered at runtime | `dyn Trait` |
+
+## When `dyn` Is Right
+
+- A heterogeneous collection: `Vec<Box<dyn Handler>>` holding different handler types.
+- A type chosen at runtime, such as a database backend picked from config (`fn create(cfg) -> Box<dyn Database>`).
+- A plug-in or callback registered at runtime.
+- Recursive structures whose child types are open-ended.
+
+## Pattern: Enum Instead of `dyn`
+
+When the set of types is closed and known, an enum gives static dispatch with no heap allocation.
+
+```rust
+use std::f64::consts::PI;
+
+enum Shape {
+    Circle { radius: f64 },
+    Rectangle { width: f64, height: f64 },
+}
+
+impl Shape {
+    fn area(&self) -> f64 {
+        match self {
+            Shape::Circle { radius } => PI * radius * radius,
+            Shape::Rectangle { width, height } => width * height,
+        }
+    }
+}
+```
+
+## `impl Trait` in Traits
+
+Return-position `impl Trait` in traits is stable since Rust 1.75. Use it when callers need not name the type, and an associated type when they do.
 
 ## See Also
 
-- [anti-type-erasure](anti-type-erasure.md) - don't use `Box<dyn Trait>` when `impl Trait` works
 - [type-generic-bounds](type-generic-bounds.md) - add trait bounds only where needed
+- [anti-over-abstraction](anti-over-abstraction.md) - excessive generics
+- [mem-box-large-variant](mem-box-large-variant.md) - boxing enum variants
+- [closure-static-vs-dyn](closure-static-vs-dyn.md) - same tradeoff for closures
 - [trait-object-safety](trait-object-safety.md) - keep traits dyn-compatible when you need `dyn Trait`

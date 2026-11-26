@@ -153,5 +153,5 @@ Also stable in 1.100: never-type fallback is `!` on every edition (it was `()` b
 
 - [err-result-over-panic](./err-result-over-panic.md) - When to panic vs return Result
 - [type-result-fallible](./type-result-fallible.md) - Result for errors
-- [opt-cold-unlikely](./opt-cold-unlikely.md) - Marking unlikely paths
+- [opt-inline-never-cold](./opt-inline-never-cold.md) - Marking unlikely paths
 - [conv-tryfrom-fallible](./conv-tryfrom-fallible.md) - `Infallible` as the error of a conversion that cannot fail

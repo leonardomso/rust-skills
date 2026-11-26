@@ -1,6 +1,6 @@
 # err-expect-bugs-only
 
-> Use `expect()` only for invariants that indicate bugs, not user errors
+> Reserve `expect()` for violated invariants that indicate bugs; return `Result` for user input, I/O, network, and database failures
 
 ## Why It Matters
 
@@ -28,6 +28,9 @@ fn load_config() -> Config {
     let content = fs::read_to_string("config.json")
         .expect("Config file missing");  // Environment issue!
 }
+
+// Database lookups can miss - don't expect
+let user = db.find_user(id).await.expect("user not found");
 ```
 
 ## Good
@@ -46,21 +49,12 @@ fn create_parser() -> Regex {
         .expect("BUG: date regex is invalid - this is a compile-time constant")
 }
 
-// Invariant: already validated
-fn process_validated(data: ValidatedData) -> Result<Output, ProcessError> {
-    let value = data.required_field
-        .expect("BUG: ValidatedData guarantees required_field is Some");
-    // ...
-}
+// Invariant: poisoning only happens after a panic elsewhere
+let guard = mutex.lock().expect("BUG: mutex poisoned by an earlier panic");
 
-// Invariant: type system guarantees
-fn get_first<T>(vec: Vec<T>) -> T 
-where 
-    Vec<T>: NonEmpty,  // Hypothetical trait
-{
-    vec.into_iter().next()
-        .expect("BUG: NonEmpty Vec cannot be empty")
-}
+// Invariant: embedded data is checked in CI
+let config: Config = toml::from_str(EMBEDDED_CONFIG)
+    .expect("BUG: embedded config is invalid");
 ```
 
 ## expect() Message Guidelines
@@ -106,6 +100,13 @@ impl ValidatedEmail {
 
 ## Alternatives When expect() Is Wrong
 
+| Situation | Use |
+|-----------|-----|
+| User input, file/network I/O, database | `?` with error context |
+| Sensible fallback exists | `unwrap_or` / `unwrap_or_default` |
+| Needs logging or custom handling | `match` with a fallback |
+| Value proven by validation or construction | `expect("BUG: ...")` |
+
 ```rust
 // Don't: expect on user data
 let port: u16 = input.parse().expect("Invalid port");
@@ -113,17 +114,12 @@ let port: u16 = input.parse().expect("Invalid port");
 // Do: Return Result
 let port: u16 = input.parse().map_err(|_| ConfigError::InvalidPort)?;
 
+// Do: Add context to I/O and network errors
+let response = client.get(url).await.context("failed to fetch URL")?;
+let user = db.find_user(id).await?.ok_or(Error::NotFound("user"))?;
+
 // Do: Provide default
 let port: u16 = input.parse().unwrap_or(8080);
-
-// Do: Handle explicitly
-let port: u16 = match input.parse() {
-    Ok(p) => p,
-    Err(_) => {
-        log::warn!("Invalid port '{}', using default", input);
-        8080
-    }
-};
 ```
 
 ## See Also

@@ -1,6 +1,6 @@
 # obs-no-sensitive-data
 
-> Never log secrets or PII; redact or skip them
+> Redact or skip secrets and PII before they reach a log; never log them raw
 
 ## Why It Matters
 

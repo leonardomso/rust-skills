@@ -1,34 +1,26 @@
 # mem-write-over-format
 
-> Use `write!()` into existing buffers instead of `format!()` allocations
+> Write into a reused buffer with `write!()` instead of calling `format!()` in loops and hot paths
 
 ## Why It Matters
 
-`format!()` always allocates a new `String`. In hot paths or loops, these allocations add up. `write!()` writes directly into an existing buffer, reusing its capacity. For high-frequency formatting operations, this can eliminate significant allocator overhead.
+`format!()` always allocates a new `String`. In hot paths or loops these allocations add up. `write!()` writes into an existing buffer and reuses its capacity, which removes most allocator overhead. The exact gain depends on string length, allocator, and hardware, so measure with [criterion](https://crates.io/crates/criterion).
 
 ## Bad
 
 ```rust
 fn log_event(event: &Event, output: &mut Vec<u8>) {
     // format! allocates a new String every call
-    let line = format!(
-        "[{}] {}: {}\n",
-        event.timestamp,
-        event.level,
-        event.message
-    );
+    let line = format!("[{}] {}: {}\n", event.timestamp, event.level, event.message);
     output.extend_from_slice(line.as_bytes());
 }
 
-fn build_response(items: &[Item]) -> String {
-    let mut result = String::new();
-    
-    for item in items {
-        // format! allocates for each item
-        result.push_str(&format!("{}: {}\n", item.name, item.value));
+fn build_url(base: &str, path: &str, params: &[(&str, &str)]) -> String {
+    let mut url = format!("{}{}", base, path);
+    for (key, value) in params {
+        url = format!("{}{}={}&", url, key, value);  // new allocation each time
     }
-    
-    result
+    url
 }
 ```
 
@@ -40,98 +32,52 @@ use std::fmt::Write;
 fn log_event(event: &Event, output: &mut Vec<u8>) {
     use std::io::Write;
     // write! to Vec<u8> directly, no intermediate allocation
-    write!(
-        output,
-        "[{}] {}: {}\n",
-        event.timestamp,
-        event.level,
-        event.message
-    ).unwrap();
+    write!(output, "[{}] {}: {}\n", event.timestamp, event.level, event.message).unwrap();
 }
 
-fn build_response(items: &[Item]) -> String {
-    use std::fmt::Write;
-    
-    let mut result = String::with_capacity(items.len() * 64);
-    
-    for item in items {
-        // write! into existing String, reuses capacity
-        write!(&mut result, "{}: {}\n", item.name, item.value).unwrap();
+fn build_url(base: &str, path: &str, params: &[(&str, &str)]) -> String {
+    let mut url = String::with_capacity(base.len() + path.len() + params.len() * 20);
+    url.push_str(base);
+    url.push_str(path);
+    for (key, value) in params {
+        // write! into the existing String, reusing its capacity
+        write!(url, "{}={}&", key, value).unwrap();
     }
-    
-    result
+    url
+}
+
+// Reuse one buffer across iterations
+fn render_all(items: &[Item]) {
+    let mut buf = String::with_capacity(64);
+    for item in items {
+        buf.clear();
+        write!(&mut buf, "{}: {}", item.name, item.value).unwrap();
+        process(&buf);
+    }
 }
 ```
 
 ## Write Trait Varieties
 
-```rust
-// std::fmt::Write - for String, &mut String
-use std::fmt::Write as FmtWrite;
-let mut s = String::new();
-write!(&mut s, "Hello {}", 42).unwrap();
+- `std::fmt::Write` targets `String`.
+- `std::io::Write` targets `Vec<u8>`, `File`, `TcpStream`, and so on.
+- Writing to a `String` or `Vec` never fails, but `write!` still returns a `Result`, so call `.unwrap()` (or `?`).
+- `writeln!` appends the newline for you.
 
-// std::io::Write - for Vec<u8>, File, TcpStream, etc.
-use std::io::Write as IoWrite;
-let mut v: Vec<u8> = Vec::new();
-write!(&mut v, "Hello {}", 42).unwrap();
+## Skip Formatting Entirely
 
-// Both can fail in principle, but String/Vec never fail
-// Still need .unwrap() due to Result return type
-```
-
-## Reusable Formatting Buffer
+When the pieces are already strings, `push_str` and `push` do no formatting work.
 
 ```rust
-use std::fmt::Write;
-
-struct Formatter {
-    buffer: String,
-}
-
-impl Formatter {
-    fn new() -> Self {
-        Self { buffer: String::with_capacity(1024) }
-    }
-    
-    fn format_event(&mut self, event: &Event) -> &str {
-        self.buffer.clear();  // Reuse allocation
-        write!(
-            &mut self.buffer, 
-            "[{}] {}",
-            event.timestamp, 
-            event.message
-        ).unwrap();
-        &self.buffer
-    }
-}
-
-// Usage
-let mut formatter = Formatter::new();
-for event in events {
-    let formatted = formatter.format_event(event);
-    send_log(formatted);
+fn greet_to_buf(name: &str, buffer: &mut String) {
+    buffer.clear();
+    buffer.push_str("Hello, ");
+    buffer.push_str(name);
+    buffer.push('!');
 }
 ```
 
-## writeln! for Lines
-
-```rust
-use std::fmt::Write;
-
-let mut output = String::new();
-
-// writeln! adds newline automatically
-writeln!(&mut output, "Line 1: {}", value1).unwrap();
-writeln!(&mut output, "Line 2: {}", value2).unwrap();
-
-// Equivalent to
-write!(&mut output, "Line 1: {}\n", value1).unwrap();
-```
-
-## Integers Without the fmt Machinery
-
-Since Rust 1.98, `core::fmt::NumBuffer` and the integer method `format_into` write a decimal number into a stack buffer and return a `&str`. There is no allocation and no `fmt` dispatch.
+Since Rust 1.98, `NumBuffer` and the integer method `format_into` write a decimal number into a stack buffer and return a `&str`, with no allocation and no `fmt` dispatch. Use it when you only need the digits.
 
 ```rust
 use std::fmt::NumBuffer;
@@ -142,49 +88,43 @@ fn push_id(out: &mut String, id: u32) {
 }
 ```
 
-Use it when you only need the digits. For mixed text and values, `write!` into a reused buffer is still the right tool.
+## Let the Caller Own the Buffer
+
+Implement `Display` so callers format into their own buffer instead of receiving a new `String`.
+
+```rust
+use std::fmt::{self, Write};
+
+struct Event { level: u8, message: String }
+
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}] {}", self.level, self.message)
+    }
+}
+
+fn render(events: &[Event]) -> Result<String, fmt::Error> {
+    let mut buf = String::new();
+    for e in events {
+        writeln!(buf, "{}", e)?;
+    }
+    Ok(buf)
+}
+```
 
 ## When format! Is Fine
 
 ```rust
-// One-time formatting, not in loop
+// One-time formatting, not in a loop
 let message = format!("Starting server on port {}", port);
-log::info!("{}", message);
 
-// Return value (can't return reference to local buffer)
+// Return value (can't return a reference to a local buffer)
 fn describe(item: &Item) -> String {
-    format!("{}: {}", item.name, item.value)  // Must allocate
+    format!("{}: {}", item.name, item.value)
 }
 
-// Debug/error paths (not hot)
-if condition {
-    panic!("Unexpected: {}", format!("details: {:?}", debug_info));
-}
-```
-
-## Benchmark Difference
-
-Writing into a pre-allocated buffer avoids per-call heap allocation and is
-consistently faster than `format!()` in tight loops. The exact difference
-depends on string length, allocator, and hardware — measure with
-[criterion](https://crates.io/crates/criterion) in your own workload.
-
-```rust
-use std::fmt::Write; // brings the write! target trait into scope
-
-// format! in loop: new heap allocation on every iteration
-for i in 0..1000 {
-    let s = format!("item-{}", i);
-    process(&s);
-}
-
-// write! with reuse: no allocation after the first iteration
-let mut buf = String::with_capacity(32);
-for i in 0..1000 {
-    buf.clear();
-    write!(&mut buf, "item-{}", i).unwrap();
-    process(&buf);
-}
+// Error and debug paths
+let err = format!("invalid input: {}", input);
 ```
 
 ## See Also
@@ -192,3 +132,4 @@ for i in 0..1000 {
 - [mem-avoid-format](./mem-avoid-format.md) - General format! avoidance patterns
 - [mem-reuse-collections](./mem-reuse-collections.md) - Reusing buffers in loops
 - [mem-with-capacity](./mem-with-capacity.md) - Pre-allocating string capacity
+- [obs-log-overhead](obs-log-overhead.md) - Keep telemetry cheap on hot paths

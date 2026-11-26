@@ -1,6 +1,6 @@
 # name-weasel-words
 
-> Avoid names built on `Service`, `Manager`, `Factory`, and similar words that say nothing about what the type does
+> Name types for what they do; replace `Service`, `Manager`, `Factory`, and similar empty words with a specific noun
 
 ## Why It Matters
 

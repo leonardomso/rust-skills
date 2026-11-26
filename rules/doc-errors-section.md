@@ -1,6 +1,6 @@
 # doc-errors-section
 
-> Include `# Errors` section for fallible functions
+> Give every fallible public function an `# Errors` section that lists each failure condition and links the error variants
 
 ## Why It Matters
 
@@ -105,7 +105,7 @@ pub fn load_config(path: &Path) -> Result<Config, anyhow::Error> {
 
 ## Linking to Error Types
 
-Use intra-doc links to connect error variants to their definitions:
+Use intra-doc links to connect error variants to their definitions. Pick the style that fits: a bullet list for several conditions, a table or `Returns [..] if` lines when mapping to variants, prose for complex conditions.
 
 ```rust
 /// # Errors
@@ -115,8 +115,36 @@ Use intra-doc links to connect error variants to their definitions:
 /// contains forbidden characters.
 ```
 
+## Errors vs Panics
+
+Document both when a function can fail and panic. `# Errors` covers `Err` returns; `# Panics` covers caller bugs.
+
+```rust
+/// Divides two numbers.
+///
+/// # Errors
+///
+/// Returns [`MathError::DivisionByZero`] if `divisor` is zero.
+///
+/// # Panics
+///
+/// Panics if `dividend` is `i64::MIN` and `divisor` is `-1` (overflow).
+pub fn divide(dividend: i64, divisor: i64) -> Result<i64, MathError> {
+    // ...
+}
+```
+
+## Clippy Lint
+
+```toml
+# Cargo.toml - warn when a public fallible fn has no # Errors section
+[lints.clippy]
+missing_errors_doc = "warn"
+```
+
 ## See Also
 
 - [doc-panics-section](./doc-panics-section.md) - Documenting panics
-- [err-doc-errors](./err-doc-errors.md) - Error documentation patterns
 - [doc-intra-links](./doc-intra-links.md) - Linking to types
+- [doc-examples-section](./doc-examples-section.md) - Examples in documentation
+- [err-thiserror-lib](./err-thiserror-lib.md) - Defining error types

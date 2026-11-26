@@ -1,6 +1,6 @@
 # err-result-over-panic
 
-> Return `Result<T, E>` instead of panicking for recoverable errors
+> Return `Result<T, E>` for recoverable errors; panic only for bugs and unrecoverable state
 
 ## Why It Matters
 
@@ -22,6 +22,13 @@ fn divide(a: i32, b: i32) -> i32 {
         panic!("Division by zero!");  // Crashes the program
     }
     a / b
+}
+
+// Panic used as control flow for a normal "not found"
+fn find_or_die(items: &[Item], id: u64) -> &Item {
+    items.iter()
+        .find(|i| i.id == id)
+        .unwrap_or_else(|| panic!("item {id} not found"))
 }
 ```
 
@@ -51,6 +58,11 @@ fn divide(a: i32, b: i32) -> Result<i32, &'static str> {
         return Err("Division by zero");
     }
     Ok(a / b)
+}
+
+// Absence is not an error: return Option
+fn find(items: &[Item], id: u64) -> Option<&Item> {
+    items.iter().find(|i| i.id == id)
 }
 
 // Caller decides how to handle
@@ -127,4 +139,3 @@ fn main() {
 - [err-thiserror-lib](./err-thiserror-lib.md) - Define error types for libraries
 - [err-anyhow-app](./err-anyhow-app.md) - Ergonomic errors for applications
 - [err-no-unwrap-prod](./err-no-unwrap-prod.md) - Avoid unwrap in production code
-- [anti-unwrap-abuse](./anti-unwrap-abuse.md) - When unwrap is acceptable

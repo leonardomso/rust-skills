@@ -1,6 +1,6 @@
 # type-no-stringly
 
-> Avoid stringly-typed APIs; use enums, newtypes, or validated types
+> Model fixed value sets as enums and semantic values as validated newtypes, and parse strings once at the boundary
 
 ## Why It Matters
 
@@ -29,6 +29,15 @@ set_status("done");      // Runtime error - wrong word
 fn configure(key: &str, value: &str) {
     // No type safety, no validation
 }
+
+// Easy to swap arguments - compiles!
+fn process_order(status: &str, priority: &str) {}
+fn demo() {
+    process_order("high", "pending");
+}
+
+// Any string is accepted, and IDs can be confused with each other
+struct User { email: String, user_id: String }
 ```
 
 ## Good
@@ -63,6 +72,17 @@ struct Config {
 }
 
 enum Mode { Fast, Safe, Balanced }
+
+// Distinct types make swapped arguments a compile error
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Priority { Low, Medium, High }
+
+fn process_order(status: Status, priority: Priority) {}
+
+fn demo() {
+    process_order(Status::Completed, Priority::High);
+    // process_order(Priority::High, Status::Pending); // compile error: swapped
+}
 ```
 
 ## Parsing at Boundaries
@@ -115,11 +135,18 @@ impl Email {
     }
 }
 
-// Instead of string for UUID
-struct UserId(uuid::Uuid);
+// Instead of string for IDs, so they can't be mixed up
+struct UserId(u64);
+struct PhoneNumber(String);
 
 // Instead of string for paths
 struct ConfigPath(PathBuf);
+
+struct User {
+    email: Email,       // must be valid
+    phone: PhoneNumber,
+    user_id: UserId,    // can't be confused with other IDs
+}
 ```
 
 ## With Serde
@@ -141,6 +168,8 @@ enum EventType {
 
 ## See Also
 
-- [anti-stringly-typed](./anti-stringly-typed.md) - Anti-pattern details
 - [type-newtype-validated](./type-newtype-validated.md) - Validated newtypes
 - [type-enum-states](./type-enum-states.md) - Enums for states
+- [api-newtype-safety](./api-newtype-safety.md) - Newtype pattern
+- [api-parse-dont-validate](./api-parse-dont-validate.md) - Parse at boundaries
+- [type-newtype-ids](./type-newtype-ids.md) - Type-safe IDs

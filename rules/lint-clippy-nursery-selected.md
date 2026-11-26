@@ -72,4 +72,4 @@ Start with this set. Add more only after reviewing what they flag in your codeba
 
 - [lint-pedantic-selective](lint-pedantic-selective.md) - same strategy for clippy::pedantic
 - [lint-warn-perf](lint-warn-perf.md) - enable the performance lint group
-- [anti-lock-across-await](anti-lock-across-await.md) - don't hold locks across `.await`
+- [async-no-lock-await](async-no-lock-await.md) - don't hold locks across `.await`

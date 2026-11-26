@@ -44,6 +44,6 @@ fn send(_id: u64) {}
 
 - [obs-structured-fields](obs-structured-fields.md) - Fields instead of interpolated strings
 - [obs-levels-filter](obs-levels-filter.md) - Pick levels so noisy events are off by default
-- [anti-format-hot-path](anti-format-hot-path.md) - Avoid `format!` in hot paths
+- [mem-write-over-format](mem-write-over-format.md) - Avoid `format!` in hot paths
 - [obs-library-facade](obs-library-facade.md) - Libraries only emit events
 - Source: Microsoft Pragmatic Rust Guidelines, M-LOG-OVERHEAD

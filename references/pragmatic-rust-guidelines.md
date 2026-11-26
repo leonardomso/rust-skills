@@ -119,7 +119,7 @@ New rules adopted from this set were written in this library's own words and exa
 | M-UNSAFE | [unsafe-safety-comment](../rules/unsafe-safety-comment.md), [unsafe-minimize-scope](../rules/unsafe-minimize-scope.md) | partial | Reasons and small scope are covered. 'Avoid unsafe where a safe alternative exists' is implied, not stated. |
 | M-UNSAFE-IMPLIES-UB | [unsafe-sound-abstractions](../rules/unsafe-sound-abstractions.md) | adopted | Folded into the soundness rule. |
 | M-UNSOUND | [unsafe-sound-abstractions](../rules/unsafe-sound-abstractions.md) | adopted | New rule. |
-| M-PANIC-IS-STOP | [err-result-over-panic](../rules/err-result-over-panic.md), [anti-panic-expected](../rules/anti-panic-expected.md) | covered | Do not use panics for recoverable errors. |
+| M-PANIC-IS-STOP | [err-result-over-panic](../rules/err-result-over-panic.md), [err-result-over-panic](../rules/err-result-over-panic.md) | covered | Do not use panics for recoverable errors. |
 | M-PANIC-ON-BUG | [err-expect-bugs-only](../rules/err-expect-bugs-only.md) | covered | Panic for detected bugs, return errors for expected failures. |
 | M-PANIC-CONTINUATION | none | not adopted | No rule on `catch_unwind` yet. |
 | M-PANIC-MESSAGE | [err-expect-bugs-only](../rules/err-expect-bugs-only.md), [err-lowercase-msg](../rules/err-lowercase-msg.md) | partial | Message style is covered; helpful panic messages are not stated on their own. |

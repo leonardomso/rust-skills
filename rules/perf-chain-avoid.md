@@ -1,6 +1,6 @@
 # perf-chain-avoid
 
-> Avoid chain in hot loops
+> Use a single iterator or an explicit loop in hot loops; `chain` adds a branch per item
 
 ## Why It Matters
 

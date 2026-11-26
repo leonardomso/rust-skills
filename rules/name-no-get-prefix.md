@@ -150,5 +150,4 @@ impl ConfigBuilder {
 ## See Also
 
 - [name-is-has-bool](./name-is-has-bool.md) - Boolean naming
-- [name-is-has-bool](./name-is-has-bool.md) - Boolean naming
 - [api-builder-pattern](./api-builder-pattern.md) - Builder pattern

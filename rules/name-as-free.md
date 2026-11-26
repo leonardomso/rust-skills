@@ -1,6 +1,6 @@
 # name-as-free
 
-> `as_` prefix: free reference conversion
+> Use the `as_` prefix for free, borrowed-to-borrowed conversions
 
 ## Why It Matters
 

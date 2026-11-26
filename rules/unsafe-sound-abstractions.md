@@ -1,6 +1,6 @@
 # unsafe-sound-abstractions
 
-> Never expose a safe function that can cause undefined behavior, and use `unsafe` only to mark UB risk
+> Keep every safe function sound: no input to it may cause undefined behavior. Mark functions `unsafe` only when the caller must uphold a UB-relevant invariant
 
 ## Why It Matters
 

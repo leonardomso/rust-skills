@@ -1,6 +1,6 @@
 # name-crate-no-rs
 
-> Don't suffix crate names with `-rs` or `-rust`
+> Name crates for what they do, without a `-rs` or `-rust` suffix
 
 ## Why It Matters
 

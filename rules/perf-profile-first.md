@@ -1,6 +1,6 @@
 # perf-profile-first
 
-> Profile before optimizing
+> Profile under a realistic workload, then optimize only the measured hot spot
 
 ## Why It Matters
 
@@ -23,7 +23,17 @@ fn process(data: &[Item]) -> Vec<Output> {
 fn rarely_called() {
     // This runs once at startup...
 }
+
+// Unsafe "for speed" with no evidence; iterators already elide bounds checks
+fn sum(data: &[i32]) -> i32 {
+    let mut sum = 0;
+    for i in 0..data.len() {
+        sum += unsafe { *data.get_unchecked(i) };
+    }
+    sum
+}
 ```
+
 
 ## Good
 
@@ -44,6 +54,11 @@ fn process(data: &[Item]) -> Vec<Output> {
     cloned.par_iter()  // Parallelize the expensive part
         .map(|x| expensive_computation(x))
         .collect()
+}
+
+// Start simple; trust the compiler until a profile says otherwise
+fn sum(data: &[i32]) -> i32 {
+    data.iter().sum()
 }
 ```
 
@@ -79,14 +94,9 @@ perf script | inferno-collapse-perf | inferno-flamegraph > flamegraph.svg
 ### Instruments (macOS)
 
 ```bash
-# Install cargo-instruments
 cargo install cargo-instruments
-
-# Time profiler
-cargo instruments -t time --release
-
-# Allocations profiler
-cargo instruments -t alloc --release
+cargo instruments -t time --release   # time profiler
+cargo instruments -t alloc --release  # allocations
 ```
 
 ### DHAT (Heap Profiling)
@@ -156,24 +166,47 @@ Flamegraph Reading:
 ## Optimization Workflow
 
 ```
-1. Write correct code first
+1. Write correct, simple code first
 2. Write benchmarks for hot paths
 3. Profile under realistic load
-4. Identify actual bottlenecks
+4. Identify actual bottlenecks (the top ~10% of time)
 5. Optimize ONE thing
-6. Measure improvement
-7. Repeat if needed
+6. Measure again to verify the improvement
+7. Repeat if still slow
 ```
+
+Keep the optimization only if the numbers justify it, and record them next to the code:
+
+```rust
+/// Lookup table for fast character classification.
+///
+/// # Performance
+///
+/// Benchmarked with criterion (benches/char_class.rs):
+/// - Table lookup: 2.3ns/op
+/// - Match statement: 8.7ns/op
+///
+/// Justified for the parser hot path (called 10M+ times).
+static CHAR_CLASS: [u8; 256] = [0; 256];
+```
+
+## Common Premature Optimizations
+
+| Premature | Reality |
+|-----------|---------|
+| `#[inline(always)]` everywhere | Compiler usually knows better |
+| `unsafe` for bounds check removal | Iterators do this safely |
+| Custom allocator | Default is usually fine; benchmark first |
+| Object pooling | Allocator is fast enough |
+| Manual SIMD | Auto-vectorization often works |
 
 ## Evidence: Rust Performance Book
 
 > "The biggest performance improvements often come from changes to algorithms or data structures, rather than low-level optimizations."
 
-> "It is worth understanding which Rust data structures and operations cause allocations, because avoiding them can greatly improve performance."
-
 ## See Also
 
 - [opt-lto-release](opt-lto-release.md) - Enable LTO for release builds
 - [test-criterion-bench](test-criterion-bench.md) - Use criterion for benchmarking
-- [anti-premature-optimize](anti-premature-optimize.md) - Don't optimize without data
+- [opt-inline-small](opt-inline-small.md) - Inline guidelines
 - [mem-global-allocator](mem-global-allocator.md) - Benchmark an alternative global allocator

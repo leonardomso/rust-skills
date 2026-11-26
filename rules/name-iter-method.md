@@ -1,6 +1,6 @@
 # name-iter-method
 
-> Name iterator methods `iter()`, `iter_mut()`, and `into_iter()` consistently
+> Name iterator methods `iter()`, `iter_mut()`, and `into_iter()`, and implement `IntoIterator` for owned, `&`, and `&mut`
 
 ## Why It Matters
 
@@ -14,7 +14,7 @@ struct Collection<T> {
 }
 
 impl<T> Collection<T> {
-    // Non-standard names - confusing
+    // Non-standard names - confusing (also `iterate`, `get_items`, `as_iter`)
     fn elements(&self) -> impl Iterator<Item = &T> {
         self.items.iter()
     }
@@ -106,21 +106,33 @@ for item in col {            // Calls col.into_iter()
 
 ## Additional Iterator Methods
 
+Domain-specific iterators use descriptive names and follow the same ownership pattern.
+
 ```rust
 impl<T> Collection<T> {
-    // Domain-specific iterators follow similar patterns
-    
-    /// Iterates over keys (for map-like structures).
-    fn keys(&self) -> impl Iterator<Item = &K> { ... }
-    
-    /// Iterates over values.
-    fn values(&self) -> impl Iterator<Item = &V> { ... }
-    
-    /// Iterates over mutable values.
-    fn values_mut(&mut self) -> impl Iterator<Item = &mut V> { ... }
-    
-    /// Drains elements, leaving container empty.
-    fn drain(&mut self) -> impl Iterator<Item = T> { ... }
+    /// Iterates over the items that pass a check.
+    fn iter_valid(&self) -> impl Iterator<Item = &T> {
+        self.items.iter().filter(|_| true)
+    }
+
+    /// Iterates over a sub-range.
+    fn iter_range(&self, start: usize, end: usize) -> impl Iterator<Item = &T> {
+        self.items[start..end].iter()
+    }
+}
+```
+
+The standard library follows the same pattern for maps:
+
+```rust
+use std::collections::HashMap;
+
+fn demo(mut map: HashMap<String, i32>) {
+    for (_k, _v) in map.iter() {}      // (&K, &V)
+    for (_k, _v) in map.iter_mut() {}  // (&K, &mut V)
+    for _k in map.keys() {}            // &K
+    for _v in map.values() {}          // &V
+    for (_k, _v) in map.drain() {}     // (K, V), leaves the map empty
 }
 ```
 
@@ -128,4 +140,6 @@ impl<T> Collection<T> {
 
 - [name-as-free](./name-as-free.md) - Conversion naming conventions
 - [api-extension-trait](./api-extension-trait.md) - Iterator extensions
+- [name-iter-type-match](./name-iter-type-match.md) - Iterator type naming
+- [perf-iter-over-index](./perf-iter-over-index.md) - Prefer iterators
 - [api-common-traits](./api-common-traits.md) - Standard trait implementations

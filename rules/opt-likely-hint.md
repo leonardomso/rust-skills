@@ -184,6 +184,5 @@ fn speculative(x: i32) -> i32 {
 
 ## See Also
 
-- [opt-cold-unlikely](./opt-cold-unlikely.md) - #[cold] for unlikely functions
-- [opt-inline-never-cold](./opt-inline-never-cold.md) - Keeping cold code separate
+- [opt-inline-never-cold](./opt-inline-never-cold.md) - #[cold] for unlikely functions
 - [perf-profile-first](./perf-profile-first.md) - Profile to know what's likely

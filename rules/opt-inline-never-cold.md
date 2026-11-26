@@ -1,6 +1,6 @@
 # opt-inline-never-cold
 
-> Use `#[inline(never)]` and `#[cold]` for error paths and rarely-executed code
+> Move error, panic, and fallback paths into `#[cold]` `#[inline(never)]` functions so hot code stays small
 
 ## Why It Matters
 
@@ -44,7 +44,16 @@ fn empty_data_error() -> Error {
 }
 ```
 
-## #[cold] for Unlikely Branches
+## What `#[cold]` Does
+
+- **Code placement**: cold functions go in a separate section, away from hot code, which improves instruction cache use.
+- **Branch hints**: the compiler favours the non-cold path.
+- **Inlining**: cold functions are rarely inlined into hot paths. Add `#[inline(never)]` to guarantee it.
+- **Effort**: the compiler spends less optimization effort on cold code.
+
+Use `#[cold]` alone for tiny wrappers where inlining is harmless. Combine both for anything that builds an error, captures a backtrace, or logs.
+
+## `#[cold]` for Unlikely Branches
 
 ```rust
 fn parse_value(input: &str) -> Result<i32, ParseError> {
@@ -60,6 +69,16 @@ fn cold_parse_error(input: &str, e: std::num::ParseIntError) -> Result<i32, Pars
         input: input.to_string(),
         source: e,
     })
+}
+```
+
+Other candidates: fatal-error handlers returning `!`, logging of rare events, and slow fallback paths.
+
+```rust
+#[cold]
+fn handle_error<E: std::fmt::Display>(e: E) -> ! {
+    eprintln!("fatal error: {}", e);
+    std::process::exit(1);
 }
 ```
 
@@ -145,38 +164,19 @@ fn process(data: Option<&Data>) -> Result<Output, Error> {
 }
 ```
 
-## Pattern: Extract Cold Code
+## Measuring Impact
 
-```rust
-// Before: cold code inline
-fn hot_function(x: i32) -> i32 {
-    if x < 0 {
-        log::error!("Negative value: {}", x);
-        eprintln!("Debug info: {:?}", std::backtrace::Backtrace::capture());
-        return 0;
-    }
-    x * 2
-}
+Confirm the layout and the gain rather than assuming them:
 
-// After: cold code extracted
-fn hot_function(x: i32) -> i32 {
-    if x < 0 {
-        return handle_negative(x);
-    }
-    x * 2
-}
-
-#[cold]
-#[inline(never)]
-fn handle_negative(x: i32) -> i32 {
-    log::error!("Negative value: {}", x);
-    eprintln!("Debug info: {:?}", std::backtrace::Backtrace::capture());
-    0
-}
+```bash
+nm target/release/binary | grep cold       # cold symbols
+objdump -d target/release/binary | less    # code layout
+perf stat -e cache-misses,cache-references ./binary
 ```
 
 ## See Also
 
 - [opt-inline-small](./opt-inline-small.md) - Inlining for hot code
 - [opt-inline-always-rare](./opt-inline-always-rare.md) - Forced inlining
+- [opt-likely-hint](./opt-likely-hint.md) - Branch prediction hints
 - [err-result-over-panic](./err-result-over-panic.md) - Error handling patterns

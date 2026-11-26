@@ -166,6 +166,5 @@ pub struct I<T>;         // Too cryptic
 
 ## See Also
 
-- [name-iter-convention](./name-iter-convention.md) - iter/iter_mut/into_iter
-- [name-iter-method](./name-iter-method.md) - Iterator method names
+- [name-iter-method](./name-iter-method.md) - iter/iter_mut/into_iter
 - [api-common-traits](./api-common-traits.md) - Implementing common traits

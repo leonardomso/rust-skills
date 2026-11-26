@@ -65,5 +65,5 @@ fn get_id(map: &std::collections::HashMap<String, u64>, key: &str) -> Result<u64
 ## See Also
 
 - [err-question-mark](err-question-mark.md) - use `?` for error propagation
-- [anti-unwrap-abuse](anti-unwrap-abuse.md) - avoid `.unwrap()` in production code
+- [err-no-unwrap-prod](err-no-unwrap-prod.md) - avoid `.unwrap()` in production code
 - [pat-exhaustive-enum](pat-exhaustive-enum.md) - match enums exhaustively

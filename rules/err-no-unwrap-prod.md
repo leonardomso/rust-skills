@@ -1,6 +1,6 @@
 # err-no-unwrap-prod
 
-> Avoid `unwrap()` in production code; use `?`, `expect()`, or handle errors
+> Propagate errors with `?` or `expect` a documented invariant; keep `unwrap()` out of production paths
 
 ## Why It Matters
 
@@ -19,6 +19,11 @@ fn process_request(req: Request) -> Response {
 
 // Crash message: "called `Option::unwrap()` on a `None` value"
 // Where? Why? No idea.
+
+// Also crashes: missing file, bad input, closed channel
+let content = std::fs::read_to_string("config.toml").unwrap();
+let num: i32 = user_input.parse().unwrap();
+let msg = receiver.recv().unwrap();
 ```
 
 ## Good
@@ -67,6 +72,8 @@ fn process_optional(value: Option<Data>) -> ProcessedData {
 
 ## `expect()` vs `unwrap()`
 
+`expect()` adds context to the panic message, so use it for invariants (see [err-expect-bugs-only](./err-expect-bugs-only.md)). If the failure can happen in normal operation, propagate instead.
+
 ```rust
 // Bad: no context
 let port = config.get("port").unwrap();
@@ -84,11 +91,32 @@ let port = config.get("port")
 
 | Situation | Use Instead |
 |-----------|-------------|
-| Can propagate error | `?` operator |
+| Can propagate error | `?` operator (`opt.ok_or(Error::Missing)?`) |
 | Has sensible default | `unwrap_or()`, `unwrap_or_default()` |
 | Default requires computation | `unwrap_or_else(\|\| ...)` |
 | Internal invariant | `expect("explanation")` |
 | Need to handle both cases | `match` or `if let` |
+| Transform or chain | `map`, `and_then` |
+
+## When unwrap() Is Acceptable
+
+- Tests: a panic is the expected failure mode.
+- Constant input known valid at compile time, such as a literal regex in a `LazyLock`.
+- Right after a check that guarantees success; prefer `if let`, `last()`, or the entry API, which need no check at all.
+
+```rust
+use std::collections::HashMap;
+
+fn first_or_default(map: &HashMap<String, i32>) -> i32 {
+    // Preferred: no unwrap, no separate check
+    map.get("key").copied().unwrap_or_default()
+}
+
+#[test]
+fn parses_valid_input() {
+    assert_eq!("42".parse::<i32>().unwrap(), 42);
+}
+```
 
 ## Clippy Lints
 
@@ -96,7 +124,7 @@ let port = config.get("port")
 # Cargo.toml
 [lints.clippy]
 unwrap_used = "warn"      # Warn on unwrap()
-expect_used = "warn"       # Also warn on expect() (stricter)
+expect_used = "warn"      # Also warn on expect() (stricter)
 ```
 
 ```rust
@@ -111,5 +139,5 @@ fn definitely_safe() {
 ## See Also
 
 - [err-result-over-panic](./err-result-over-panic.md) - Return Result instead of panicking
+- [err-question-mark](./err-question-mark.md) - Use ? for propagation
 - [err-expect-bugs-only](./err-expect-bugs-only.md) - When expect() is appropriate
-- [anti-unwrap-abuse](./anti-unwrap-abuse.md) - Patterns for avoiding unwrap

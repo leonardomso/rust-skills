@@ -1,6 +1,6 @@
 # api-avoid-statics
 
-> Do not keep correctness-relevant state in `static` items inside a library; pass it explicitly
+> Pass correctness-relevant state explicitly instead of keeping it in a library's `static` items
 
 ## Why It Matters
 

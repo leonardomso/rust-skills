@@ -1,6 +1,6 @@
 # own-borrow-over-clone
 
-> Prefer `&T` borrowing over `.clone()`
+> Borrow with `&T` and clone only to store, send across threads, or share via `Arc`
 
 ## Why It Matters
 
@@ -26,6 +26,15 @@ fn process_all(items: &[String]) {
         handle(&copy);
     }
 }
+
+// Clone just to compare or iterate
+if input.clone() == expected { /* ... */ }
+for item in items.clone() { process(&item); }
+
+// Getter that forces an allocation
+fn get_name(&self) -> String {
+    self.name.clone()
+}
 ```
 
 ## Good
@@ -44,6 +53,15 @@ fn process_all(items: &[String]) {
     for item in items {
         handle(item);  // Pass reference
     }
+}
+
+// Compare and iterate by reference
+if input == expected { /* ... */ }
+for item in &items { process(item); }
+
+// Return a reference when the caller only reads
+fn get_name(&self) -> &str {
+    &self.name
 }
 ```
 
@@ -70,9 +88,32 @@ fn spawn_worker(data: &Config) {
     });
 }
 
-// 3. Copy types (no heap allocation)
+// 3. Moving into a spawned task: clone the Arc handle, not the data
+let shared = Arc::clone(&data);
+tokio::spawn(async move { use_data(shared).await });
+
+// 4. Copy types (no heap allocation)
 let x: i32 = 42;
 let y = x;  // Copy, not clone - this is fine
+```
+
+## Alternatives to Clone
+
+| Instead of | Use |
+|------------|-----|
+| `s.clone()` for reading | `&s` |
+| `vec.clone()` for iteration | `&vec` or `vec.iter()` |
+| Clone for shared ownership | `Arc<T>` |
+| Clone in a hot loop | Hoist it outside the loop |
+| Clone only on some paths | `Cow` (see [own-cow-conditional](own-cow-conditional.md)) |
+
+Clippy catches many of these:
+
+```toml
+[lints.clippy]
+clone_on_copy = "warn"
+clone_on_ref_ptr = "warn"
+redundant_clone = "warn"
 ```
 
 ## Evidence
@@ -92,5 +133,6 @@ pub(crate) fn file_name<'a>(path: &Cow<'a, [u8]>) -> Option<Cow<'a, [u8]>> {
 
 - [own-slice-over-vec](own-slice-over-vec.md) - Accept slices instead of references to collections
 - [own-cow-conditional](own-cow-conditional.md) - Use Cow for conditional ownership
+- [own-arc-shared](own-arc-shared.md) - Shared ownership
 - [mem-clone-from](mem-clone-from.md) - Reuse allocations when cloning
 - [mem-take-replace](mem-take-replace.md) - Move out of &mut without cloning

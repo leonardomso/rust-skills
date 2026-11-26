@@ -1,10 +1,10 @@
 # perf-iter-over-index
 
-> Prefer iterators over manual indexing
+> Iterate with `iter()`, `iter_mut()`, `zip` and adapters instead of indexing in a `0..len` loop
 
 ## Why It Matters
 
-Iterators are the idiomatic way to traverse collections in Rust. They enable bounds check elimination, SIMD auto-vectorization, and cleaner code. Manual indexing (`for i in 0..len`) often prevents these optimizations and introduces off-by-one error risks.
+Iterators are the idiomatic way to traverse collections in Rust. They remove per-access bounds checks, let the compiler auto-vectorize, and rule out off-by-one errors. Manual indexing (`for i in 0..len`) often blocks these optimizations.
 
 ## Bad
 
@@ -45,7 +45,7 @@ fn sum_squares(data: &[i32]) -> i64 {
         .sum()
 }
 
-// Zip iterators - no manual length handling
+// Zip - handles length mismatch automatically
 fn dot_product(a: &[f64], b: &[f64]) -> f64 {
     a.iter()
         .zip(b.iter())
@@ -61,17 +61,29 @@ fn double_values(data: &mut [i32]) {
 }
 ```
 
+## Common Conversions
+
+| Index Pattern | Iterator Pattern |
+|---------------|------------------|
+| `for i in 0..v.len() { v[i] }` | `for x in &v` |
+| `for i in 0..v.len() { v[i] *= 2 }` | `for x in &mut v { *x *= 2 }` |
+| `for i in 0..a.len() { a[i] + b[i] }` | `a.iter().zip(&b)` |
+| `v[0]` | `v.first()` |
+| `v[v.len() - 1]` | `v.last()` |
+
 ## When Indexing Is Needed
 
-Sometimes you genuinely need indices:
+Use an index when you need it as a value or the access is not sequential. Prefer `enumerate()` when you only need the index alongside each item.
 
 ```rust
 // Need the index for output or processing
-for (i, value) in data.iter().enumerate() {
-    println!("Index {}: {}", i, value);
+fn print_all(data: &[i32]) {
+    for (i, value) in data.iter().enumerate() {
+        println!("Index {}: {}", i, value);
+    }
 }
 
-// Non-sequential access patterns
+// Non-sequential access
 fn interleave(data: &mut [i32]) {
     let mid = data.len() / 2;
     for i in 0..mid {
@@ -82,12 +94,11 @@ fn interleave(data: &mut [i32]) {
 
 ## Performance Comparison
 
-| Pattern | Bounds Checks | SIMD Potential | Clarity |
-|---------|---------------|----------------|---------|
-| `for i in 0..len` | Every access | Limited | Medium |
-| `for &x in slice` | None | High | High |
-| `.iter().enumerate()` | None | Medium | High |
-| `get_unchecked` | None (unsafe) | High | Low |
+| Pattern | Bounds Checks | SIMD Potential |
+|---------|---------------|----------------|
+| `for i in 0..len` | Every access | Limited |
+| `for &x in slice` / `.iter().enumerate()` | None | High / Medium |
+| `get_unchecked` | None (unsafe) | High, but needs `unsafe` |
 
 ## Iterator Advantages
 
@@ -110,5 +121,4 @@ let sum: i64 = data.par_iter().map(|&x| x as i64).sum();
 
 - [perf-iter-lazy](./perf-iter-lazy.md) - Keep iterators lazy
 - [opt-bounds-check](./opt-bounds-check.md) - Bounds check elimination
-- [anti-index-over-iter](./anti-index-over-iter.md) - Anti-pattern
 - [conc-rayon-par-iter](./conc-rayon-par-iter.md) - Parallelize data-parallel loops

@@ -1,6 +1,6 @@
 # lint-deny-correctness
 
-> `#![deny(clippy::correctness)]`
+> Keep `clippy::correctness` at deny: its lints flag code that is outright wrong
 
 ## Why It Matters
 

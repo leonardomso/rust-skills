@@ -1,6 +1,6 @@
 # num-float-compare
 
-> Don't compare floats with `==`; use a tolerance, and `total_cmp` for ordering
+> Compare floats with a tolerance and order them with `total_cmp`; `==` on computed floats is almost always wrong
 
 ## Why It Matters
 

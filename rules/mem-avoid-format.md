@@ -1,6 +1,6 @@
 # mem-avoid-format
 
-> Avoid `format!()` when string literals work
+> Use string literals or `&'static str` where the text is fixed; reserve `format!()` for text that varies
 
 ## Why It Matters
 
