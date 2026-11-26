@@ -137,9 +137,9 @@ pub fn public_api(input: impl Into<String>) { }  // Better
 
 ```toml
 [dependencies]
-compact_str = "0.9"
+compact_str = "0.10"
 # or
-smartstring = "1.0"
+smartstring = "2"
 # or
 ecow = "0.2"
 ```

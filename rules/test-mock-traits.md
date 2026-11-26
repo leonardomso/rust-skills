@@ -216,7 +216,7 @@ impl Service {
 
 ```toml
 [dev-dependencies]
-mockall = "0.13"
+mockall = "0.15"
 tokio = { version = "1", features = ["macros", "rt"] }
 ```
 

@@ -76,7 +76,8 @@ path.clone_from(&other_path);
 ## Benchmarking the Difference
 
 ```rust
-use criterion::{black_box, criterion_group, Criterion};
+use criterion::{criterion_group, Criterion};
+use std::hint::black_box;
 
 fn bench_clone_patterns(c: &mut Criterion) {
     let source = "x".repeat(1000);

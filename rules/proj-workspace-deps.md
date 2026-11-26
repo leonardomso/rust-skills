@@ -93,7 +93,7 @@ Cargo's `unused_workspace_dependencies` lint (warn by default since Rust 1.100) 
 ```toml
 # Root Cargo.toml
 [workspace.dependencies]
-criterion = "0.5"
+criterion = "0.8"
 proptest = "1.0"
 trybuild = "1.0"
 cc = "1.0"
