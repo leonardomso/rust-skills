@@ -16,10 +16,18 @@ Out of the box, coding agents write *average* Rust — they clone to dodge the b
 ## Install
 
 ```bash
-npx add-skill leonardomso/rust-skills
+npx skills add leonardomso/rust-skills
 ```
 
-That's it. The CLI figures out which agents you have and installs the skill to the right place.
+That's it. The [`skills`](https://github.com/vercel-labs/skills) CLI figures out which agents you have and installs the skill to the right place.
+
+**Requirements:** a recent Node.js. The `skills` CLI declares `node >= 22.20.0`; older releases such as Node 18 (the default on Ubuntu 24.04) fail with:
+
+```
+SyntaxError: The requested module 'node:util' does not provide an export named 'styleText'
+```
+
+Upgrade Node (for example with [nvm](https://github.com/nvm-sh/nvm): `nvm install --lts`), or skip the CLI and use one of the [manual installs](#manual-install) below. They only need `git` or `curl`. The old `npx add-skill` command is deprecated; use `npx skills add` instead.
 
 ## How to use it
 
@@ -108,14 +116,14 @@ Each rule has:
 The design is built for low token cost and easy auditing:
 
 - **[`SKILL.md`](./SKILL.md)** is a lightweight index — every rule listed as a one-line summary, grouped by category, with a link to its file. The agent reads this first.
-- **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading all 218 — progressive disclosure keeps context small.
+- **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading every rule. Progressive disclosure keeps context small.
 - **Prefixes** (`own-`, `err-`, `unsafe-`, `async-`, …) map directly to categories, so an agent reviewing async code can pull just `async-`, `conc-`, and `own-` rules.
 
 `CLAUDE.md` and `AGENTS.md` are symlinks to `SKILL.md`, so the same content works across agent conventions.
 
 ## Manual install
 
-If `add-skill` doesn't work for your setup, here's how to install manually:
+If `npx skills add` doesn't work for your setup (no Node, an old Node, or a locked-down machine), install manually:
 
 <details>
 <summary><b>Claude Code</b></summary>
@@ -234,6 +242,13 @@ curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/mast
 ## All rules
 
 See [SKILL.md](./SKILL.md) for the full list with links to each rule file.
+
+## Where the rules come from
+
+The rules are not copied from any single source. Each one is an original write-up that distills guidance from the official Rust documentation, the Rust API Guidelines, well-known books, and idioms seen in widely used crates (listed below). Two things keep them honest:
+
+- **Compile-checked examples.** Every `rust` block outside a `## Bad` section is extracted and type-checked in CI on a pinned toolchain (currently Rust 1.100.0) by the harness in [`checks/`](./checks). Run it locally with `bash checks/check.sh`.
+- **Public review.** Several rules have been corrected after readers reported problems, sometimes with reproductions or benchmarks. If you think a rule is wrong, open an issue with a minimal example.
 
 ## Sources & attribution
 
