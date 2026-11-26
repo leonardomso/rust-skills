@@ -5,6 +5,11 @@ Single source of truth: each rule file's `# id` header, its `> summary` line, an
 the ordered CATEGORIES config below (prefix -> title + impact). Rule order within a
 category is preserved from the current SKILL.md and any new rules are appended.
 
+Also kept in sync: the per-category counts in README's "What's in here" table
+(rows are matched to CATEGORIES by order), and the "Current for Rust X" version
+in SKILL.md/README, which is read from checks/rust-toolchain.toml so the
+documented version is always the one CI compile-checks against.
+
   python3 checks/gen_index.py            rewrite SKILL.md + README counts
   python3 checks/gen_index.py --check    exit 1 if they are out of date (CI)
 """
@@ -15,6 +20,13 @@ ROOT = HERE.parent
 RULES = ROOT / "rules"
 SKILL = ROOT / "SKILL.md"
 README = ROOT / "README.md"
+TOOLCHAIN = HERE / "rust-toolchain.toml"
+
+def rust_version():
+    m = re.search(r'channel\s*=\s*"(\d+)\.(\d+)(?:\.\d+)?"', TOOLCHAIN.read_text(encoding="utf-8"))
+    if not m:
+        raise SystemExit("checks/rust-toolchain.toml: no numeric channel")
+    return f"{m.group(1)}.{m.group(2)}"
 
 # (prefix, title, impact) in display order
 CATEGORIES = [
@@ -85,11 +97,12 @@ def build():
             lines.append(f"- [`{rid}`](rules/{rid}.md) - {summary_of(RULES / f'{rid}.md')}")
         qr_sections.append("\n".join(lines))
 
+    counts = [len(by_prefix.get(prefix, [])) for prefix, _, _ in CATEGORIES]
     table = ("| Priority | Category | Impact | Prefix | Rules |\n"
              "|----------|----------|--------|--------|-------|\n"
              + "\n".join(table_rows))
     quickref = "\n\n".join(qr_sections)
-    return table, quickref, total, len(CATEGORIES)
+    return table, quickref, total, len(CATEGORIES), counts
 
 def render_skill(text, table, quickref, total, ncat):
     text = re.sub(r"(## Rule Categories by Priority\n\n).*?(\n\n---\n\n## Quick Reference)",
@@ -97,9 +110,23 @@ def render_skill(text, table, quickref, total, ncat):
     text = re.sub(r"(## Quick Reference\n\n).*?(\n\n---\n\n## Recommended Cargo\.toml Settings)",
                   lambda m: m.group(1) + quickref + m.group(2), text, flags=re.S)
     text = re.sub(r"\d+ rules across \d+ categories", f"{total} rules across {ncat} categories", text)
+    text = re.sub(r"Current for Rust [\d.]+", f"Current for Rust {rust_version()}", text)
     return text
 
-def render_readme(text, total, ncat):
+def render_readme(text, total, ncat, counts):
+    ver = rust_version()
+    text = re.sub(r"Current for Rust [\d.]+", f"Current for Rust {ver}", text)
+    text = re.sub(r"badge/Rust-[\d.]+%20", f"badge/Rust-{ver}%20", text)
+    # "What's in here" table: | **Category** | N | description |, one row per category in order
+    m = re.search(r"(\| Category \| Rules \| What it covers \|\n\|[-|]+\|\n)((?:\|.*\|\n)+)", text)
+    if not m:
+        raise SystemExit("README.md: category table not found")
+    rows = m.group(2).splitlines()
+    if len(rows) != len(counts):
+        raise SystemExit(f"README.md: category table has {len(rows)} rows, expected {len(counts)}")
+    rows = [re.sub(r"^(\| [^|]+ \| )\d+( \|)", lambda r, n=n: f"{r.group(1)}{n}{r.group(2)}", row)
+            for row, n in zip(rows, counts)]
+    text = text[:m.start(2)] + "\n".join(rows) + "\n" + text[m.end(2):]
     text = re.sub(r"rules-\d+", f"rules-{total}", text)
     text = re.sub(r"categories-\d+", f"categories-{ncat}", text)
     text = re.sub(r"\d+ Rust rules", f"{total} Rust rules", text)
@@ -107,9 +134,9 @@ def render_readme(text, total, ncat):
     return text
 
 def main():
-    table, quickref, total, ncat = build()
+    table, quickref, total, ncat, counts = build()
     skill_new = render_skill(SKILL.read_text(encoding="utf-8"), table, quickref, total, ncat)
-    readme_new = render_readme(README.read_text(encoding="utf-8"), total, ncat)
+    readme_new = render_readme(README.read_text(encoding="utf-8"), total, ncat, counts)
 
     if "--check" in sys.argv:
         stale = []
