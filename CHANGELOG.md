@@ -4,6 +4,41 @@ All notable changes to this skill are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning for the rule set.
 
+## [1.7.0]
+
+Documentation pass for agents. Now 272 rules across 26 categories.
+
+### Changed
+- **Merged 17 duplicate rules** into the rule that already owned each meaning,
+  folding in their unique examples and caveats. Removed ids and their new home:
+  `anti-unwrap-abuse` → `err-no-unwrap-prod`, `anti-expect-lazy` →
+  `err-expect-bugs-only`, `anti-panic-expected` → `err-result-over-panic`,
+  `err-doc-errors` → `doc-errors-section`, `anti-clone-excessive` →
+  `own-borrow-over-clone`, `anti-string-for-str` and `anti-vec-for-slice` →
+  `own-slice-over-vec`, `anti-lock-across-await` → `async-no-lock-await`,
+  `anti-index-over-iter` → `perf-iter-over-index`, `anti-collect-intermediate`
+  → `perf-collect-once`, `anti-format-hot-path` → `mem-write-over-format`,
+  `anti-premature-optimize` → `perf-profile-first`, `anti-stringly-typed` →
+  `type-no-stringly`, `anti-type-erasure` → `trait-dyn-vs-generic`,
+  `name-iter-convention` → `name-iter-method`, `doc-link-types` →
+  `doc-intra-links`, `opt-cold-unlikely` → `opt-inline-never-cold`.
+- The Anti-patterns section of the index is now a symptom → rule lookup
+  (generated from `ANTI_LOOKUP` in `checks/gen_index.py`).
+- `SKILL.md` restructured: the how-to-use steps and the task → categories
+  table come first, with a done condition, and the generated index runs to the
+  end of the file. Removed sections that repeated the description, the index,
+  or other rules ("When to Apply", the priority table, recommended Cargo
+  settings, attribution). The skill description now lists trigger cases
+  instead of categories.
+- Rule summaries state the target behaviour instead of a prohibition.
+- `AGENTS.md` / `CLAUDE.md` are now a short guide for agents editing this
+  repo, instead of symlinks that loaded the whole rule index.
+- `CONTRIBUTING.md` gained "check for an existing rule first" and summary
+  guidance; it and `checks/README.md` point at `bash checks/check.sh` instead
+  of repeating its commands.
+- README: single-file (`curl`) installs fetch rules from GitHub on demand.
+  The contributing section points at `CONTRIBUTING.md`.
+
 ## [1.6.0]
 
 Current for Rust 1.100. Now 289 rules across 26 categories.

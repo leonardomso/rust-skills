@@ -1,11 +1,11 @@
 # Rust Skills
 
-![rules](https://img.shields.io/badge/rules-289-blue)
+![rules](https://img.shields.io/badge/rules-272-blue)
 ![categories](https://img.shields.io/badge/categories-26-blue)
 ![Rust](https://img.shields.io/badge/Rust-1.100%20%2F%202024%20edition-orange)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-289 Rust rules your AI coding agent can use to write better code. Current for Rust 1.100 (2024 edition).
+272 Rust rules your AI coding agent can use to write better code. Current for Rust 1.100 (2024 edition).
 
 Works with Claude Code, Cursor, Windsurf, Copilot, Codex, Aider, Zed, Amp, Cline, and pretty much any other agent that supports skills.
 
@@ -66,7 +66,7 @@ With these rules loaded, it knows to take `&str` instead of `&String`, drop the
 needless `clone()` and allocation, and return an `Option` instead of panicking:
 
 ```rust
-// after — applies own-slice-over-vec, own-borrow-over-clone, anti-unwrap-abuse
+// after — applies own-slice-over-vec, own-borrow-over-clone, err-no-unwrap-prod
 fn first_word(s: &str) -> Option<&str> {
     s.split_whitespace().next()
 }
@@ -74,18 +74,18 @@ fn first_word(s: &str) -> Option<&str> {
 
 ## What's in here
 
-289 rules split into 26 categories:
+272 rules split into 26 categories:
 
 | Category | Rules | What it covers |
 |----------|-------|----------------|
 | **Ownership & Borrowing** | 12 | When to borrow vs clone, Arc/Rc, lifetimes |
-| **Error Handling** | 12 | thiserror for libs, anyhow for apps, the `?` operator |
+| **Error Handling** | 11 | thiserror for libs, anyhow for apps, the `?` operator |
 | **Memory** | 20 | SmallVec, arenas, avoiding allocations, `mem::take`, drop order |
 | **Unsafe Code** | 8 | `SAFETY:` comments, Miri, `MaybeUninit`, 2024-edition unsafe |
 | **API Design** | 23 | Builder pattern, newtypes, sealed traits, `FromIterator` |
 | **Async** | 20 | Tokio patterns, channels, async fn in traits, cancel safety |
 | **Concurrency** | 4 | rayon, scoped threads, atomic ordering, thread-locals |
-| **Optimization** | 12 | LTO, inlining, PGO, SIMD |
+| **Optimization** | 11 | LTO, inlining, PGO, SIMD |
 | **Numeric & Arithmetic** | 5 | Overflow handling, `as` vs `TryFrom`, float compare, `NonZero` |
 | **Type Safety** | 13 | Newtypes, parse don't validate, `Deref`, `Display`/`Debug` |
 | **Trait & Generics Design** | 6 | dyn vs generic, associated types, blanket impls, object safety, orphan rule |
@@ -96,14 +96,14 @@ fn first_word(s: &str) -> Option<&str> {
 | **Macros** | 10 | `macro_rules!` hygiene, fragment specifiers, proc-macros with syn/quote |
 | **Closures** | 5 | Fn/FnMut/FnOnce bounds, returning `impl Fn`, move & disjoint capture |
 | **Collections** | 4 | HashMap/BTreeMap/IndexMap, Vec/VecDeque, sets, `BinaryHeap` |
-| **Naming** | 17 | Following Rust API Guidelines |
+| **Naming** | 16 | Following Rust API Guidelines |
 | **Testing** | 17 | Proptest, mockall, criterion, loom, snapshot tests |
-| **Docs** | 14 | Doc examples, intra-doc links, README/crate-doc unification |
+| **Docs** | 13 | Doc examples, intra-doc links, README/crate-doc unification |
 | **Observability** | 8 | tracing over log, spans, structured fields, redacting secrets |
 | **Performance** | 13 | Iterators, entry API, faster hashers, I/O buffering |
 | **Project Structure** | 15 | Workspaces, module layout, features, MSRV |
 | **Linting** | 16 | Clippy config, CI setup, `unexpected_cfgs` |
-| **Anti-patterns** | 15 | Common mistakes and how to fix them |
+| **Anti-patterns** | 2 | Common mistakes, each mapped to the rule that fixes it |
 
 Each rule has:
 - Why it matters
@@ -119,11 +119,13 @@ The design is built for low token cost and easy auditing:
 - **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading every rule. Progressive disclosure keeps context small.
 - **Prefixes** (`own-`, `err-`, `unsafe-`, `async-`, …) map directly to categories, so an agent reviewing async code can pull just `async-`, `conc-`, and `own-` rules.
 
-`CLAUDE.md` and `AGENTS.md` are symlinks to `SKILL.md`, so the same content works across agent conventions.
+- **Anti-patterns** is a lookup: each common mistake points at the rule that fixes it, so a reviewer can start from the symptom.
+
+`AGENTS.md` (and its `CLAUDE.md` symlink) is for agents *editing this repo*, not for using the rules.
 
 ## Manual install
 
-If `npx skills add` doesn't work for your setup (no Node, an old Node, or a locked-down machine), install manually:
+If `npx skills add` doesn't work for your setup (no Node, an old Node, or a locked-down machine), install manually. The `git clone` options give the agent every rule file. The `curl` options copy only the index (`SKILL.md`); the agent then fetches individual rules from GitHub when it needs them.
 
 <details>
 <summary><b>Claude Code</b></summary>
@@ -282,38 +284,7 @@ This project is MIT-licensed. Referenced upstream materials remain under their o
 
 ## Contributing
 
-PRs welcome. To add or change a rule:
-
-1. Create `rules/<prefix>-<name>.md` using a `kebab-case` id with an existing category prefix (`own-`, `err-`, `mem-`, …).
-2. Follow the format of existing rules: a `>` one-line summary, then `## Why It Matters`, `## Bad`, `## Good`, and `## See Also` (with links that resolve).
-3. Make sure code examples compile on current stable Rust.
-4. Add the rule to the index in `SKILL.md` (Quick Reference list + the category count) so it stays in sync.
-
-````markdown
-# prefix-rule-name
-
-> One-line imperative summary.
-
-## Why It Matters
-
-Two to four sentences.
-
-## Bad
-
-```rust
-// the anti-pattern
-```
-
-## Good
-
-```rust
-// the recommended pattern
-```
-
-## See Also
-
-- [other-rule](other-rule.md) - why it's related
-````
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the rule format and the one command to run before opening a PR (`bash checks/check.sh`).
 
 ## License
 
