@@ -68,7 +68,7 @@ Run the same checks CI runs:
 python3 checks/validate.py
 python3 checks/gen_index.py --check
 
-# compile-check the examples (Rust >= 1.95)
+# compile-check the examples (Rust >= 1.100)
 cd checks
 python3 gen.py
 cargo check --examples --keep-going --message-format=json > check.json

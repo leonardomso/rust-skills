@@ -1,3 +1,4 @@
+anti-expect-lazy.md :: Good :: E0599
 anti-format-hot-path.md :: When format! Is Fine :: E0308
 anti-lock-across-await.md :: Pattern: Clone Before Await :: E0107
 anti-over-abstraction.md :: Prefer Concrete Types in Private Code :: E0428
@@ -9,34 +10,35 @@ anti-unwrap-abuse.md :: Good :: E0267
 anti-vec-for-slice.md :: Mutable Slices :: E0428
 api-builder-must-use.md :: Good :: E0599
 api-builder-pattern.md :: Builder Variations :: E0428
-api-common-traits.md :: Manual Implementations :: E0404
 api-default-impl.md :: Builder with Default :: E0599
 api-extension-trait.md :: Ecosystem Examples :: E0599
 api-extension-trait.md :: Scoped Extensions :: P:expected item, found keyword `let`
 api-from-not-into.md :: Blanket Implementation :: E0210,P:non-item in item list
-api-impl-asref.md :: AsRef vs Into vs Borrow :: E0106,E0404
+api-impl-asref.md :: AsRef vs Into vs Borrow :: E0106
 api-impl-asref.md :: Common AsRef Implementations :: E0117,P:non-item in item list
 api-impl-asref.md :: Pattern: Optional AsRef Bound :: E0428
 api-impl-into.md :: Implement From, Not Into :: E0119
 api-impl-into.md :: When NOT to Use impl Into :: E0562
 api-must-use.md :: When to Apply :: P:expected one of `->`, `<`,,P:missing parameters for function definition
 api-newtype-safety.md :: Constructor Patterns :: E0204
-api-newtype-safety.md :: Good :: E0063,E0308
+api-newtype-safety.md :: Good :: E0308
 api-newtype-safety.md :: Zero-Cost Abstraction :: E0308
 api-sealed-trait.md :: Full Pattern :: P:missing `fn` or `struct` for,P:non-item in item list
 api-serde-optional.md :: Multiple Optional Dependencies :: P:expected `;`, found `#`,P:expected `;`, found `borsh`,P:expected `;`, found `default`,P:expected `;`, found `rkyv`,P:expected `;`, found `serde`,P:expected one of `.`, `;`,
 api-serde-optional.md :: When to Make Serde Required :: P:expected `;`, found `serde`
 api-typestate.md :: Builder Typestate :: E0599
+async-bounded-channel.md :: Handling Full Channel :: E0599
 async-bounded-channel.md :: Worker Pool Pattern :: E0107
 async-cancellation-token.md :: CancellationToken API :: E0069
 async-cancellation-token.md :: Graceful Shutdown Pattern :: E0107,E0752
-async-cancellation-token.md :: Hierarchical Cancellation :: E0277
+async-cancellation-token.md :: Hierarchical Cancellation :: E0277,E0599
 async-fn-in-trait.md :: Caveats :: P:expected one of `!` or
 async-join-parallel.md :: Good :: E0107
 async-join-parallel.md :: Limiting Concurrency :: E0107
 async-join-parallel.md :: When NOT to Use join! :: E0107
 async-join-parallel.md :: futures::join_all for Dynamic Collections :: E0107,E0428
 async-joinset-structured.md :: Abort on Drop :: E0069
+async-mpsc-queue.md :: Permit Pattern :: E0599
 async-select-racing.md :: Racing Multiple of Same Type :: E0107
 async-spawn-blocking.md :: What Counts as Blocking :: P:expected one of `!`, `.`,
 async-tokio-fs.md :: Good :: E0107
@@ -62,7 +64,6 @@ err-result-over-panic.md :: When Panic IS Appropriate :: E0428
 lint-deny-correctness.md :: Important Correctness Lints :: P:this file contains an unclosed
 lint-deny-correctness.md :: Setup :: P:expected item, found `[`
 lint-unsafe-doc.md :: Good :: E0106
-lint-unsafe-doc.md :: Unchecked Operations :: E0424
 lint-warn-complexity.md :: Examples :: E0428
 lint-warn-complexity.md :: Overly Verbose Code :: P:expected `;`, found keyword `let`
 lint-warn-complexity.md :: Unnecessary Complexity :: E0308
@@ -75,7 +76,7 @@ mem-arrayvec.md :: When NOT to Use ArrayVec :: P:expected identifier, found `>`
 mem-assert-type-size.md :: Good :: E0512
 mem-assert-type-size.md :: When to Assert :: E0080
 mem-avoid-format.md :: Pre-allocate for Multiple Appends :: E0428
-mem-box-large-variant.md :: Recursive Types Require Boxing :: E0072,E0428
+mem-box-large-variant.md :: Recursive Types Require Boxing :: E0428
 mem-clone-from.md :: How clone_from Works :: E0117
 mem-compact-string.md :: Memory Comparison :: E0107
 mem-compact-string.md :: When to Use :: E0428
@@ -91,7 +92,7 @@ name-iter-type-match.md :: Standard Library Pattern :: E0116,E0117
 name-lifetime-short.md :: Serde Convention :: P:cannot deserialize when there is
 name-no-get-prefix.md :: Standard Library Examples :: P:expected `;`, found `btreemap`,P:expected `;`, found `hashmap`,P:expected `;`, found `option`,P:expected `;`, found `path`,P:expected `;`, found `result`,P:expected `;`, found `vec`
 name-no-get-prefix.md :: When get_ IS Appropriate :: E0116
-name-type-param-single.md :: Trait Bounds :: E0404,E0428,P:free function without a body
+name-type-param-single.md :: Trait Bounds :: E0428,P:free function without a body
 name-types-camel.md :: Good :: P:non-item in item list
 opt-cache-friendly.md :: Avoid Pointer Chasing :: E0308
 opt-inline-never-cold.md :: Pattern: Extract Cold Code :: E0428
@@ -108,13 +109,11 @@ perf-extend-batch.md :: Pattern: Building Strings :: E0428
 proj-feature-additive.md :: Good :: P:`#[panic_handler]` function required, but not,P:unwinding panics are not supported
 proj-mod-rs-dir.md :: Consistency Rule :: P:expected `;`, found `mod_module_files`,P:expected one of `.`, `;`,
 proj-pub-super-parent.md :: Good :: E0308
-test-mock-traits.md :: Good :: E0046
+test-mock-traits.md :: Good :: E0046,E0599
 type-enum-states.md :: Avoid Boolean Flags :: E0428
 type-generic-bounds.md :: Bound Placement :: P:non-item in item list
-type-generic-bounds.md :: Conditional Trait Implementation :: E0404
-type-generic-bounds.md :: Good :: E0404
-type-generic-bounds.md :: Implied Bounds :: E0404,E0428
-type-generic-bounds.md :: Where Clause Benefits :: E0404,E0428
+type-generic-bounds.md :: Implied Bounds :: E0428
+type-generic-bounds.md :: Where Clause Benefits :: E0428
 type-never-diverge.md :: Standard Library Examples :: P:expected one of `where` or
 type-newtype-validated.md :: With Serde :: E0599
 type-no-stringly.md :: Good :: E0599
