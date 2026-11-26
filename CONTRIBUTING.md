@@ -42,7 +42,7 @@ adding a rule, improving an existing one, or fixing an example.
 
 4. **Write the summary for the index.** The `> summary` line is the only part of a rule an agent sees before deciding to open it. Lead with the action and state what to do ("Accept `&str` and `&[T]` parameters"), not only what to avoid. Name a feature's version when it is new ("stable since Rust 1.100").
 
-5. **Make examples compile on the pinned toolchain** (`checks/rust-toolchain.toml`, edition 2024). Every `rust` block outside `## Bad` is compile-checked, so define the types a Good example uses. Keep error and log strings lowercase with no trailing punctuation.
+5. **Make examples compile on the pinned toolchain** (`checks/rust-toolchain.toml`, edition 2024). Every `rust` block outside `## Bad` is compile-checked, so define the types a Good example uses. A block that demonstrates a compiler error gets a ```` ```rust,compile_fail ```` fence and a comment naming the failing line; the check verifies it really fails. Non-Rust blocks (TOML, shell, output) get their own fence. Keep error and log strings lowercase with no trailing punctuation.
 
 6. **Regenerate the index** so `SKILL.md` and the README stay in sync. Never hand-edit the generated `## Index` section:
 

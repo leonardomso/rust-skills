@@ -1,11 +1,11 @@
 # Rust Skills
 
-![rules](https://img.shields.io/badge/rules-272-blue)
+![rules](https://img.shields.io/badge/rules-268-blue)
 ![categories](https://img.shields.io/badge/categories-26-blue)
 ![Rust](https://img.shields.io/badge/Rust-1.100%20%2F%202024%20edition-orange)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-272 Rust rules your AI coding agent can use to write better code. Current for Rust 1.100 (2024 edition).
+268 Rust rules your AI coding agent can use to write better code. Current for Rust 1.100 (2024 edition).
 
 Works with Claude Code, Cursor, Windsurf, Copilot, Codex, Aider, Zed, Amp, Cline, and pretty much any other agent that supports skills.
 
@@ -74,7 +74,7 @@ fn first_word(s: &str) -> Option<&str> {
 
 ## What's in here
 
-272 rules split into 26 categories:
+268 rules split into 26 categories:
 
 | Category | Rules | What it covers |
 |----------|-------|----------------|
@@ -102,7 +102,7 @@ fn first_word(s: &str) -> Option<&str> {
 | **Observability** | 8 | tracing over log, spans, structured fields, redacting secrets |
 | **Performance** | 13 | Iterators, entry API, faster hashers, I/O buffering |
 | **Project Structure** | 15 | Workspaces, module layout, features, MSRV |
-| **Linting** | 16 | Clippy config, CI setup, `unexpected_cfgs` |
+| **Linting** | 12 | Clippy config, CI setup, `unexpected_cfgs` |
 | **Anti-patterns** | 2 | Common mistakes, each mapped to the rule that fixes it |
 
 Each rule has:

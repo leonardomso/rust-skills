@@ -30,6 +30,9 @@ same version in the same commit.
 
 ## How it works
 
+Blocks fenced ```` ```rust,compile_fail ```` are checked the other way round: they must fail with a real error (not just an undefined name), so a compile-error demo can't silently start compiling.
+
+
 `gen.py` extracts each candidate block into `examples/<name>.rs`, wrapping
 fragments in an `async fn -> Result<...>` so `?` and `.await` type-check. It
 skips blocks that can't compile standalone by design: `## Bad` anti-patterns,

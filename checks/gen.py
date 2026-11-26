@@ -11,6 +11,10 @@ non-compiling or unresolvable are skipped:
 
 Fragments (snippets that reference undefined domain symbols) are still emitted;
 the analyzer separates "only-resolution-errors" (fragments) from real bugs.
+
+Blocks fenced ```rust,compile_fail are emitted too, marked `expect_fail`: the
+analyzer requires them to fail with a real (non-name-resolution) error, so a
+"this does not compile" demo can't silently start compiling.
 """
 import re, json, pathlib
 
@@ -53,13 +57,15 @@ for md in sorted(RULES.glob("*.md")):
         m = re.match(r'^#{2,}\s+(.*)', line)
         if m:
             section = m.group(1).strip()
-        if line.strip() == "```rust":
+        fence = line.strip()
+        if fence in ("```rust", "```rust,compile_fail"):
+            expect_fail = fence.endswith("compile_fail")
             start = i + 1
             j = start
             while j < len(lines) and lines[j].strip() != "```":
                 j += 1
             block = "\n".join(lines[start:j])
-            if is_candidate(block, section):
+            if expect_fail or is_candidate(block, section):
                 name = f"{md.stem.replace('-', '_')}__{idx}"
                 has_main = re.search(r'\bfn\s+main\s*\(', block) is not None
                 has_inner_attr = "#![" in block
@@ -75,7 +81,8 @@ for md in sorted(RULES.glob("*.md")):
                                "async fn __ex() -> Result<(), Box<dyn std::error::Error>> {\n" +
                                block + "\n;\nOk(())\n}\nfn main() {}\n")
                 (OUT / f"{name}.rs").write_text(content, encoding="utf-8")
-                manifest[name] = {"file": md.name, "line": start + 1, "section": section}
+                manifest[name] = {"file": md.name, "line": start + 1, "section": section,
+                                  "expect_fail": expect_fail}
             idx += 1
             i = j
         i += 1

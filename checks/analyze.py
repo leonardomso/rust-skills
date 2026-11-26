@@ -79,10 +79,24 @@ def parse(path):
                 errors[tgt].append(msg)
     return errors
 
+def expect_fail_violations(errors):
+    """compile_fail blocks must fail with at least one real error."""
+    bad = []
+    for ex, info in manifest.items():
+        if not info.get("expect_fail"):
+            continue
+        real = [d for d in errors.get(ex, []) if not is_resolution(d) and not is_artifact(d)]
+        if not real:
+            why = "compiles" if not errors.get(ex) else "fails only on undefined names"
+            bad.append(f"{info['file']}:{info['line']} [{info['section']}] compile_fail block {why}")
+    return sorted(bad)
+
 def classify(errors):
     frag = artifact = low = 0
     suspects = {}
     for ex, diags in errors.items():
+        if manifest.get(ex, {}).get("expect_fail"):
+            continue
         nonres = [d for d in diags if not is_resolution(d)]
         if not nonres:
             frag += 1; continue
@@ -110,6 +124,13 @@ def main():
         print("\n".join(sigs))
         return
     if "--check-baseline" in args:
+        bad_cf = expect_fail_violations(errors)
+        if bad_cf:
+            print(f"FAIL: {len(bad_cf)} compile_fail block(s) do not demonstrate a compile error:\n")
+            print("\n".join(f"  ! {b}" for b in bad_cf))
+            print("\nFix the block so it fails for the reason its comment states, "
+                  "or change the fence back to ```rust if it is meant to compile.")
+            sys.exit(1)
         bpath = args[args.index("--check-baseline") + 1]
         base = set(l.strip() for l in open(bpath) if l.strip() and not l.startswith("#"))
         new = [s for s in sigs if s not in base]
@@ -123,7 +144,9 @@ def main():
         print(f"OK: no new compile suspects ({len(sigs)} known, all in baseline)")
         return
 
-    checked = len(manifest); failed = len(errors)
+    cf = [ex for ex, i in manifest.items() if i.get("expect_fail")]
+    checked = len(manifest) - len(cf)
+    failed = len([ex for ex in errors if ex not in cf])
     print("== compile-check summary ==")
     print(f"examples checked          : {checked}")
     print(f"compiled clean            : {checked - failed}")
@@ -131,6 +154,10 @@ def main():
     print(f"wrapper/pseudocode artifacts: {artifact}")
     print(f"low-signal (needs type ann): {low}")
     print(f"SUSPECT (review these)    : {len(suspects)}")
+    bad_cf = expect_fail_violations(errors)
+    print(f"compile_fail blocks       : {len(cf)} ({len(bad_cf)} not failing as expected)")
+    for b in bad_cf:
+        print(f"  ! {b}")
     print()
     rows = []
     for ex, diags in suspects.items():

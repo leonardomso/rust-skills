@@ -20,7 +20,7 @@ metadata:
 
 # Rust Skills
 
-272 rules across 26 categories for idiomatic, safe, and fast Rust. Current for Rust 1.100 (2024 edition). This file is the index; each rule lives in `rules/<id>.md` next to it.
+268 rules across 26 categories for idiomatic, safe, and fast Rust. Current for Rust 1.100 (2024 edition). This file is the index; each rule lives in `rules/<id>.md` next to it.
 
 ## How to use
 
@@ -387,11 +387,6 @@ If `rules/` is not next to this file (a single-file install), fetch a rule from 
 
 ### 25. Clippy & Linting (LOW)
 
-- [`lint-deny-correctness`](rules/lint-deny-correctness.md) - Keep `clippy::correctness` at deny: its lints flag code that is outright wrong
-- [`lint-warn-suspicious`](rules/lint-warn-suspicious.md) - Enable clippy::suspicious for likely bugs
-- [`lint-warn-style`](rules/lint-warn-style.md) - Enable clippy::style for idiomatic code
-- [`lint-warn-complexity`](rules/lint-warn-complexity.md) - Enable clippy::complexity for simpler code
-- [`lint-warn-perf`](rules/lint-warn-perf.md) - Enable clippy::perf for performance improvements
 - [`lint-pedantic-selective`](rules/lint-pedantic-selective.md) - Enable clippy::pedantic selectively
 - [`lint-missing-docs`](rules/lint-missing-docs.md) - Warn on missing documentation for public items
 - [`lint-unsafe-doc`](rules/lint-unsafe-doc.md) - Require documentation for unsafe blocks
@@ -403,6 +398,7 @@ If `rules/` is not next to this file (a single-file install), fetch a rule from 
 - [`lint-build-warnings`](rules/lint-build-warnings.md) - Deny warnings in CI with `build.warnings` instead of `RUSTFLAGS=-Dwarnings`
 - [`lint-cargo-lints`](rules/lint-cargo-lints.md) - Configure Cargo's own lints in `[lints.cargo]` and deny unused dependencies
 - [`lint-expect-over-allow`](rules/lint-expect-over-allow.md) - Use `#[expect(lint, reason = "...")]` instead of `#[allow]` when overriding a lint for one item
+- [`lint-clippy-groups`](rules/lint-clippy-groups.md) - Keep clippy's default groups on — `correctness` at deny; `suspicious`, `style`, `complexity`, and `perf` at warn — set them once in `[lints.clippy]`, and fail CI on their warnings
 
 ### 26. Anti-patterns (REFERENCE)
 

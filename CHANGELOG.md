@@ -6,7 +6,7 @@ semantic versioning for the rule set.
 
 ## [1.7.0]
 
-Documentation pass for agents. Now 272 rules across 26 categories.
+Documentation pass for agents. Now 268 rules across 26 categories.
 
 ### Changed
 - **Merged 17 duplicate rules** into the rule that already owned each meaning,
@@ -38,6 +38,20 @@ Documentation pass for agents. Now 272 rules across 26 categories.
   of repeating its commands.
 - README: single-file (`curl`) installs fetch rules from GitHub on demand.
   The contributing section points at `CONTRIBUTING.md`.
+- Merged the five clippy group rules (`lint-deny-correctness`,
+  `lint-warn-suspicious`, `lint-warn-style`, `lint-warn-complexity`,
+  `lint-warn-perf`) into `lint-clippy-groups`, with group membership taken
+  from clippy 1.100. This drops claims that were wrong, for example that
+  `vec![]` allocates.
+- Trimmed the longest rules (`test-mock-traits`, `test-mockall-mocking`,
+  `perf-profile-first`, `proj-workspace-deps`, `async-cancellation-token`,
+  `api-default-impl`). Overlap now becomes a See Also pointer, and broken
+  mockall examples are fixed.
+- Every flagged example now compiles. The accepted-suspect baseline went
+  from 87 to 0: 480 blocks compile clean, and the rest are fragments that
+  only reference undefined helpers.
+- `rust,compile_fail` blocks are now verified to fail with a real error,
+  and genuine compile-error demos use that fence.
 
 ## [1.6.0]
 
