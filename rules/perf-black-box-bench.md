@@ -9,7 +9,8 @@ The compiler aggressively optimizes code, potentially eliminating computations w
 ## Bad
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn benchmark_bad(c: &mut Criterion) {
     c.bench_function("compute", |b| {
@@ -35,7 +36,8 @@ fn benchmark_also_bad(c: &mut Criterion) {
 ## Good
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
 fn benchmark_good(c: &mut Criterion) {
     c.bench_function("compute", |b| {
@@ -78,12 +80,10 @@ fn main() {
 
 ## Criterion's black_box
 
-Criterion re-exports `std::hint::black_box`:
+Older Criterion versions re-export `black_box`; current versions deprecate `criterion::black_box` in favor of `std::hint::black_box`. Import it from `std::hint` so the code works with every version:
 
 ```rust
-use criterion::black_box;
-
-// Equivalent to std::hint::black_box
+use std::hint::black_box;
 ```
 
 ## Pattern: Benchmark with Setup

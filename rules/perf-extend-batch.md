@@ -10,7 +10,7 @@
 
 ```rust
 // Multiple potential reallocations
-fn collect_results(sources: Vec<Source>) -> Vec<Result> {
+fn collect_results(sources: Vec<Source>) -> Vec<Outcome> {
     let mut results = Vec::new();
     
     for source in sources {
@@ -42,8 +42,14 @@ fn combine(mut a: Vec<i32>, b: Vec<i32>) -> Vec<i32> {
 ## Good
 
 ```rust
+struct Outcome;
+struct Source;
+impl Source {
+    fn get_results(&self) -> Vec<Outcome> { Vec::new() }
+}
+
 // Single extend with size hint
-fn collect_results(sources: Vec<Source>) -> Vec<Result> {
+fn collect_results(sources: Vec<Source>) -> Vec<Outcome> {
     let mut results = Vec::new();
     
     for source in sources {
@@ -69,6 +75,8 @@ fn combine(mut a: Vec<i32>, b: Vec<i32>) -> Vec<i32> {
 For best performance, combine with `reserve()`:
 
 ```rust
+struct Item;
+
 fn merge_all(chunks: Vec<Vec<Item>>) -> Vec<Item> {
     // Calculate total size
     let total: usize = chunks.iter().map(|c| c.len()).sum();
@@ -93,7 +101,7 @@ fn merge_all(chunks: Vec<Vec<Item>>) -> Vec<Item> {
 
 ```rust
 // Bad: multiple allocations
-fn build_message(parts: &[&str]) -> String {
+fn build_message_push(parts: &[&str]) -> String {
     let mut result = String::new();
     for part in parts {
         result.push_str(part);  // May reallocate
@@ -102,7 +110,7 @@ fn build_message(parts: &[&str]) -> String {
 }
 
 // Good: extend with known parts
-fn build_message(parts: &[&str]) -> String {
+fn build_message_reserved(parts: &[&str]) -> String {
     let total_len: usize = parts.iter().map(|s| s.len()).sum();
     let mut result = String::with_capacity(total_len);
     for part in parts {
@@ -112,7 +120,7 @@ fn build_message(parts: &[&str]) -> String {
 }
 
 // Better: collect/join
-fn build_message(parts: &[&str]) -> String {
+fn build_message_concat(parts: &[&str]) -> String {
     parts.concat()  // or parts.join("")
 }
 ```
@@ -120,7 +128,9 @@ fn build_message(parts: &[&str]) -> String {
 ## HashMap/HashSet Extend
 
 ```rust
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+
+struct Item { id: u32 }
 
 // Extend from iterator of tuples
 fn merge_maps(mut base: HashMap<String, i32>, other: HashMap<String, i32>) -> HashMap<String, i32> {
@@ -129,6 +139,7 @@ fn merge_maps(mut base: HashMap<String, i32>, other: HashMap<String, i32>) -> Ha
 }
 
 // Extend from iterator
+let items = vec![Item { id: 1 }, Item { id: 2 }];
 let mut set = HashSet::new();
 set.extend(items.iter().map(|i| i.id));
 ```

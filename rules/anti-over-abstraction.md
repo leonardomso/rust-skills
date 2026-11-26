@@ -1,6 +1,6 @@
 # anti-over-abstraction
 
-> Don't over-abstract with excessive generics
+> Start concrete; add generics or traits when a second real use case appears
 
 ## Why It Matters
 
@@ -90,6 +90,8 @@ Don't generalize when:
 Wait until you have three similar concrete implementations before abstracting:
 
 ```rust
+use std::io;
+
 // Version 1: Just FileStorage
 struct FileStorage { /* ... */ }
 
@@ -98,23 +100,27 @@ struct MemoryStorage { /* ... */ }
 
 // Version 3: Now Redis too - time to abstract
 trait Storage {
-    fn save(&self, key: &str, value: &[u8]) -> Result<()>;
-    fn load(&self, key: &str) -> Result<Vec<u8>>;
+    fn save(&self, key: &str, value: &[u8]) -> io::Result<()>;
+    fn load(&self, key: &str) -> io::Result<Vec<u8>>;
 }
 ```
 
 ## Prefer Concrete Types in Private Code
 
 ```rust
+struct Order;
+struct PostgresDb;
+trait Storage {}
+
 // Internal function - concrete type is fine
 fn process_orders(db: &PostgresDb, orders: Vec<Order>) { }
 
 // Public API - might benefit from abstraction
-pub fn process_orders<S: Storage>(storage: &S, orders: Vec<Order>) { }
+pub fn process_orders_generic<S: Storage>(storage: &S, orders: Vec<Order>) { }
 ```
 
 ## See Also
 
 - [type-generic-bounds](./type-generic-bounds.md) - Minimal bounds
 - [api-sealed-trait](./api-sealed-trait.md) - Controlled extension
-- [anti-type-erasure](./anti-type-erasure.md) - When Box<dyn> is wrong
+- [trait-dyn-vs-generic](./trait-dyn-vs-generic.md) - When Box<dyn> is wrong

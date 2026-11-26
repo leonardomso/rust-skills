@@ -57,7 +57,7 @@ resolver = "3"   # default for the 2024 edition; use "2" for 2021
 
 [workspace.dependencies]
 mycrate-derive = { path = "mycrate-derive", version = "0.1" }
-syn  = { version = "2", features = ["derive"] }
+syn  = { version = "3", features = ["derive"] }
 quote = "1"
 proc-macro2 = "1"
 ```
@@ -141,3 +141,4 @@ pub fn derive_greet(input: TokenStream) -> TokenStream {
 - [macro-private-helpers](macro-private-helpers.md) - hiding helpers behind `__private`
 - [proj-workspace-deps](proj-workspace-deps.md) - workspace dependency inheritance
 - [err-thiserror-lib](err-thiserror-lib.md) - thiserror as a real-world two-crate example
+- [macro-pin-impl-crate](macro-pin-impl-crate.md) - Pin companion proc-macro crates

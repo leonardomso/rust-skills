@@ -34,6 +34,29 @@ fn load_config_bad() -> Config {
 ## Good
 
 ```rust
+use thiserror::Error;
+
+struct Config;
+
+#[derive(Error, Debug)]
+enum Error {
+    #[error("io error")]
+    Io(#[from] std::io::Error),
+    #[error("parse error")]
+    Parse(#[from] toml::Error),
+}
+
+// Minimal stand-in for the `toml` crate
+mod toml {
+    #[derive(Debug)]
+    pub struct Error;
+    impl std::fmt::Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("toml") }
+    }
+    impl std::error::Error for Error {}
+    pub fn from_str(s: &str) -> Result<super::Config, Error> { Ok(super::Config) }
+}
+
 fn load_config() -> Result<Config, Error> {
     let content = std::fs::read_to_string("config.toml")?;
     let config = toml::from_str(&content)?;
@@ -41,7 +64,7 @@ fn load_config() -> Result<Config, Error> {
 }
 
 // Even more concise
-fn load_config() -> Result<Config, Error> {
+fn load_config_short() -> Result<Config, Error> {
     Ok(toml::from_str(&std::fs::read_to_string("config.toml")?)?)
 }
 ```
@@ -49,20 +72,29 @@ fn load_config() -> Result<Config, Error> {
 ## How ? Works
 
 ```rust
-// This:
-let x = expr?;
+fn demo(expr: Result<u32, std::num::ParseIntError>) -> Result<u32, Box<dyn std::error::Error>> {
+    // This:
+    let x = expr?;
+    Ok(x)
+}
 
-// Expands roughly to:
-let x = match expr {
-    Ok(val) => val,
-    Err(err) => return Err(From::from(err)),
-};
+fn demo_expanded(expr: Result<u32, std::num::ParseIntError>) -> Result<u32, Box<dyn std::error::Error>> {
+    // Expands roughly to:
+    let x = match expr {
+        Ok(val) => val,
+        Err(err) => return Err(From::from(err)),
+    };
+    Ok(x)
+}
 ```
 
 ## Combining with Context
 
 ```rust
 use anyhow::{Context, Result};
+
+#[derive(serde::Deserialize)]
+struct User;
 
 fn load_user(id: u64) -> Result<User> {
     let path = format!("users/{}.json", id);
@@ -87,7 +119,10 @@ fn get_first_word(text: &str) -> Option<&str> {
 }
 
 // Convert Option to Result
-fn get_required_config(key: &str) -> Result<String, Error> {
+#[derive(Debug)]
+enum Error { MissingConfig(String) }
+
+fn get_required_config(config: &std::collections::HashMap<String, String>, key: &str) -> Result<String, Error> {
     config.get(key)
         .cloned()
         .ok_or_else(|| Error::MissingConfig(key.to_string()))
@@ -108,6 +143,9 @@ enum MyError {
     Parse(#[from] serde_json::Error),  // Auto From impl
 }
 
+#[derive(serde::Deserialize)]
+struct Data;
+
 fn process() -> Result<(), MyError> {
     // ? automatically converts io::Error to MyError via From
     let content = std::fs::read_to_string("file.txt")?;
@@ -122,12 +160,22 @@ fn process() -> Result<(), MyError> {
 ## In main()
 
 ```rust
+struct Config;
+fn load_config() -> Result<Config, std::io::Error> { Ok(Config) }
+fn run_app(config: Config) -> Result<(), std::io::Error> { Ok(()) }
+
 // Option 1: Return Result from main
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = load_config()?;
     run_app(config)?;
     Ok(())
 }
+```
+
+```rust
+struct Config;
+fn load_config() -> Result<Config, std::io::Error> { Ok(Config) }
+fn run_app(config: Config) -> Result<(), std::io::Error> { Ok(()) }
 
 // Option 2: Handle in main, exit on error
 fn main() {

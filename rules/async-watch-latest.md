@@ -82,6 +82,7 @@ assert_eq!(*rx.borrow(), "v3");  // Skipped v1, v2
 use tokio::sync::watch;
 use std::sync::Arc;
 
+#[derive(PartialEq)]
 struct AppConfig {
     log_level: Level,
     max_connections: usize,
@@ -94,7 +95,7 @@ async fn config_watcher(tx: watch::Sender<Arc<AppConfig>>) {
         if let Ok(new_config) = reload_config_from_disk() {
             // Only notifies if value actually changed
             tx.send_if_modified(|current| {
-                if *current != new_config {
+                if **current != new_config {
                     *current = Arc::new(new_config);
                     true
                 } else {

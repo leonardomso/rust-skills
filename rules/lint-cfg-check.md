@@ -56,6 +56,24 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 workspace = true
 ```
 
+## `cfg_select!`
+
+`cfg_select!` (stable since Rust 1.95) replaces most uses of the `cfg-if` crate. It is also checked against `unexpected_cfgs`, and the `unreachable_cfg_select_predicates` lint (part of `unused`) flags arms that can never be selected.
+
+```rust
+cfg_select! {
+    unix => {
+        fn platform() -> &'static str { "unix" }
+    }
+    windows => {
+        fn platform() -> &'static str { "windows" }
+    }
+    _ => {
+        fn platform() -> &'static str { "other" }
+    }
+}
+```
+
 ## Notes
 
 - Feature names (`feature = "serde"`, `feature = "std"`) are registered automatically by Cargo — you do not need to list them in `check-cfg`.
@@ -66,4 +84,5 @@ workspace = true
 
 - [lint-workspace-lints](lint-workspace-lints.md) - configure lints at workspace level
 - [proj-feature-additive](proj-feature-additive.md) - design features to be strictly additive
-- [lint-warn-suspicious](lint-warn-suspicious.md) - enable suspicious lint group
+- [lint-clippy-groups](lint-clippy-groups.md) - enable suspicious lint group
+- [test-utils-feature-gated](test-utils-feature-gated.md) - Gate test utilities behind a feature

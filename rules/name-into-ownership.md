@@ -48,9 +48,10 @@ let bytes: Vec<u8> = string.into_bytes();  // String consumed
 let path = PathBuf::from("/foo");
 let os_string: OsString = path.into_os_string();  // PathBuf consumed
 
+let path_string: Result<String, PathBuf> = PathBuf::from("/foo").into_string();  // stable since 1.98
 let boxed: Box<[i32]> = vec![1, 2, 3].into_boxed_slice();  // Vec consumed
 
-let vec: Vec<u8> = boxed.into_vec();  // Box consumed
+let vec: Vec<i32> = boxed.into_vec();  // Box consumed
 ```
 
 ## into_iter() Pattern

@@ -1,6 +1,6 @@
 # num-float-compare
 
-> Don't compare floats with `==`; use a tolerance, and `total_cmp` for ordering
+> Compare floats with a tolerance and order them with `total_cmp`; `==` on computed floats is almost always wrong
 
 ## Why It Matters
 
@@ -31,7 +31,7 @@ fn is_unit_length(x: f64, y: f64) -> bool {
     approx_eq((x * x + y * y).sqrt(), 1.0, 1e-9)
 }
 
-// total ordering: NaN sorts after everything else (consistent, never panics)
+// total ordering: positive NaN sorts after everything else (consistent, never panics)
 fn sort_scores(scores: &mut Vec<f64>) {
     scores.sort_by(|a, b| a.total_cmp(b));
 }

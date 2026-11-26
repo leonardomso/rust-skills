@@ -94,16 +94,19 @@ fn demo() {
 | Feature | Allowed in `dyn Trait`? |
 |---|---|
 | `&self` / `&mut self` methods | Yes |
-| Methods returning `Self` by value | No — use `Box<Self>` or gate with `where Self: Sized` |
+| Methods that return or take `Self` by value (other than the receiver) | No — gate with `where Self: Sized` |
+| Receivers `self: Box<Self>`, `Rc<Self>`, `Arc<Self>`, `Pin<&Self>` | Yes |
+| `async fn` or `-> impl Trait` methods | No — gate with `where Self: Sized`, or return `Pin<Box<dyn Future>>` |
 | Generic method parameters (`fn f<T>`) | No — gate with `where Self: Sized` |
 | Associated constants | No |
-| Associated types | Yes (type is erased but fixed per impl) |
+| Associated types | Yes (the type is fixed per impl); not generic associated types |
+| `Sized` as a supertrait | No |
 | `where Self: Sized` methods | Excluded from vtable, safe to have |
 
-See the Rust Reference — "Object Safety" — at doc.rust-lang.org/reference/items/traits.html#object-safety for the full rules.
+See the Rust Reference section "Dyn compatibility" at doc.rust-lang.org/reference/items/traits.html#dyn-compatibility for the full rules (the concept was formerly called object safety). Rust 1.100 checks dyn compatibility in more places, so a non-compatible trait used as `dyn` can be rejected where it was previously accepted.
 
 ## See Also
 
 - [trait-dyn-vs-generic](trait-dyn-vs-generic.md) - choose between static and dynamic dispatch deliberately
-- [anti-type-erasure](anti-type-erasure.md) - don't use `Box<dyn Trait>` when `impl Trait` works
+- [async-fn-in-trait](async-fn-in-trait.md) - native `async fn` makes a trait non-dyn-compatible
 - [api-sealed-trait](api-sealed-trait.md) - prevent external implementations of a trait

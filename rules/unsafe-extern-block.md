@@ -49,6 +49,10 @@ fn show_version() {
 }
 ```
 
+## `extern "custom"`
+
+Since Rust 1.100, `extern "custom"` is stable. It declares a function with an unknown, custom calling convention. Such a function must be `unsafe`, take no parameters, return `()`, and be a `#[unsafe(naked)]` function. The only way to call it is from inline assembly. In `unsafe extern "custom"` blocks, the `safe` qualifier is rejected.
+
 ## Migration from 2021
 
 | 2021 | 2024 |

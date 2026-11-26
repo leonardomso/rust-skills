@@ -7,19 +7,10 @@ published skill.
 ## Run
 
 ```bash
-# structural / link / index checks (no toolchain needed)
-python3 checks/validate.py
-
-# compile-check the examples
-cd checks
-python3 gen.py                                              # extract blocks -> examples/
-cargo check --examples --keep-going --message-format=json > check.json
-python3 analyze.py check.json                               # classify results
-python3 analyze.py check.json --check-baseline baseline.txt # CI gate: fail on NEW suspects
+bash checks/check.sh
 ```
 
-Both run in CI (`.github/workflows/ci.yml`): `validate` (Python only) and
-`examples` (pinned to Rust 1.95.0, the toolchain `baseline.txt` was generated on).
+That is the whole CI gate. It runs `validate.py` (structure, links, index parity), `gen_index.py --check`, `gen.py` (extract blocks into `examples/`), `cargo check --examples` on the pinned toolchain and target, and `analyze.py --check-baseline`. To see every suspect with its errors, run `python3 analyze.py check.json` after a run.
 
 ## Updating the baseline
 
@@ -29,7 +20,8 @@ it. After intentionally adding/changing examples, regenerate it on the pinned
 toolchain and review the diff:
 
 ```bash
-rustup run 1.95.0 cargo check --examples --keep-going --message-format=json > check.json
+bash checks/check.sh   # leaves check.json behind, even when the gate fails
+cd checks
 python3 analyze.py check.json --emit-baseline > baseline.txt
 ```
 
@@ -37,6 +29,9 @@ When bumping the pinned toolchain in `ci.yml`, regenerate `baseline.txt` on the
 same version in the same commit.
 
 ## How it works
+
+Blocks fenced ```` ```rust,compile_fail ```` are checked the other way round: they must fail with a real error (not just an undefined name), so a compile-error demo can't silently start compiling.
+
 
 `gen.py` extracts each candidate block into `examples/<name>.rs`, wrapping
 fragments in an `async fn -> Result<...>` so `?` and `.await` type-check. It
@@ -56,8 +51,8 @@ nightly `#![feature]` gates, procedural-macro code, placeholder crate names
 
 ## Notes
 
-- Run on Rust ≥ 1.95: some examples use APIs stabilized in 1.95 (e.g. the
-  `MaybeUninit` array `From` conversions) and will spuriously fail on older
+- Run on Rust ≥ 1.100: some examples use APIs stabilized in 1.95–1.100 (e.g. the
+  `MaybeUninit` array `From` conversions, `core::mem::DropGuard`) and will spuriously fail on older
   toolchains.
 - Generated files (`examples/`, `*.json`, `manifest.json`, `target/`) are
   gitignored; only the source (`gen.py`, `analyze.py`, `Cargo.toml`) is tracked.

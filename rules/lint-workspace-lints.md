@@ -41,8 +41,8 @@ panic = "deny"
 needless_pass_by_value = "warn"
 redundant_clone = "warn"
 
-# Complexity
-cognitive_complexity = "warn"
+[workspace.lints.cargo]
+unused_dependencies = "deny"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
@@ -93,20 +93,27 @@ redundant_closure_for_method_calls = "warn"
 semicolon_if_nothing_returned = "warn"
 
 # === Nursery (selective) ===
-cognitive_complexity = "warn"
 useless_let_if_seq = "warn"
 
 # === Restriction (selective) ===
+cognitive_complexity = "warn"
 unwrap_used = "deny"
 expect_used = "warn"
 dbg_macro = "warn"
 print_stdout = "warn"  # Use logging instead
 todo = "warn"
 
+[workspace.lints.cargo]
+# Cargo's own lints (stable since Rust 1.100), see lint-cargo-lints
+unused_dependencies = "warn"
+unused_workspace_dependencies = "warn"
+
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
 private_intra_doc_links = "warn"
 ```
+
+A `[workspace.lints]` table is not inherited automatically. Every member needs `[lints] workspace = true` (or an explicit empty `[lints]` table). The `cargo::missing_lints_inheritance` lint (warn by default since Rust 1.100) flags members that forget.
 
 ## Per-Crate Overrides
 
@@ -142,11 +149,17 @@ jobs:
           components: clippy
       
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      
+        run: cargo clippy --workspace --all-targets
+        env:
+          CARGO_BUILD_WARNINGS: deny
+
       - name: Rustdoc
-        run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+        run: cargo doc --workspace --no-deps
+        env:
+          CARGO_BUILD_WARNINGS: deny
 ```
+
+`build.warnings = "deny"` (stable since Rust 1.97) fails the build on lint warnings from your own packages only. Unlike `-D warnings` in `RUSTFLAGS`, it does not touch the compiler flags and it ignores warnings from dependencies. See [lint-build-warnings](lint-build-warnings.md).
 
 ## Lint Categories
 
@@ -167,6 +180,9 @@ missing_errors_doc = "allow"  # Override pedantic
 
 ## See Also
 
-- [lint-deny-correctness](./lint-deny-correctness.md) - Critical lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Critical lints
 - [proj-workspace-deps](./proj-workspace-deps.md) - Workspace configuration
-- [anti-unwrap-abuse](./anti-unwrap-abuse.md) - unwrap lints
+- [lint-cargo-lints](./lint-cargo-lints.md) - `[lints.cargo]` table
+- [lint-build-warnings](./lint-build-warnings.md) - deny warnings in CI with `build.warnings`
+- [err-no-unwrap-prod](./err-no-unwrap-prod.md) - unwrap lints
+- [lint-expect-over-allow](lint-expect-over-allow.md) - Prefer #[expect] over #[allow]

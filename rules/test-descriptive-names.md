@@ -140,3 +140,4 @@ mod tests {
 - [test-arrange-act-assert](./test-arrange-act-assert.md) - Test structure
 - [test-cfg-test-module](./test-cfg-test-module.md) - Test module organization
 - [doc-examples-section](./doc-examples-section.md) - Documentation tests
+- [test-no-tautological](test-no-tautological.md) - Test properties, not a restatement of the code

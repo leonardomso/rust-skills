@@ -49,25 +49,26 @@ error: proc macro panicked
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput, Error};
+use syn::{parse_macro_input, Data, DeriveInput, Error};
 
 #[proc_macro_derive(MyTrait)]
 pub fn derive_my_trait(input: TokenStream) -> TokenStream {
-    derive_my_trait_inner(input).unwrap_or_else(|e| e.to_compile_error().into())
+    // parse_macro_input! already reports parse errors as spanned compile errors.
+    expand(parse_macro_input!(input as DeriveInput))
+        .unwrap_or_else(|e| e.to_compile_error())
+        .into()
 }
 
-fn derive_my_trait_inner(input: TokenStream) -> Result<TokenStream, Error> {
-    let input = parse_macro_input!(input as DeriveInput);
-
+fn expand(input: DeriveInput) -> Result<TokenStream2, Error> {
     let fields = match &input.data {
         Data::Struct(s) => &s.fields,
-        Data::Enum(e) => {
+        Data::Enum(_) => {
             return Err(Error::new_spanned(
                 &input.ident,
                 "MyTrait can only be derived on structs, not enums",
             ));
         }
-        Data::Union(u) => {
+        Data::Union(_) => {
             return Err(Error::new_spanned(
                 &input.ident,
                 "MyTrait can only be derived on structs, not unions",
@@ -91,8 +92,7 @@ fn derive_my_trait_inner(input: TokenStream) -> Result<TokenStream, Error> {
                 stringify!(#field_name)
             }
         }
-    }
-    .into())
+    })
 }
 ```
 
@@ -106,7 +106,7 @@ error: MyTrait requires named fields
 
 ## Key Points
 
-- Wrap proc-macro logic in a `fn(...) -> Result<TokenStream2, syn::Error>` helper and convert at the entry point with `.unwrap_or_else(|e| e.to_compile_error().into())`.
+- Wrap proc-macro logic in a `fn(...) -> Result<TokenStream2, syn::Error>` helper and convert at the entry point with `.unwrap_or_else(|e| e.to_compile_error())`. Do not call `parse_macro_input!` inside that helper: it returns early with a `TokenStream`, not a `Result`.
 - Use `Error::new_spanned(tokens, "message")` to attach the error to a specific part of the input AST.
 - Use `Error::new(span, "message")` when you only have a `Span`, not a token.
 - Combine multiple errors with `Error::combine` rather than returning early, so the user sees all problems at once.

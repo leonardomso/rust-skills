@@ -158,3 +158,4 @@ mod tests {
 - [test-descriptive-names](./test-descriptive-names.md) - Test naming
 - [test-fixture-raii](./test-fixture-raii.md) - Test setup/teardown
 - [test-mock-traits](./test-mock-traits.md) - Mocking dependencies
+- [test-no-tautological](test-no-tautological.md) - Test properties, not a restatement of the code

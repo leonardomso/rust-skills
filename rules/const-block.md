@@ -22,8 +22,6 @@ fn header() -> [u8; 4] {
     [0u8; 4]
 }
 
-// initializing array of non-Copy type requires unsafe or a workaround without const blocks
-// std::array::from_fn is fine, but const blocks make the intent clearer for const values
 ```
 
 ## Good
@@ -55,8 +53,8 @@ impl<const HDR: usize, const BODY: usize> Packet<HDR, BODY> {
     }
 }
 
-// array of non-Copy type using a const block per element
-// (each element is its own const expression — legal since 1.79)
+// array where each element is its own const expression
+// (a `const { }` block also lets you repeat a non-Copy constant, e.g. `[const { Vec::new() }; 4]`)
 fn make_table() -> [u64; 4] {
     [
         const { u64::MAX / 1 },

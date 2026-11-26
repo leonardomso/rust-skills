@@ -4,7 +4,7 @@
 
 ## Why It Matters
 
-Types that implement `Copy` are implicitly duplicated on assignment instead of moved. This eliminates the need for explicit `.clone()` calls and makes the code more ergonomic. For small types (generally ≤16 bytes), copying is as fast or faster than moving a pointer.
+Types that implement `Copy` are implicitly duplicated on assignment instead of moved. This eliminates the need for explicit `.clone()` calls and makes the code more ergonomic. For small types (roughly ≤16 bytes), copying is as fast or faster than passing a pointer. Rust itself puts no size limit on `Copy` (a `[u8; 1024]` is `Copy`); the size bands below are performance heuristics, and value semantics matter as much as size.
 
 ## Bad
 
@@ -84,6 +84,8 @@ impl Drop for FileHandle {
 ```
 
 ## Size Guidelines
+
+Heuristics, not language rules — measure if it matters:
 
 | Size | Recommendation |
 |------|----------------|

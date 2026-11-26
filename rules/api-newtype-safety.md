@@ -43,19 +43,40 @@ struct User {
     created_at: Timestamp,
 }
 
-fn add_user_to_group(user_id: UserId, group_id: GroupId) { ... }
+fn add_user_to_group(user_id: UserId, group_id: GroupId) { }
 
-// Compile error: expected UserId, found GroupId
-let user = User { ... };
-add_user_to_group(user.group_id, user.id);  // Error!
+fn main() {
+    let user = User { id: UserId(1), group_id: GroupId(7), created_at: Timestamp(0) };
+    add_user_to_group(user.id, user.group_id);  // Fine
+}
+```
 
-// Compile error: expected UserId, found Timestamp
-add_user_to_group(user.created_at, user.group_id);  // Error!
+The mix-ups no longer compile:
+
+```rust,compile_fail
+struct UserId(u64);
+struct GroupId(u64);
+struct Timestamp(u64);
+struct User { id: UserId, group_id: GroupId, created_at: Timestamp }
+
+fn add_user_to_group(user_id: UserId, group_id: GroupId) { }
+
+fn main() {
+    let user = User { id: UserId(1), group_id: GroupId(7), created_at: Timestamp(0) };
+
+    // Error E0308: expected UserId, found GroupId
+    add_user_to_group(user.group_id, user.id);
+
+    // Error E0308: expected UserId, found Timestamp
+    add_user_to_group(user.created_at, user.group_id);
+}
 ```
 
 ## Derive Common Traits
 
 ```rust
+use serde::{Deserialize, Serialize};
+
 // Minimal: just enough for your use case
 #[derive(Debug, Clone, Copy)]
 struct MeterId(u32);
@@ -79,8 +100,13 @@ struct ProductId(u64);
 ## Constructor Patterns
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Email(String);
+
+#[derive(Debug)]
+enum EmailError { InvalidFormat }
+
+fn is_valid_email(s: &str) -> bool { s.contains('@') }
 
 impl Email {
     /// Creates a new Email, validating the format.
@@ -99,7 +125,10 @@ impl Email {
 }
 
 // Usage enforces validation
-let email = Email::new("user@example.com")?;  // Must go through validation
+fn signup() -> Result<(), EmailError> {
+    let email = Email::new("user@example.com")?;  // Must go through validation
+    Ok(())
+}
 ```
 
 ## Zero-Cost Abstraction
@@ -117,11 +146,7 @@ struct Kilometers(f64);
 assert_eq!(size_of::<Miles>(), size_of::<f64>());
 assert_eq!(size_of::<Kilometers>(), size_of::<f64>());
 
-// But can't accidentally mix them
-fn drive(distance: Miles) { ... }
-
-let km = Kilometers(100.0);
-drive(km);  // Error: expected Miles, found Kilometers
+fn drive(distance: Miles) { }
 
 // Explicit conversion
 impl From<Kilometers> for Miles {
@@ -130,14 +155,31 @@ impl From<Kilometers> for Miles {
     }
 }
 
+let km = Kilometers(100.0);
 drive(km.into());  // Explicit, visible conversion
+```
+
+Passing the wrong unit does not compile:
+
+```rust,compile_fail
+struct Miles(f64);
+struct Kilometers(f64);
+
+fn drive(distance: Miles) { }
+
+fn main() {
+    let km = Kilometers(100.0);
+    drive(km);  // Error E0308: expected Miles, found Kilometers
+}
 ```
 
 ## When Newtypes Help Most
 
 ```rust
 // ✅ IDs that could be confused
-fn transfer(from: AccountId, to: AccountId, amount: Money) { ... }
+struct AccountId(u64);
+struct Money(u64);
+fn transfer(from: AccountId, to: AccountId, amount: Money) { }
 
 // ✅ Units that shouldn't mix
 struct Celsius(f64);
@@ -160,3 +202,4 @@ struct X(i32);  // Just use i32
 - [type-newtype-ids](./type-newtype-ids.md) - Newtype pattern for IDs
 - [api-parse-dont-validate](./api-parse-dont-validate.md) - Type-driven validation
 - [own-copy-small](./own-copy-small.md) - Making newtypes Copy
+- [api-dont-leak-types](api-dont-leak-types.md) - Keep third-party types out of public APIs

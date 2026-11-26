@@ -28,6 +28,11 @@ impl<'a> Display for Wrapper<'a> {
 ## Good
 
 ```rust
+use std::fmt::{self, Display, Formatter};
+
+struct Person { name: String }
+struct Wrapper<'a>(&'a str);
+
 // Let elision do its job
 fn first_word(s: &str) -> &str {
     s.split_whitespace().next().unwrap_or("")
@@ -48,23 +53,26 @@ impl Display for Wrapper<'_> {
 
 1. **Each input reference gets its own lifetime:**
    ```rust
-   fn foo(x: &str, y: &str) 
+   fn foo(x: &str, y: &str) {}
    // becomes
-   fn foo<'a, 'b>(x: &'a str, y: &'b str)
+   fn foo_explicit<'a, 'b>(x: &'a str, y: &'b str) {}
    ```
 
 2. **One input reference → output gets same lifetime:**
    ```rust
-   fn foo(x: &str) -> &str
+   fn foo(x: &str) -> &str { x }
    // becomes  
-   fn foo<'a>(x: &'a str) -> &'a str
+   fn foo_explicit<'a>(x: &'a str) -> &'a str { x }
    ```
 
 3. **Method with `&self`/`&mut self` → output gets self's lifetime:**
    ```rust
-   fn foo(&self, x: &str) -> &str
-   // becomes
-   fn foo<'a, 'b>(&'a self, x: &'b str) -> &'a str
+   struct S(String);
+   impl S {
+       fn foo(&self, x: &str) -> &str { &self.0 }
+       // becomes
+       fn foo_explicit<'a, 'b>(&'a self, x: &'b str) -> &'a str { &self.0 }
+   }
    ```
 
 ## When Explicit Lifetimes ARE Required
@@ -80,6 +88,8 @@ struct Parser<'input> {
     source: &'input str,
     position: usize,
 }
+
+struct Cache;
 
 // Multiple distinct lifetimes needed
 struct Context<'s, 'c> {
@@ -98,29 +108,40 @@ fn get_default() -> &'static str {
 Use `'_` to let the compiler infer while being explicit about the presence of a lifetime:
 
 ```rust
+use std::borrow::Cow;
+
+struct Parser<'a> { source: &'a str }
+struct Token;
+struct Ast<'a>(&'a str);
+struct Error;
+
 // In struct definitions
 impl Iterator for Parser<'_> {
     type Item = Token;
-    fn next(&mut self) -> Option<Self::Item> { ... }
+    fn next(&mut self) -> Option<Self::Item> { None }
 }
 
 // In function signatures where it adds clarity
-fn parse(input: &str) -> Result<Ast<'_>, Error> { ... }
+fn parse(input: &str) -> Result<Ast<'_>, Error> { Ok(Ast(input)) }
 
 // Especially useful in trait bounds
-fn process(data: &impl AsRef<str>) -> Cow<'_, str> { ... }
+fn process(data: &impl AsRef<str>) -> Cow<'_, str> { Cow::Borrowed(data.as_ref()) }
 ```
 
 ## Common Patterns
 
 ```rust
+struct Person { name: String }
+
 // ✅ Elision works
 fn trim(s: &str) -> &str { s.trim() }
 fn first(v: &[i32]) -> Option<&i32> { v.first() }
-fn name(&self) -> &str { &self.name }
+impl Person {
+    fn name(&self) -> &str { &self.name }
+}
 
-// ❌ Elision fails - multiple inputs, ambiguous output
-fn pick(a: &str, b: &str, first: bool) -> &str // Error!
+// ❌ Elision fails - multiple inputs, ambiguous output:
+// fn pick(a: &str, b: &str, first: bool) -> &str   // Error E0106!
 
 // ✅ Fixed with explicit lifetime
 fn pick<'a>(a: &'a str, b: &'a str, first: bool) -> &'a str {

@@ -154,8 +154,27 @@ cargo test --doc
 cargo test --doc my_function
 ```
 
+## Doctests and `cfg`
+
+Since Rust 1.99, rustdoc no longer uses `#[doc(cfg(...))]` to decide which doctests to run. `doc(cfg)` only adds the "available on ... only" badge to the docs. To skip a doctest when a feature is off, gate the item (or the example) with a real `#[cfg(...)]`, or mark the block `ignore`/`no_run` for that reason.
+
+```rust
+/// Requires the `json` feature.
+///
+/// ```
+/// # #[cfg(feature = "json")] {
+/// let v = my_crate::to_json(&1);
+/// assert_eq!(v, "1");
+/// # }
+/// ```
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+pub fn to_json(n: &i32) -> String { n.to_string() }
+```
+
 ## See Also
 
 - [doc-question-mark](doc-question-mark.md) - Use ? in examples
 - [doc-hidden-setup](doc-hidden-setup.md) - Hide setup code with #
 - [doc-errors-section](doc-errors-section.md) - Document error conditions
+- [doc-first-sentence](doc-first-sentence.md) - Keep the first doc sentence short

@@ -118,10 +118,11 @@ fn format_code(code: u32) -> ArrayString<16> {
 ## When NOT to Use ArrayVec
 
 ```rust
+use arrayvec::ArrayVec;
+
 // ❌ When size varies widely
-fn parse_json_array(json: &str) -> ArrayVec<Value, ???> {
-    // What capacity? JSON arrays can be any size
-}
+// fn parse_json_array(json: &str) -> ArrayVec<Value, ???>
+// What capacity? JSON arrays can be any size
 
 // ❌ When capacity is very large
 let big: ArrayVec<u8, 1_000_000> = ArrayVec::new();  // 1MB on stack = bad

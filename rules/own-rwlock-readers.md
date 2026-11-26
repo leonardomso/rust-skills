@@ -79,16 +79,24 @@ RwLock has overhead for tracking readers. It can be slower than Mutex when:
 | Single-threaded | `RefCell` |
 | Reads dominate, lock held longer | `RwLock` |
 
-## Write Starvation
+## Fairness and Write Starvation
 
-Standard `RwLock` may starve writers if readers are continuous. `parking_lot::RwLock` is fair by default.
+`std::sync::RwLock` does not promise a priority policy; it depends on the OS implementation. A steady stream of readers may starve a waiting writer on some platforms, and a waiting writer may block new readers on others. `parking_lot::RwLock` documents a task-fair policy that avoids both reader and writer starvation. If fairness matters, pick a lock that documents the policy you need.
+
+## Downgrading a Write Lock
+
+`RwLockWriteGuard::downgrade` (stable since Rust 1.92) turns a write guard into a read guard atomically, so no other writer can get in between. This is about atomicity, not fairness. It lets you publish a value and then keep reading it without a window where another writer can change it:
 
 ```rust
-// parking_lot is writer-fair, preventing starvation
-use parking_lot::RwLock;
+use std::sync::{RwLock, RwLockWriteGuard};
 
-// Or use std with explicit fairness (nightly)
-// #![feature(rwlock_downgrade)]
+fn refresh_and_read(lock: &RwLock<Vec<u32>>) -> usize {
+    let mut writer = lock.write().expect("lock poisoned");
+    writer.push(42);
+    // atomically become a reader: other readers may now enter, writers may not
+    let reader = RwLockWriteGuard::downgrade(writer);
+    reader.len()
+}
 ```
 
 ## Real-World Pattern: Cached Computation

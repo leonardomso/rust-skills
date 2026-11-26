@@ -46,7 +46,7 @@ fn main() {
 
 - Add to `Cargo.toml`: `tracing = "0.1"` for all crates; `tracing-subscriber = { version = "0.3", features = ["env-filter"] }` for binaries only.
 - The `%expr` sigil uses `Display`; `?expr` uses `Debug`; bare `field = value` records typed primitives.
-- `tracing` ships a `log` compatibility bridge: set `tracing-subscriber`'s `log` feature or call `tracing_log::LogTracer::init()` to capture existing `log`-emitting dependencies.
+- Two bridges connect `tracing` and `log`. To capture records from `log`-emitting dependencies, use `tracing-subscriber`'s `tracing-log` feature (on by default, so `fmt::init()` installs it) or call `tracing_log::LogTracer::init()`. To send `tracing` events to a `log` logger, enable `tracing`'s `log` feature.
 
 ## See Also
 

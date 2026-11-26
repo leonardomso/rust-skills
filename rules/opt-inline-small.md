@@ -160,5 +160,4 @@ cargo rustc --release -- --emit=asm
 
 - [opt-inline-always-rare](opt-inline-always-rare.md) - Use #[inline(always)] sparingly
 - [opt-inline-never-cold](opt-inline-never-cold.md) - Use #[inline(never)] for cold paths
-- [opt-cold-unlikely](opt-cold-unlikely.md) - Use #[cold] for unlikely paths
 - [opt-lto-release](opt-lto-release.md) - LTO enables cross-crate inlining

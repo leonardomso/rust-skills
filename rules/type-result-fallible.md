@@ -65,7 +65,7 @@ fn process_file(path: &str) -> Result<ProcessedData, Error> {
 }
 
 // Equivalent to:
-fn process_file(path: &str) -> Result<ProcessedData, Error> {
+fn process_file_expanded(path: &str) -> Result<ProcessedData, Error> {
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => return Err(e.into()),
@@ -83,7 +83,7 @@ let result: Result<i32, Error> = Ok(42);
 let doubled = result.map(|n| n * 2);  // Ok(84)
 
 // map_err: transform error
-let with_context = result.map_err(|e| format!("Failed: {}", e));
+let with_context = result.map_err(|e| format!("failed: {e}"));
 
 // and_then: chain fallible operations
 let processed = result.and_then(|n| {

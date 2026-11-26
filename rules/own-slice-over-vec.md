@@ -1,112 +1,136 @@
 # own-slice-over-vec
 
-> Accept `&[T]` not `&Vec<T>`, `&str` not `&String`
+> Take `&[T]`, `&str`, and `&Path` in parameters, not `&Vec<T>`, `&String`, or `&PathBuf`
 
 ## Why It Matters
 
-Accepting `&[T]` instead of `&Vec<T>` makes your function more flexible - it can accept slices from arrays, vectors, or other sources. Similarly, `&str` accepts string slices from `String`, `&'static str`, or substrings.
+`&[T]` accepts slices from arrays, vectors, and sub-ranges; `&str` accepts `String`, literals, and substrings. `&Vec<T>` and `&String` accept only the owned type, which forces callers to allocate (`arr.to_vec()`, `"x".to_string()`) just to call you. Deref coercion turns `&Vec<T>` into `&[T]` and `&String` into `&str` for free, so the slice form costs callers nothing.
 
 ## Bad
 
 ```rust
-// Overly restrictive - only accepts &Vec
+// Only accepts &Vec
 fn sum(numbers: &Vec<i32>) -> i32 {
     numbers.iter().sum()
 }
 
-// Overly restrictive - only accepts &String
+// Only accepts &String
 fn greet(name: &String) {
     println!("Hello, {}", name);
 }
 
-// Can't call with arrays or slices
-let arr = [1, 2, 3];
-// sum(&arr);  // ERROR: expected &Vec<i32>
+// Same for &mut
+fn double(numbers: &mut Vec<i32>) {
+    for n in numbers.iter_mut() {
+        *n *= 2;
+    }
+}
 
-let literal = "world";
-// greet(&literal);  // ERROR: expected &String
+// Callers must allocate or are rejected:
+// sum(&[1, 2, 3]);       // ERROR: expected &Vec<i32>
+// greet("world");        // ERROR: expected &String
 ```
 
 ## Good
 
 ```rust
-// Flexible - accepts any slice-like thing
+use std::path::{Path, PathBuf};
+
 fn sum(numbers: &[i32]) -> i32 {
     numbers.iter().sum()
 }
 
-// Flexible - accepts any string-like thing
 fn greet(name: &str) {
     println!("Hello, {}", name);
 }
 
-// Now all of these work:
-let vec = vec![1, 2, 3];
-let arr = [4, 5, 6];
-let slice = &vec[0..2];
+fn double(numbers: &mut [i32]) {
+    for n in numbers.iter_mut() {
+        *n *= 2;
+    }
+}
 
-sum(&vec);    // Vec coerces to slice
-sum(&arr);    // Array coerces to slice
-sum(slice);   // Slice works directly
+// Paths: &Path accepts &PathBuf via deref coercion
+fn read_config(path: &Path) -> usize {
+    path.as_os_str().len()
+}
 
-let string = String::from("Alice");
-let literal = "Bob";
+fn main() {
+    let vec = vec![1, 2, 3];
+    let arr = [4, 5, 6];
+    sum(&vec);          // &Vec<i32> coerces to &[i32]
+    sum(&arr);          // array
+    sum(&vec[0..2]);    // sub-slice
 
-greet(&string);  // String coerces to &str
-greet(literal);  // &str works directly
-```
+    let string = String::from("Alice");
+    greet(&string);     // &String coerces to &str
+    greet("Bob");       // literal
 
-## The Deref Coercion Chain
+    let mut nums = vec![1, 2, 3];
+    double(&mut nums);
 
-```rust
-// These coercions happen automatically:
-// Vec<T>  -> &[T]   (via Deref)
-// String  -> &str   (via Deref)
-// Box<T>  -> &T     (via Deref)
-// Arc<T>  -> &T     (via Deref)
-
-fn process(data: &[u8]) { /* ... */ }
-
-let vec: Vec<u8> = vec![1, 2, 3];
-let boxed: Box<[u8]> = vec.into_boxed_slice();
-let arc: Arc<[u8]> = Arc::from(&[1, 2, 3][..]);
-
-process(&vec);    // Works
-process(&boxed);  // Works
-process(&arc);    // Works
-```
-
-## Path Types Too
-
-```rust
-// Bad
-fn read_config(path: &PathBuf) -> Config { /* ... */ }
-
-// Good - accepts &Path, &PathBuf, &str, &String
-fn read_config(path: &Path) -> Config { /* ... */ }
-
-// Even better - accept anything path-like
-fn read_config(path: impl AsRef<Path>) -> Config {
-    let path = path.as_ref();
-    // ...
+    read_config(&PathBuf::from("app.toml"));
+    read_config(Path::new("app.toml"));
 }
 ```
 
-## When to Accept Owned Types
+The same swap applies to other owned wrappers:
+
+| Instead of | Take |
+|------------|------|
+| `&Vec<T>` | `&[T]` |
+| `&String` | `&str` |
+| `&PathBuf` | `&Path` |
+| `&OsString` | `&OsStr` |
+| `&Box<T>` | `&T` |
+
+Clippy's `ptr_arg` lint (on by default) flags these:
+
+```toml
+[lints.clippy]
+ptr_arg = "warn"
+```
+
+## Generic Inputs
+
+Use `AsRef` when callers hold many types (`&str`, `String`, `&Path`, `Vec<u8>`) and you want to accept all of them.
 
 ```rust
-// Accept owned when you need to store it
+use std::path::Path;
+
+fn process(input: impl AsRef<str>) -> usize {
+    input.as_ref().len()
+}
+
+fn checksum(data: impl AsRef<[u8]>) -> u32 {
+    data.as_ref().iter().map(|&b| u32::from(b)).sum()
+}
+
+fn open(path: impl AsRef<Path>) -> bool {
+    path.as_ref().exists()
+}
+```
+
+## When to Take the Owned Type
+
+Take `&Vec<T>`/`&String` only for methods slices lack (`capacity`, `push`). Take the owned value itself when you store it.
+
+```rust
+fn might_grow(v: &mut Vec<i32>) {
+    v.push(42);  // Slices can't push
+}
+
 struct Logger {
     prefix: String,  // Needs to own the string
 }
 
 impl Logger {
-    // Take ownership - caller decides to clone or move
+    // Caller decides to clone or move
     fn new(prefix: String) -> Self {
         Self { prefix }
     }
-    
-    // Or use Into for flexibility
+
+    // Or accept anything convertible
     fn with_prefix(prefix: impl Into<String>) -> Self {
         Self { prefix: prefix.into() }
     }
@@ -117,3 +141,4 @@ impl Logger {
 
 - [api-impl-asref](api-impl-asref.md) - Accept `impl AsRef<T>` for maximum flexibility
 - [own-borrow-over-clone](own-borrow-over-clone.md) - Prefer borrowing over cloning
+- [api-impl-rangebounds](api-impl-rangebounds.md) - Accept impl RangeBounds for ranges

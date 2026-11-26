@@ -66,16 +66,18 @@ impl User {
 
 ## Serde Convention
 
-```rust
-use serde::{Deserialize, Serialize};
+`'de` is the name of the lifetime on the `Deserialize<'de>` trait itself. Use it in `impl` blocks and bounds, but do not name a struct's own lifetime `'de`: the derive reserves that name and rejects it. Use `'a` or a descriptive name for borrowed fields.
 
-// 'de is the standard serde lifetime for borrowed data
+```rust
+use serde::Deserialize;
+
+// `&str` and `&[u8]` fields borrow from the input automatically.
+// Other borrowed types, such as `Vec<&str>`, need `#[serde(borrow)]`.
 #[derive(Deserialize)]
-struct Request<'de> {
+struct Request<'a> {
+    name: &'a str,
     #[serde(borrow)]
-    name: &'de str,
-    #[serde(borrow)]
-    tags: Vec<&'de str>,
+    tags: Vec<&'a str>,
 }
 ```
 

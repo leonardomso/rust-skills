@@ -137,3 +137,4 @@ impl Cache {
 - [mem-with-capacity](./mem-with-capacity.md) - Pre-allocating when size is known
 - [own-slice-over-vec](./own-slice-over-vec.md) - Using slices in function parameters
 - [mem-compact-string](./mem-compact-string.md) - Compact string alternatives
+- [mem-shrink-to-fit](mem-shrink-to-fit.md) - Shrink long-lived collections after building

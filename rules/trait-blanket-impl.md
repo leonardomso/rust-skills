@@ -70,7 +70,7 @@ fn demo() {
 - The standard library blanket-impls `ToString` for all `T: Display`, `From<T> for T` (reflexive), and `impl<T: Error> From<T> for Box<dyn Error>`.
 - Blanket impls live in the crate that owns the **trait** (not the type), satisfying the orphan rule.
 - A blanket impl prevents any specific impl for a type it already covers — that overlap is a coherence error (E0119), because specialization is not stable. Use a newtype when you need a per-type override.
-- Treat adding a public blanket impl as a **minor semver bump at minimum** (or major if it could break downstream).
+- Adding a public blanket impl to an existing trait is a **breaking change** (major semver bump), because it can overlap with impls downstream crates already wrote. Include it in the first release of the trait to avoid this.
 - Pair blanket impls with sealed traits (`api-sealed-trait`) when you want the blanket behaviour but need to prevent external implementations.
 
 ## See Also

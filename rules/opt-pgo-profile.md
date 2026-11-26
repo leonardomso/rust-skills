@@ -41,8 +41,10 @@ lto = "fat"
 codegen-units = 1
 opt-level = 3
 
-# PGO flags set via RUSTFLAGS environment variable
+# PGO flags are set via the RUSTFLAGS environment variable
 ```
+
+Use absolute paths for `-Cprofile-generate` and `-Cprofile-use`, because Cargo can run rustc from different working directories. Pass `--target <triple>` so `RUSTFLAGS` is not applied to build scripts, which would otherwise write their own `.profraw` files. Delete old profile data before each instrumented build.
 
 ## Build Script
 
@@ -75,6 +77,27 @@ RUSTFLAGS="-Cprofile-use=$PGO_DIR/merged.profdata" cargo build --release
 
 echo "Done! Optimized binary at target/release/my_app"
 ```
+
+## Sample-Based PGO (AutoFDO)
+
+`-Cprofile-sample-use` is stable since Rust 1.100. It uses a profile from a sampling profiler (`perf`) instead of an instrumented build, so the profiled binary runs at near full speed and can be a production binary.
+
+```bash
+# 1. Build with line tables so samples map back to source lines
+RUSTFLAGS="-Cdebuginfo=line-tables-only" cargo build --release
+
+# 2. Sample it under real load (-b records the last branch record)
+perf record -b -e BR_INST_RETIRED.NEAR_TAKEN:uppp ./target/release/my_app < typical.txt
+
+# 3. Convert perf data to LLVM's sample profile format
+llvm-profgen --binary=./target/release/my_app --output=/abs/path/my_app.prof --perfdata=perf.data
+
+# 4. Rebuild using the sample profile (keep the same debuginfo flag)
+RUSTFLAGS="-Cdebuginfo=line-tables-only -Cprofile-sample-use=/abs/path/my_app.prof" \
+    cargo build --release
+```
+
+Instrumentation profiles (`-Cprofile-use`) and sample profiles (`-Cprofile-sample-use`) are not interchangeable. Sample-based PGO is mostly tested on x86-64 Linux. The extra accuracy flag `-Zdebuginfo-for-profiling` is still nightly-only.
 
 ## Representative Workloads
 

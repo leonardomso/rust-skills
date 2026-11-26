@@ -94,8 +94,9 @@ use std::mem::size_of;
 // All 24 bytes, but different inline capacities
 assert_eq!(size_of::<String>(), 24);
 assert_eq!(size_of::<compact_str::CompactString>(), 24);
-assert_eq!(size_of::<smartstring::SmartString>(), 24);
-assert_eq!(size_of::<ecow::EcoString>(), 16);  // Even smaller!
+assert_eq!(size_of::<smartstring::SmartString<smartstring::LazyCompact>>(), 24);
+// ecow is not a dependency of the example checks, so this line is commented out:
+// assert_eq!(size_of::<ecow::EcoString>(), 16);  // Even smaller!
 ```
 
 ## Inline Capacity
@@ -112,6 +113,11 @@ assert_eq!(size_of::<ecow::EcoString>(), 16);  // Even smaller!
 ## When to Use
 
 ```rust
+use compact_str::CompactString;
+
+// Stand-in for ecow::EcoString (ecow is not a dependency of the example checks)
+type EcoString = String;
+
 // ✅ Good: Many short strings in memory
 struct Dictionary {
     words: Vec<CompactString>,  // Millions of short words
@@ -130,16 +136,16 @@ fn transform(s: &str) -> String {
 
 // ❌ Don't: API boundaries (prefer &str or String for interop)
 pub fn public_api(input: CompactString) { }  // Forces dependency
-pub fn public_api(input: impl Into<String>) { }  // Better
+pub fn public_api_better(input: impl Into<String>) { }  // Better
 ```
 
 ## Cargo.toml
 
 ```toml
 [dependencies]
-compact_str = "0.9"
+compact_str = "0.10"
 # or
-smartstring = "1.0"
+smartstring = "2"
 # or
 ecow = "0.2"
 ```

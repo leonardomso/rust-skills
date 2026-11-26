@@ -4,7 +4,7 @@
 
 ## Why It Matters
 
-SIMD (Single Instruction, Multiple Data) processes multiple values per instruction—4x, 8x, or more speedup for suitable algorithms. Rust's portable SIMD (nightly) and crates like `wide` provide cross-platform vectorization without architecture-specific intrinsics. For stable Rust, let LLVM auto-vectorize or use platform-specific crates.
+SIMD (Single Instruction, Multiple Data) processes multiple values per instruction—4x, 8x, or more speedup for suitable algorithms. Rust's portable SIMD (`std::simd`, still nightly-only as of 1.100) and crates like `wide` provide cross-platform vectorization without architecture-specific intrinsics. For stable Rust, let LLVM auto-vectorize or use platform-specific crates.
 
 ## Autovectorization (Stable)
 
@@ -24,6 +24,22 @@ fn add_arrays(a: &[f32], b: &[f32], out: &mut [f32]) {
 // 1. Use iterators over indexing
 // 2. Avoid early exits in loops
 // 3. Use chunks_exact for aligned access
+```
+
+## Float Reductions: `algebraic_*` (Stable)
+
+Float addition is not associative, so LLVM will not reorder `sum += x` into vector lanes: the strict result would change. Since Rust 1.98, `f32`/`f64` have `algebraic_add`, `algebraic_sub`, `algebraic_mul`, `algebraic_div` and `algebraic_rem`. They allow the optimizer to reassociate and fuse operations, so reductions can vectorize. The result may differ slightly from strict IEEE order, and it is not guaranteed to be the same between builds, so use them only where tiny rounding differences are acceptable.
+
+```rust
+fn sum(data: &[f32]) -> f32 {
+    data.iter().fold(0.0, |acc, &x| acc.algebraic_add(x))  // may vectorize
+}
+
+fn dot(a: &[f32], b: &[f32]) -> f32 {
+    a.iter()
+        .zip(b)
+        .fold(0.0, |acc, (&x, &y)| acc.algebraic_add(x.algebraic_mul(y)))
+}
 ```
 
 ## Portable SIMD (Nightly)
@@ -132,6 +148,7 @@ unsafe fn sum_avx2(data: &[f32]) -> f32 {
 | Approach | Stability | Portability | Control |
 |----------|-----------|-------------|---------|
 | Autovectorization | Stable | Excellent | Low |
+| `algebraic_*` float ops | Stable (1.98) | Excellent | Low |
 | `wide` crate | Stable | Good | Medium |
 | Portable SIMD | Nightly | Excellent | High |
 | Intrinsics | Stable | None | Maximum |

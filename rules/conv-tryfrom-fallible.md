@@ -73,8 +73,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Use a concrete error type, not `String` or `Box<dyn Error>`, so callers can match on it.
 - When the conversion is truly infallible, implement `From` instead.
 
+## Infallible Conversions
+
+Every `From` impl also gives a `TryFrom` impl whose error type is `Infallible`. Since Rust 1.100 `Infallible` is an alias of the never type `!`, so the `Err` case is statically impossible and you can destructure irrefutably.
+
+```rust
+fn main() {
+    let Ok(wide) = u64::try_from(5_u32);
+    assert_eq!(wide, 5);
+}
+```
+
 ## See Also
 
 - [api-from-not-into](api-from-not-into.md) - implement `From`, not `Into`, for the same reason
 - [conv-fromstr-parsing](conv-fromstr-parsing.md) - standard hook for string→type parsing
+- [type-never-diverge](type-never-diverge.md) - `!` and `Infallible` as an impossible error type
 - [api-parse-dont-validate](api-parse-dont-validate.md) - parse into validated types at boundaries

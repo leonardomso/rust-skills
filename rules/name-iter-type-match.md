@@ -9,23 +9,21 @@ Iterator types should match the method that creates them. `iter()` returns `Iter
 ## Standard Library Pattern
 
 ```rust
-// Vec
-impl<T> Vec<T> {
-    fn iter(&self) -> Iter<'_, T> { }       // Returns Iter
-    fn iter_mut(&mut self) -> IterMut<'_, T> { }  // Returns IterMut
-}
+use std::collections::{hash_map, HashMap};
+use std::{slice, vec};
 
-impl<T> IntoIterator for Vec<T> {
-    type IntoIter = IntoIter<T>;  // Returns IntoIter
-}
+// Vec (via slice)
+let mut v = vec![1, 2, 3];
+let _: slice::Iter<'_, i32> = v.iter();          // iter() -> Iter
+let _: slice::IterMut<'_, i32> = v.iter_mut();   // iter_mut() -> IterMut
+let _: vec::IntoIter<i32> = v.clone().into_iter(); // into_iter() -> IntoIter
 
 // HashMap
-impl<K, V> HashMap<K, V> {
-    fn iter(&self) -> Iter<'_, K, V> { }
-    fn keys(&self) -> Keys<'_, K, V> { }    // Returns Keys
-    fn values(&self) -> Values<'_, K, V> { }  // Returns Values
-    fn drain(&mut self) -> Drain<'_, K, V> { }  // Returns Drain
-}
+let mut map: HashMap<String, i32> = HashMap::new();
+let _: hash_map::Iter<'_, String, i32> = map.iter();
+let _: hash_map::Keys<'_, String, i32> = map.keys();     // keys() -> Keys
+let _: hash_map::Values<'_, String, i32> = map.values(); // values() -> Values
+let _: hash_map::Drain<'_, String, i32> = map.drain();   // drain() -> Drain
 ```
 
 ## Implementation
@@ -109,16 +107,45 @@ mod my_collection {
 ## Custom Iterator Methods
 
 ```rust
-impl Graph {
-    // Method name -> Type name
-    fn nodes(&self) -> Nodes<'_> { }        // Custom: Nodes
-    fn edges(&self) -> Edges<'_> { }        // Custom: Edges
-    fn neighbors(&self, node: NodeId) -> Neighbors<'_> { }  // Custom: Neighbors
+pub struct Graph {
+    nodes: Vec<u32>,
+    edges: Vec<(u32, u32)>,
 }
 
-pub struct Nodes<'a> { /* ... */ }
-pub struct Edges<'a> { /* ... */ }
-pub struct Neighbors<'a> { /* ... */ }
+// Method name -> Type name
+pub struct Nodes<'a> {
+    inner: std::slice::Iter<'a, u32>,
+}
+
+pub struct Edges<'a> {
+    inner: std::slice::Iter<'a, (u32, u32)>,
+}
+
+impl Graph {
+    pub fn nodes(&self) -> Nodes<'_> {
+        Nodes { inner: self.nodes.iter() }
+    }
+
+    pub fn edges(&self) -> Edges<'_> {
+        Edges { inner: self.edges.iter() }
+    }
+}
+
+impl<'a> Iterator for Nodes<'a> {
+    type Item = &'a u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a> Iterator for Edges<'a> {
+    type Item = &'a (u32, u32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
 ```
 
 ## Bad
@@ -137,6 +164,5 @@ pub struct I<T>;         // Too cryptic
 
 ## See Also
 
-- [name-iter-convention](./name-iter-convention.md) - iter/iter_mut/into_iter
-- [name-iter-method](./name-iter-method.md) - Iterator method names
+- [name-iter-method](./name-iter-method.md) - iter/iter_mut/into_iter
 - [api-common-traits](./api-common-traits.md) - Implementing common traits

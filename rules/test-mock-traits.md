@@ -4,7 +4,7 @@
 
 ## Why It Matters
 
-Concrete dependencies make testing hard—you can't easily test error paths, timeouts, or edge cases without real external systems. Extracting dependencies behind traits lets you inject test doubles (mocks, fakes, stubs), enabling isolated unit tests that run fast and cover edge cases.
+Concrete dependencies make testing hard. You can't test error paths, timeouts, or edge cases without the real external system. Put each dependency behind a small trait and inject a test double (a fake or stub). Tests then run fast and can force any failure.
 
 ## Bad
 
@@ -15,175 +15,143 @@ struct UserService {
 
 impl UserService {
     async fn get_user(&self, id: u64) -> Result<User, Error> {
-        // Directly calls Postgres - needs real database to test
         self.db.query("SELECT * FROM users WHERE id = $1", &[&id]).await
     }
 }
 
-// Test requires real Postgres instance
-#[tokio::test]
-async fn test_get_user() {
-    let db = PostgresConnection::connect("postgres://...").await?;
-    let service = UserService { db };
-    // Slow, flaky, can't test error paths
-}
+// A test needs a real Postgres instance: slow, flaky, no error paths
 ```
 
 ## Good
 
 ```rust
-// Define trait for dependency
-#[async_trait]
-trait UserRepository: Send + Sync {
-    async fn find_by_id(&self, id: u64) -> Result<Option<User>, DbError>;
-    async fn save(&self, user: &User) -> Result<(), DbError>;
+use std::collections::HashMap;
+
+#[derive(Clone, Debug, PartialEq)]
+struct User {
+    id: u64,
+    name: String,
 }
 
-// Production implementation
-struct PostgresUserRepo {
-    pool: PgPool,
+#[derive(Debug)]
+enum DbError {
+    Unavailable,
 }
 
-#[async_trait]
-impl UserRepository for PostgresUserRepo {
-    async fn find_by_id(&self, id: u64) -> Result<Option<User>, DbError> {
-        sqlx::query_as("SELECT * FROM users WHERE id = $1")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await
+#[derive(Debug)]
+enum Error {
+    NotFound,
+    Db(DbError),
+}
+
+impl From<DbError> for Error {
+    fn from(e: DbError) -> Self {
+        Error::Db(e)
     }
-    // ...
 }
 
-// Service depends on trait, not concrete type
+// Define a trait for the dependency. Native `async fn` in traits needs no macro.
+trait UserRepository {
+    async fn find_by_id(&self, id: u64) -> Result<Option<User>, DbError>;
+}
+
+// Service depends on the trait, not a concrete type
 struct UserService<R: UserRepository> {
     repo: R,
 }
 
 impl<R: UserRepository> UserService<R> {
     async fn get_user(&self, id: u64) -> Result<User, Error> {
-        self.repo.find_by_id(id).await?
-            .ok_or(Error::NotFound)
+        self.repo.find_by_id(id).await?.ok_or(Error::NotFound)
     }
 }
 
-// Test with mock
+// The production implementation (for example a database pool) implements
+// `UserRepository` the same way the fakes below do.
+
 #[cfg(test)]
 mod tests {
-    struct MockUserRepo {
+    use super::*;
+
+    struct FakeUserRepo {
         users: HashMap<u64, User>,
     }
-    
-    #[async_trait]
-    impl UserRepository for MockUserRepo {
+
+    impl UserRepository for FakeUserRepo {
         async fn find_by_id(&self, id: u64) -> Result<Option<User>, DbError> {
             Ok(self.users.get(&id).cloned())
         }
-        // ...
     }
-    
+
+    struct DownRepo;
+
+    impl UserRepository for DownRepo {
+        async fn find_by_id(&self, _id: u64) -> Result<Option<User>, DbError> {
+            Err(DbError::Unavailable)
+        }
+    }
+
     #[tokio::test]
-    async fn test_get_user_found() {
-        let mut mock = MockUserRepo { users: HashMap::new() };
-        mock.users.insert(1, User { id: 1, name: "Alice".into() });
-        
-        let service = UserService { repo: mock };
+    async fn get_user_returns_user_when_present() {
+        let mut users = HashMap::new();
+        users.insert(1, User { id: 1, name: "Alice".into() });
+        let service = UserService { repo: FakeUserRepo { users } };
+
         let user = service.get_user(1).await.unwrap();
-        
+
         assert_eq!(user.name, "Alice");
     }
-    
+
     #[tokio::test]
-    async fn test_get_user_not_found() {
-        let mock = MockUserRepo { users: HashMap::new() };
-        let service = UserService { repo: mock };
-        
+    async fn get_user_returns_not_found_for_unknown_id() {
+        let service = UserService { repo: FakeUserRepo { users: HashMap::new() } };
+
         let result = service.get_user(999).await;
+
         assert!(matches!(result, Err(Error::NotFound)));
     }
-}
-```
 
-## mockall Crate
+    #[tokio::test]
+    async fn get_user_propagates_database_errors() {
+        let service = UserService { repo: DownRepo };
 
-```rust
-use mockall::*;
-use mockall::predicate::*;
+        let result = service.get_user(1).await;
 
-#[automock]
-#[async_trait]
-trait Database: Send + Sync {
-    async fn query(&self, sql: &str) -> Result<Vec<Row>, Error>;
-}
-
-#[tokio::test]
-async fn test_with_mockall() {
-    let mut mock = MockDatabase::new();
-    
-    mock.expect_query()
-        .with(eq("SELECT 1"))
-        .times(1)
-        .returning(|_| Ok(vec![Row::new()]));
-    
-    let result = mock.query("SELECT 1").await;
-    assert!(result.is_ok());
-}
-```
-
-## Testing Error Paths
-
-```rust
-#[async_trait]
-trait HttpClient: Send + Sync {
-    async fn get(&self, url: &str) -> Result<Response, HttpError>;
-}
-
-struct FailingClient;
-
-#[async_trait]
-impl HttpClient for FailingClient {
-    async fn get(&self, _url: &str) -> Result<Response, HttpError> {
-        Err(HttpError::Timeout)  // Always fails
+        assert!(matches!(result, Err(Error::Db(DbError::Unavailable))));
     }
 }
-
-#[tokio::test]
-async fn test_handles_timeout() {
-    let client = FailingClient;
-    let service = ApiService { client };
-    
-    let result = service.fetch_data().await;
-    assert!(matches!(result, Err(Error::NetworkError(_))));
-}
 ```
 
-## Dynamic Dispatch Alternative
+## Generics vs `dyn`
+
+A trait with a native `async fn` is not dyn-compatible, so `Box<dyn UserRepository>` does not work above. Keep the generic parameter. For synchronous dependencies, `dyn` keeps the service type simple. For `dyn` with async methods, see [async-fn-in-trait](async-fn-in-trait.md).
 
 ```rust
-// When you don't want generics everywhere
-struct UserService {
-    repo: Box<dyn UserRepository>,
+// Synchronous dependency: `dyn` works and keeps the service type simple
+trait Clock {
+    fn now_secs(&self) -> u64;
 }
 
-impl UserService {
-    fn new(repo: impl UserRepository + 'static) -> Self {
-        Self { repo: Box::new(repo) }
+struct Service {
+    clock: Box<dyn Clock>,
+}
+
+impl Service {
+    fn new(clock: impl Clock + 'static) -> Self {
+        Self { clock: Box::new(clock) }
+    }
+
+    fn is_after(&self, deadline: u64) -> bool {
+        self.clock.now_secs() > deadline
     }
 }
-
-// Slight runtime cost but cleaner API
-```
-
-## Cargo.toml
-
-```toml
-[dev-dependencies]
-mockall = "0.11"
-async-trait = "0.1"  # For async trait mocking
 ```
 
 ## See Also
 
-- [api-sealed-trait](./api-sealed-trait.md) - Trait design
-- [test-proptest-properties](./test-proptest-properties.md) - Property-based testing
-- [proj-lib-main-split](./proj-lib-main-split.md) - Testable architecture
+- [test-mockall-mocking](test-mockall-mocking.md) - Generate mocks with mockall instead of writing fakes by hand
+- [async-fn-in-trait](async-fn-in-trait.md) - Native async fn in traits, and `dyn` with async methods
+- [trait-dyn-vs-generic](trait-dyn-vs-generic.md) - Choosing generics or `dyn`
+- [api-sans-io](api-sans-io.md) - Take `impl Read`/`Write` instead of paths
+- [test-utils-feature-gated](test-utils-feature-gated.md) - Gate test utilities behind a feature
+- [proj-lib-main-split](proj-lib-main-split.md) - Testable architecture

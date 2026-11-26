@@ -65,6 +65,10 @@ v.first();  // Warning: unused Option
 // Iterator adapters are #[must_use]
 v.iter().map(|x| x * 2);  // Warning: iterators are lazy
 
+// Since Rust 1.97, `Result<T, Infallible>` (and `ControlFlow<Infallible, T>`)
+// is treated like `T` for this lint, because the error can never happen.
+// Ignoring such a result no longer warns.
+
 // String methods that return new values
 let s = "hello";
 s.to_uppercase();  // Warning: unused String
@@ -93,7 +97,7 @@ struct Map<I, F> { ... }
 fn log(msg: &str) -> Result<(), io::Error> { ... }  // Might be ok to ignore
 
 // ❌ Methods with useful side effects
-fn vec.push(item);  // Mutates vec, no return to use
+// vec.push(item) mutates vec and returns (), so there is nothing to mark
 ```
 
 ## Custom Messages
@@ -112,14 +116,16 @@ async fn fetch() -> Data { ... }
 ## Clippy Lints
 
 ```toml
+[lints.rust]
+unused_must_use = "deny"          # rustc lint: treat unused results as errors
+
 [lints.clippy]
 must_use_candidate = "warn"      # Suggests where to add #[must_use]
-unused_must_use = "deny"          # Built-in, treat warnings as errors
-double_must_use = "warn"          # Redundant #[must_use]
+double_must_use = "warn"          # Redundant #[must_use] on a type that is already must_use
 ```
 
 ## See Also
 
 - [api-builder-must-use](./api-builder-must-use.md) - Builder pattern must_use
 - [err-result-over-panic](./err-result-over-panic.md) - Result types require handling
-- [lint-deny-correctness](./lint-deny-correctness.md) - Enabling useful lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Enabling useful lints

@@ -1,6 +1,6 @@
 # anti-empty-catch
 
-> Don't silently ignore errors
+> Handle, propagate, or log every error; make an intentional discard explicit and commented
 
 ## Why It Matters
 
@@ -129,4 +129,4 @@ ignored_unit_patterns = "warn"
 
 - [err-result-over-panic](./err-result-over-panic.md) - Proper error handling
 - [err-context-chain](./err-context-chain.md) - Adding context
-- [anti-unwrap-abuse](./anti-unwrap-abuse.md) - Unwrap issues
+- [err-no-unwrap-prod](./err-no-unwrap-prod.md) - Unwrap issues

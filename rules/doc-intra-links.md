@@ -1,10 +1,10 @@
 # doc-intra-links
 
-> Use intra-doc links to reference types and items
+> Link types, methods, and modules in doc comments with intra-doc links such as [`Type`] and [`Self::method`]
 
 ## Why It Matters
 
-Intra-doc links (`[TypeName]`, `[method](Self::method)`) create clickable references in generated documentation. They're verified at doc-build time, catching broken links early. Unlike URL links, they automatically update when items are renamed or moved.
+Intra-doc links (`[TypeName]`, `[method](Self::method)`) create clickable references in generated documentation. They're verified at doc-build time, catching broken links early. Unlike URL links or plain-text names, they stay clickable and update when items are renamed or moved.
 
 ## Bad
 
@@ -49,7 +49,9 @@ pub fn parse<T: FromStr>(input: &str) -> Result<T, Error> {
 | Syntax | Links To | Example |
 |--------|----------|---------|
 | `[Name]` | Item in scope | `[Vec]`, `[Option]` |
-| `[path::Name]` | Fully qualified item | `[std::vec::Vec]` |
+| `[path::Name]` | Fully qualified item | `[std::vec::Vec]`, `[crate::utils::helper]` |
+| `[super::Name]` | Item in parent module | `[super::Parent]` |
+| `[module]` | Module in scope | `[parser]` |
 | `[Self::method]` | Method on current type | `[Self::new]` |
 | `[Type::method]` | Method on other type | `[String::new]` |
 | `[Type::CONST]` | Associated constant | `[usize::MAX]` |
@@ -76,14 +78,21 @@ impl Buffer {
 ### Linking to Trait Methods
 
 ```rust
-/// Converts to a string representation.
+/// Implements [`Iterator`]; [`Iterator::next`] advances the cursor.
+pub struct MyIterator { /* ... */ }
+```
+
+### Linking to Errors and Related Items
+
+```rust
+/// Parses input and returns a [`ParseResult`].
 ///
-/// This is the implementation of [`Display::fmt`](std::fmt::Display::fmt).
-impl Display for MyType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // ...
-    }
-}
+/// # Errors
+///
+/// Returns [`ParseError::InvalidSyntax`] if the input contains invalid tokens.
+///
+/// See also [`Tokenizer`], the tokenizer this parser uses, and [`parse_file`].
+pub fn parse(input: &str) -> ParseResult { /* ... */ }
 ```
 
 ### Disambiguation
@@ -126,13 +135,33 @@ For repeated links or long paths:
 Enable link checking in CI:
 
 ```bash
-RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+CARGO_BUILD_WARNINGS=deny cargo doc --no-deps
 ```
 
-This fails if any intra-doc links are broken.
+This fails if any intra-doc links are broken. `build.warnings` (stable since Rust 1.97) only affects your own packages, unlike `RUSTDOCFLAGS="-D warnings"`, which also applies to the documentation of every dependency. See [lint-build-warnings](lint-build-warnings.md). To deny it in the crate itself:
+
+```toml
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+```
+
+## Other Rustdoc Lints Worth Keeping On
+
+| Lint | Since | What it reports |
+|------|-------|-----------------|
+| `rustdoc::broken_intra_doc_links` | warn by default | Link that does not resolve |
+| `rustdoc::invalid_markdown_table` | Rust 1.100 | Unescaped `\|` in a table cell, so the rest of the row is dropped |
+| `rustdoc::unused_footnote_definition` | Rust 1.99 | `[^1]: ...` that nothing references |
+
+```rust
+//! | closure |
+//! | ------- |
+//! | `code_with(\|arg\| arg)` |  // escape pipes inside table cells
+```
 
 ## See Also
 
 - [doc-all-public](./doc-all-public.md) - Documenting public items
 - [doc-examples-section](./doc-examples-section.md) - Adding examples
 - [doc-errors-section](./doc-errors-section.md) - Documenting errors
+- [lint-clippy-groups](./lint-clippy-groups.md) - Lint settings

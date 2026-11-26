@@ -8,8 +8,8 @@ Not all users of your library need serialization. Making serde a required depend
 
 ## Bad
 
-```rust
-// Cargo.toml
+```toml
+# Cargo.toml
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 
@@ -26,8 +26,8 @@ pub struct Config {
 
 ## Good
 
-```rust
-// Cargo.toml
+```toml
+# Cargo.toml
 [dependencies]
 serde = { version = "1.0", features = ["derive"], optional = true }
 
@@ -110,8 +110,8 @@ pub struct Config {
 
 ## Multiple Optional Dependencies
 
-```rust
-// Cargo.toml
+```toml
+# Cargo.toml
 [dependencies]
 serde = { version = "1.0", features = ["derive"], optional = true }
 rkyv = { version = "0.7", optional = true }
@@ -122,7 +122,9 @@ default = []
 serde = ["dep:serde"]
 rkyv = ["dep:rkyv"]
 borsh = ["dep:borsh"]
+```
 
+```rust
 // lib.rs
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -161,24 +163,25 @@ fn test_serde_roundtrip() {
 
 ## When to Make Serde Required
 
-```rust
-// ✅ Required: Library is about serialization
-// (e.g., json-schema, config-file parser)
+```toml
+# ✅ Required: Library is about serialization
+# (e.g., json-schema, config-file parser)
 [dependencies]
 serde = "1.0"
 
-// ✅ Required: Domain heavily uses serde
-// (e.g., API client, data format library)
+# ✅ Required: Domain heavily uses serde
+# (e.g., API client, data format library)
 
-// ❌ Optional: General-purpose utility library
-// ❌ Optional: Math/algorithm library
-// ❌ Optional: Most libraries!
+# ❌ Optional: General-purpose utility library
+# ❌ Optional: Math/algorithm library
+# ❌ Optional: Most libraries!
 ```
 
 ## See Also
 
 - [proj-lib-main-split](./proj-lib-main-split.md) - Library structure
 - [api-common-traits](./api-common-traits.md) - Core trait implementations
-- [lint-deny-correctness](./lint-deny-correctness.md) - Feature testing
+- [lint-clippy-groups](./lint-clippy-groups.md) - Feature testing
 - [serde-try-from-validate](./serde-try-from-validate.md) - Validate while deserializing
 - [serde-rename-all](./serde-rename-all.md) - Match external naming conventions
+- [api-dont-leak-types](api-dont-leak-types.md) - Keep third-party types out of public APIs

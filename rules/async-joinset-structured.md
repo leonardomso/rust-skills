@@ -27,6 +27,7 @@ let results = futures::future::join_all(handles).await;
 ```rust
 use tokio::task::JoinSet;
 
+let urls = vec!["https://example.com".to_string()];
 let mut set = JoinSet::new();
 
 for url in urls {
@@ -41,36 +42,44 @@ while let Some(result) = set.join_next().await {
         Err(e) => log::error!("Task panicked: {}", e),
     }
 }
-
 // All tasks done, set is empty
+
+struct Data;
+async fn fetch(_url: String) -> anyhow::Result<Data> { Ok(Data) }
+fn process(_data: Data) {}
 ```
 
 ## Dynamic Task Addition
 
 ```rust
-use tokio::task::JoinSet;
+use tokio::sync::mpsc;
+use tokio::task::{JoinError, JoinSet};
 
 async fn worker_pool(mut rx: mpsc::Receiver<Task>) {
     let mut set = JoinSet::new();
     let max_concurrent = 10;
-    
+
     loop {
         tokio::select! {
             // Accept new tasks if under limit
             Some(task) = rx.recv(), if set.len() < max_concurrent => {
                 set.spawn(process_task(task));
             }
-            
+
             // Process completed tasks
             Some(result) = set.join_next() => {
                 handle_result(result);
             }
-            
+
             // Exit when no tasks and channel closed
             else => break,
         }
     }
 }
+
+struct Task;
+async fn process_task(_task: Task) -> u32 { 0 }
+fn handle_result(_result: Result<u32, JoinError>) {}
 ```
 
 ## Abort on Drop
@@ -78,19 +87,25 @@ async fn worker_pool(mut rx: mpsc::Receiver<Task>) {
 ```rust
 use tokio::task::JoinSet;
 
-{
+async fn early_exit() {
     let mut set = JoinSet::new();
     set.spawn(long_running_task());
     set.spawn(another_task());
-    
+
     // Early exit
     return;
 }  // JoinSet dropped here - all tasks are aborted!
 
 // Explicit abort
-let mut set = JoinSet::new();
-set.spawn(task());
-set.abort_all();  // Cancel all tasks
+async fn explicit_abort() {
+    let mut set = JoinSet::new();
+    set.spawn(task());
+    set.abort_all();  // Cancel all tasks
+}
+
+async fn long_running_task() {}
+async fn another_task() {}
+async fn task() {}
 ```
 
 ## Error Handling Pattern
@@ -101,11 +116,11 @@ use tokio::task::JoinSet;
 async fn fetch_all(urls: &[String]) -> Vec<Result<Data, Error>> {
     let mut set = JoinSet::new();
     let mut results = Vec::new();
-    
+
     for url in urls {
         set.spawn(fetch(url.clone()));
     }
-    
+
     while let Some(join_result) = set.join_next().await {
         let result = match join_result {
             Ok(task_result) => task_result,
@@ -119,9 +134,13 @@ async fn fetch_all(urls: &[String]) -> Vec<Result<Data, Error>> {
         };
         results.push(result);
     }
-    
+
     results
 }
+
+struct Data;
+enum Error { TaskPanicked, TaskCancelled }
+async fn fetch(_url: String) -> Result<Data, Error> { Ok(Data) }
 ```
 
 ## With Cancellation
@@ -132,7 +151,7 @@ use tokio_util::sync::CancellationToken;
 
 async fn run_workers(shutdown: CancellationToken) {
     let mut set = JoinSet::new();
-    
+
     for i in 0..4 {
         let token = shutdown.child_token();
         set.spawn(async move {
@@ -144,16 +163,18 @@ async fn run_workers(shutdown: CancellationToken) {
             }
         });
     }
-    
+
     // Wait for shutdown
     shutdown.cancelled().await;
-    
+
     // Abort remaining tasks
     set.abort_all();
-    
+
     // Wait for all to finish (drain aborted tasks)
     while set.join_next().await.is_some() {}
 }
+
+async fn do_work(_worker: u32) {}
 ```
 
 ## Spawning with Context
@@ -161,6 +182,8 @@ async fn run_workers(shutdown: CancellationToken) {
 ```rust
 use tokio::task::JoinSet;
 
+let urls = vec!["https://example.com".to_string()];
+let mut results: Vec<Option<Result<Data, Error>>> = urls.iter().map(|_| None).collect();
 let mut set: JoinSet<(usize, Result<Data, Error>)> = JoinSet::new();
 
 for (index, url) in urls.iter().enumerate() {
@@ -176,6 +199,10 @@ while let Some(result) = set.join_next().await {
         results[index] = Some(data);
     }
 }
+
+struct Data;
+struct Error;
+async fn fetch(_url: &str) -> Result<Data, Error> { Ok(Data) }
 ```
 
 ## JoinSet vs join_all

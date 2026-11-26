@@ -31,9 +31,9 @@ fn main() {
 #[inline]
 fn double<T>(x: T) -> T
 where
-    T: std::ops::Mul<Output = T> + Copy,
+    T: std::ops::Add<Output = T> + Copy,
 {
-    x * x  // or x + x for integer-like types
+    x + x
 }
 
 fn main() {

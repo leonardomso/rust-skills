@@ -160,3 +160,5 @@ pub use serde::*;  // Usually too broad
 - [proj-prelude-module](./proj-prelude-module.md) - Prelude pattern
 - [proj-pub-crate-internal](./proj-pub-crate-internal.md) - Internal visibility
 - [api-non-exhaustive](./api-non-exhaustive.md) - API stability
+- [api-dont-leak-types](api-dont-leak-types.md) - Keep third-party types out of public APIs
+- [api-no-glob-reexports](api-no-glob-reexports.md) - Re-export items individually

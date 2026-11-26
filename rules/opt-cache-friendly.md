@@ -136,6 +136,13 @@ struct Node {
 
 fn sum_linked(head: &Node) -> i32 {
     // Each node is a cache miss
+    let mut sum = head.value;
+    let mut cur = &head.next;
+    while let Some(node) = cur {
+        sum += node.value;
+        cur = &node.next;
+    }
+    sum
 }
 
 // Good: contiguous vector

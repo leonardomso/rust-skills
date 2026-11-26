@@ -11,7 +11,7 @@ Criterion provides statistically rigorous benchmarking with warmup, multiple ite
 ```toml
 # Cargo.toml
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 
 [[bench]]
 name = "my_benchmark"
@@ -22,7 +22,8 @@ harness = false
 
 ```rust
 // benches/my_benchmark.rs
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box; // criterion::black_box is deprecated in current criterion releases
 
 fn fibonacci(n: u64) -> u64 {
     match n {

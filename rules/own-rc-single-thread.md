@@ -52,8 +52,9 @@ fn build_tree() -> Rc<Node> {
 |----------|-----|
 | Single-threaded, shared ownership | `Rc<T>` |
 | Multi-threaded, shared ownership | `Arc<T>` |
-| Single owner, might need multiple later | Start with `Rc`, upgrade if needed |
-| Library code, unknown threading model | `Arc<T>` (safer default) |
+| Single owner | Plain ownership or `Box<T>`; add `Rc` only when a second owner actually appears |
+| Library type that callers may share across threads | `Arc<T>` (an `Rc` field would make your type `!Send`/`!Sync`) |
+| Library type that is single-threaded by design | `Rc<T>` is fine; document that the type is `!Send` |
 
 ## Breaking Cycles with Weak
 
@@ -95,3 +96,4 @@ let _maybe_parent: Option<Rc<Node>> = child.parent.borrow().upgrade();
 - [own-refcell-interior](./own-refcell-interior.md) - Combining Rc with interior mutability
 - [conc-thread-local](./conc-thread-local.md) - Per-thread state in single-threaded-style code
 - [mem-drop-order](./mem-drop-order.md) - Drop order matters for cyclic/`Weak` structures
+- [api-types-send](api-types-send.md) - Make public types and futures Send

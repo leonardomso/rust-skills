@@ -67,9 +67,9 @@ match mutex.lock() {
 let guard = mutex.lock().unwrap_or_else(|e| e.into_inner());
 ```
 
-## Prefer parking_lot::Mutex
+## Consider parking_lot::Mutex
 
-For better performance, consider `parking_lot::Mutex`:
+`parking_lot::Mutex` is a popular alternative with a different API:
 
 ```rust
 use parking_lot::Mutex;
@@ -83,11 +83,11 @@ data.push(42);
 // Lock automatically released when guard drops
 ```
 
-Benefits of `parking_lot`:
-- No poisoning (returns guard directly)
-- Smaller size (1 byte vs 40+ bytes)
-- Better performance under contention
-- Fair locking option available
+How it differs from `std::sync::Mutex`:
+- No poisoning: `lock()` returns the guard directly instead of a `LockResult`, so it is not a drop-in replacement; call sites change
+- Its raw lock is one byte. `std`'s size depends on platform, toolchain, and `T` (for example, `size_of::<std::sync::Mutex<()>>()` is 8 on Linux x86_64 today), so measure with `size_of` on your targets instead of assuming
+- Eventual fairness, plus `MutexGuard::unlock_fair` when you need a strict hand-off
+- Performance under contention differs by platform and workload; `std` has used futex-based locks on Linux since Rust 1.62. Benchmark before switching for speed alone
 
 ## When to Use What
 
@@ -96,7 +96,7 @@ Benefits of `parking_lot`:
 | `RefCell<T>` | Single | Minimal | Interior mutability, same thread |
 | `Mutex<T>` | Multi | Locking | Shared mutable state across threads |
 | `RwLock<T>` | Multi | Locking | Many readers, few writers |
-| `parking_lot::Mutex` | Multi | Less | Drop-in std::Mutex replacement |
+| `parking_lot::Mutex` | Multi | Locking | No poisoning, `lock()` returns the guard directly |
 
 ## See Also
 

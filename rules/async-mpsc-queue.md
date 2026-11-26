@@ -63,12 +63,16 @@ while let Some(event) = rx.recv().await {
     process(event);
 }
 // Loop exits when all senders dropped
+
+struct Event { source: u32 }
+fn process(_event: Event) {}
 ```
 
 ## Message Handler Pattern
 
 ```rust
-use tokio::sync::mpsc;
+use std::collections::HashMap;
+use tokio::sync::{mpsc, oneshot};
 
 enum Command {
     Get { key: String, reply: oneshot::Sender<Option<Value>> },
@@ -78,7 +82,7 @@ enum Command {
 
 async fn run_store(mut commands: mpsc::Receiver<Command>) {
     let mut store = HashMap::new();
-    
+
     while let Some(cmd) = commands.recv().await {
         match cmd {
             Command::Get { key, reply } => {
@@ -97,19 +101,25 @@ async fn run_store(mut commands: mpsc::Receiver<Command>) {
 // Usage
 async fn client(tx: mpsc::Sender<Command>) -> Option<Value> {
     let (reply_tx, reply_rx) = oneshot::channel();
-    
-    tx.send(Command::Get { 
-        key: "foo".to_string(), 
-        reply: reply_tx 
+
+    tx.send(Command::Get {
+        key: "foo".to_string(),
+        reply: reply_tx
     }).await.unwrap();
-    
+
     reply_rx.await.unwrap()
 }
+
+#[derive(Clone)]
+struct Value;
 ```
 
 ## Graceful Shutdown
 
 ```rust
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
+
 async fn worker(mut rx: mpsc::Receiver<Task>, shutdown: CancellationToken) {
     loop {
         tokio::select! {
@@ -127,12 +137,17 @@ async fn worker(mut rx: mpsc::Receiver<Task>, shutdown: CancellationToken) {
         }
     }
 }
+
+struct Task;
+async fn process(_task: Task) {}
 ```
 
 ## WeakSender for Optional Producers
 
 ```rust
 use tokio::sync::mpsc;
+
+type Message = String;
 
 let (tx, mut rx) = mpsc::channel::<Message>(100);
 let weak = tx.downgrade();  // Doesn't keep channel alive
@@ -153,6 +168,10 @@ tokio::spawn(async move {
 ## Permit Pattern
 
 ```rust
+use tokio::sync::mpsc;
+
+let (tx, _rx) = mpsc::channel::<String>(100);
+
 // Reserve slot before preparing message
 let permit = tx.reserve().await?;
 
@@ -162,6 +181,8 @@ permit.send(message);  // Never fails
 
 // Useful when message creation is expensive
 // and you don't want to create it if channel is full
+
+fn expensive_to_create_message() -> String { "message".to_string() }
 ```
 
 ## See Also

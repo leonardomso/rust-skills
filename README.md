@@ -1,11 +1,11 @@
 # Rust Skills
 
-![rules](https://img.shields.io/badge/rules-265-blue)
+![rules](https://img.shields.io/badge/rules-268-blue)
 ![categories](https://img.shields.io/badge/categories-26-blue)
-![Rust](https://img.shields.io/badge/Rust-1.96%20%2F%202024%20edition-orange)
+![Rust](https://img.shields.io/badge/Rust-1.100%20%2F%202024%20edition-orange)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-265 Rust rules your AI coding agent can use to write better code. Current for Rust 1.96 (2024 edition).
+268 Rust rules your AI coding agent can use to write better code. Current for Rust 1.100 (2024 edition).
 
 Works with Claude Code, Cursor, Windsurf, Copilot, Codex, Aider, Zed, Amp, Cline, and pretty much any other agent that supports skills.
 
@@ -16,10 +16,18 @@ Out of the box, coding agents write *average* Rust — they clone to dodge the b
 ## Install
 
 ```bash
-npx add-skill leonardomso/rust-skills
+npx skills add leonardomso/rust-skills
 ```
 
-That's it. The CLI figures out which agents you have and installs the skill to the right place.
+That's it. The [`skills`](https://github.com/vercel-labs/skills) CLI figures out which agents you have and installs the skill to the right place.
+
+**Requirements:** a recent Node.js. The `skills` CLI declares `node >= 22.20.0`; older releases such as Node 18 (the default on Ubuntu 24.04) fail with:
+
+```
+SyntaxError: The requested module 'node:util' does not provide an export named 'styleText'
+```
+
+Upgrade Node (for example with [nvm](https://github.com/nvm-sh/nvm): `nvm install --lts`), or skip the CLI and use one of the [manual installs](#manual-install) below. They only need `git` or `curl`. The old `npx add-skill` command is deprecated; use `npx skills add` instead.
 
 ## How to use it
 
@@ -58,7 +66,7 @@ With these rules loaded, it knows to take `&str` instead of `&String`, drop the
 needless `clone()` and allocation, and return an `Option` instead of panicking:
 
 ```rust
-// after — applies own-slice-over-vec, own-borrow-over-clone, anti-unwrap-abuse
+// after — applies own-slice-over-vec, own-borrow-over-clone, err-no-unwrap-prod
 fn first_word(s: &str) -> Option<&str> {
     s.split_whitespace().next()
 }
@@ -66,18 +74,18 @@ fn first_word(s: &str) -> Option<&str> {
 
 ## What's in here
 
-265 rules split into 26 categories:
+268 rules split into 26 categories:
 
 | Category | Rules | What it covers |
 |----------|-------|----------------|
 | **Ownership & Borrowing** | 12 | When to borrow vs clone, Arc/Rc, lifetimes |
-| **Error Handling** | 12 | thiserror for libs, anyhow for apps, the `?` operator |
-| **Memory** | 17 | SmallVec, arenas, avoiding allocations, `mem::take`, drop order |
-| **Unsafe Code** | 7 | `SAFETY:` comments, Miri, `MaybeUninit`, 2024-edition unsafe |
-| **API Design** | 17 | Builder pattern, newtypes, sealed traits, `FromIterator` |
-| **Async** | 18 | Tokio patterns, channels, async fn in traits, cancel safety |
+| **Error Handling** | 11 | thiserror for libs, anyhow for apps, the `?` operator |
+| **Memory** | 20 | SmallVec, arenas, avoiding allocations, `mem::take`, drop order |
+| **Unsafe Code** | 8 | `SAFETY:` comments, Miri, `MaybeUninit`, 2024-edition unsafe |
+| **API Design** | 23 | Builder pattern, newtypes, sealed traits, `FromIterator` |
+| **Async** | 20 | Tokio patterns, channels, async fn in traits, cancel safety |
 | **Concurrency** | 4 | rayon, scoped threads, atomic ordering, thread-locals |
-| **Optimization** | 12 | LTO, inlining, PGO, SIMD |
+| **Optimization** | 11 | LTO, inlining, PGO, SIMD |
 | **Numeric & Arithmetic** | 5 | Overflow handling, `as` vs `TryFrom`, float compare, `NonZero` |
 | **Type Safety** | 13 | Newtypes, parse don't validate, `Deref`, `Display`/`Debug` |
 | **Trait & Generics Design** | 6 | dyn vs generic, associated types, blanket impls, object safety, orphan rule |
@@ -85,17 +93,17 @@ fn first_word(s: &str) -> Option<&str> {
 | **Const & Compile-Time** | 4 | `const fn`, const vs static, const generics, `const {}` blocks |
 | **Serde** | 8 | rename_all, default, flatten, enum tagging, validate-on-deserialize |
 | **Pattern Matching** | 5 | `let-else`, `matches!`, if-let chains, exhaustive matches |
-| **Macros** | 8 | `macro_rules!` hygiene, fragment specifiers, proc-macros with syn/quote |
+| **Macros** | 10 | `macro_rules!` hygiene, fragment specifiers, proc-macros with syn/quote |
 | **Closures** | 5 | Fn/FnMut/FnOnce bounds, returning `impl Fn`, move & disjoint capture |
 | **Collections** | 4 | HashMap/BTreeMap/IndexMap, Vec/VecDeque, sets, `BinaryHeap` |
 | **Naming** | 16 | Following Rust API Guidelines |
-| **Testing** | 15 | Proptest, mockall, criterion, loom, snapshot tests |
-| **Docs** | 12 | Doc examples, intra-doc links, README/crate-doc unification |
-| **Observability** | 7 | tracing over log, spans, structured fields, redacting secrets |
+| **Testing** | 17 | Proptest, mockall, criterion, loom, snapshot tests |
+| **Docs** | 13 | Doc examples, intra-doc links, README/crate-doc unification |
+| **Observability** | 8 | tracing over log, spans, structured fields, redacting secrets |
 | **Performance** | 13 | Iterators, entry API, faster hashers, I/O buffering |
-| **Project Structure** | 14 | Workspaces, module layout, features, MSRV |
-| **Linting** | 13 | Clippy config, CI setup, `unexpected_cfgs` |
-| **Anti-patterns** | 15 | Common mistakes and how to fix them |
+| **Project Structure** | 15 | Workspaces, module layout, features, MSRV |
+| **Linting** | 12 | Clippy config, CI setup, `unexpected_cfgs` |
+| **Anti-patterns** | 2 | Common mistakes, each mapped to the rule that fixes it |
 
 Each rule has:
 - Why it matters
@@ -108,14 +116,16 @@ Each rule has:
 The design is built for low token cost and easy auditing:
 
 - **[`SKILL.md`](./SKILL.md)** is a lightweight index — every rule listed as a one-line summary, grouped by category, with a link to its file. The agent reads this first.
-- **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading all 218 — progressive disclosure keeps context small.
+- **[`rules/`](./rules)** holds one Markdown file per rule (`<prefix>-<name>.md`). The agent opens only the handful relevant to your code instead of loading every rule. Progressive disclosure keeps context small.
 - **Prefixes** (`own-`, `err-`, `unsafe-`, `async-`, …) map directly to categories, so an agent reviewing async code can pull just `async-`, `conc-`, and `own-` rules.
 
-`CLAUDE.md` and `AGENTS.md` are symlinks to `SKILL.md`, so the same content works across agent conventions.
+- **Anti-patterns** is a lookup: each common mistake points at the rule that fixes it, so a reviewer can start from the symptom.
+
+`AGENTS.md` (and its `CLAUDE.md` symlink) is for agents *editing this repo*, not for using the rules.
 
 ## Manual install
 
-If `add-skill` doesn't work for your setup, here's how to install manually:
+If `npx skills add` doesn't work for your setup (no Node, an old Node, or a locked-down machine), install manually. The `git clone` options give the agent every rule file. The `curl` options copy only the index (`SKILL.md`); the agent then fetches individual rules from GitHub when it needs them.
 
 <details>
 <summary><b>Claude Code</b></summary>
@@ -235,6 +245,13 @@ curl -o AGENTS.md https://raw.githubusercontent.com/leonardomso/rust-skills/mast
 
 See [SKILL.md](./SKILL.md) for the full list with links to each rule file.
 
+## Where the rules come from
+
+The rules are not copied from any single source. Each one is an original write-up that distills guidance from the official Rust documentation, the Rust API Guidelines, well-known books, and idioms seen in widely used crates (listed below). Two things keep them honest:
+
+- **Compile-checked examples.** Every `rust` block outside a `## Bad` section is extracted and type-checked in CI on a pinned toolchain (currently Rust 1.100.0) by the harness in [`checks/`](./checks). Run it locally with `bash checks/check.sh`.
+- **Public review.** Several rules have been corrected after readers reported problems, sometimes with reproductions or benchmarks. If you think a rule is wrong, open an issue with a minimal example.
+
 ## Sources & attribution
 
 These rules are an independent synthesis of official Rust guidance, well-known books, and patterns drawn from widely-used open-source crates. They are not affiliated with or endorsed by the Rust project or any crate author. The text and code examples are original summaries — no substantial content is copied from the sources below.
@@ -253,6 +270,9 @@ These rules are an independent synthesis of official Rust guidance, well-known b
 - [Rust Atomics and Locks](https://marabos.nl/atomics/) — Mara Bos
 - [Effective Rust](https://effective-rust.com/) — David Drysdale
 
+**Companion guidelines**
+- [Microsoft Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) (MIT). Widely accepted items were adopted as new rules, written in this repo's own words, and each credits its source guideline. [`references/pragmatic-rust-guidelines.md`](./references/pragmatic-rust-guidelines.md) maps every `M-*` guideline to our rules and explains what was left out. It is optional reading for teams that want the full Microsoft style.
+
 **Tooling**
 - [Clippy lint documentation](https://rust-lang.github.io/rust-clippy/)
 - [Miri](https://github.com/rust-lang/miri)
@@ -264,38 +284,7 @@ This project is MIT-licensed. Referenced upstream materials remain under their o
 
 ## Contributing
 
-PRs welcome. To add or change a rule:
-
-1. Create `rules/<prefix>-<name>.md` using a `kebab-case` id with an existing category prefix (`own-`, `err-`, `mem-`, …).
-2. Follow the format of existing rules: a `>` one-line summary, then `## Why It Matters`, `## Bad`, `## Good`, and `## See Also` (with links that resolve).
-3. Make sure code examples compile on current stable Rust.
-4. Add the rule to the index in `SKILL.md` (Quick Reference list + the category count) so it stays in sync.
-
-````markdown
-# prefix-rule-name
-
-> One-line imperative summary.
-
-## Why It Matters
-
-Two to four sentences.
-
-## Bad
-
-```rust
-// the anti-pattern
-```
-
-## Good
-
-```rust
-// the recommended pattern
-```
-
-## See Also
-
-- [other-rule](other-rule.md) - why it's related
-````
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the rule format and the one command to run before opening a PR (`bash checks/check.sh`).
 
 ## License
 

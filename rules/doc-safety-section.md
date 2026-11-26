@@ -129,3 +129,4 @@ pub fn get(&self, index: usize) -> Option<&T> {
 - [doc-panics-section](./doc-panics-section.md) - Documenting panics
 - [lint-unsafe-doc](./lint-unsafe-doc.md) - Enforcing unsafe documentation
 - [doc-errors-section](./doc-errors-section.md) - Documenting errors
+- [unsafe-sound-abstractions](unsafe-sound-abstractions.md) - Safe functions must never cause UB

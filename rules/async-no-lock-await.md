@@ -1,10 +1,10 @@
 # async-no-lock-await
 
-> Never hold `Mutex`/`RwLock` across `.await`
+> Release `Mutex`/`RwLock` guards before `.await`: take what you need, drop the lock, do the async work, then lock briefly to write back
 
 ## Why It Matters
 
-Holding a lock across an `.await` point can cause deadlocks and severely hurt performance. The task may be suspended while holding the lock, blocking all other tasks waiting for it - potentially indefinitely.
+Holding a lock across an `.await` point can cause deadlocks and severely hurt performance. The task may be suspended while holding the lock, blocking all other tasks waiting for it - potentially indefinitely. With `std::sync::Mutex` it is worse: the guard is not `Send`, and another task polled on the same thread that tries to lock it blocks the runtime thread.
 
 ## Bad
 
@@ -21,6 +21,13 @@ async fn bad_update(state: &Mutex<State>) {
 }  // Lock finally released
 
 // This can deadlock or starve other tasks
+
+// WORSE: std::sync::Mutex guard held across await
+async fn bad_std_mutex(data: &std::sync::Mutex<Vec<i32>>) {
+    let mut guard = data.lock().unwrap();
+    do_async_work().await;  // Guard held while suspended!
+    guard.push(42);
+}
 ```
 
 ## Good
@@ -125,29 +132,38 @@ async fn read_heavy(state: &RwLock<State>) {
 }
 ```
 
+## What Can Cross an Await
+
+| Held across `.await` | Verdict |
+|----------------------|---------|
+| `std::sync::Mutex`/`RwLock` guard | No: can deadlock, and the future is not `Send` |
+| `tokio::sync::Mutex`/`RwLock` guard | Allowed, but blocks every other task wanting the lock |
+| Owned values, `Arc<T>` | Yes |
+| References | Depends on lifetime |
+
 ## std::sync::Mutex vs tokio::sync::Mutex
 
+Prefer `std::sync::Mutex` for work that does not span an `.await`: it is simpler and faster. Reach for `tokio::sync::Mutex` only when the lock must be held across an `.await` (rare; usually a sign to redesign).
+
 ```rust
-// Prefer std::sync::Mutex for work that does NOT span an .await —
-// it is simpler, faster, and avoids the async overhead.
-// Only reach for tokio::sync::Mutex when you genuinely must hold
-// the lock across an .await point (rare; usually a sign to redesign).
-
-// std::sync::Mutex in async (quick, non-awaiting operation — preferred):
+// Quick, non-awaiting operation: std Mutex is fine
 async fn quick_update(state: &std::sync::Mutex<State>) {
-    state.lock().unwrap().counter += 1;  // No await inside lock scope, OK
+    state.lock().unwrap().counter += 1;  // No await inside lock scope
 }
+```
 
-// tokio::sync::Mutex (only when the lock scope must span an .await):
-async fn must_await_inside(state: &tokio::sync::Mutex<State>) {
-    let mut guard = state.lock().await;
-    // Only justified if you truly need the lock held across an async op
-    // (usually you don't — extract data first, then release the lock)
-}
+## Detection
+
+```toml
+# Cargo.toml
+[lints.clippy]
+await_holding_lock = "deny"
+await_holding_refcell_ref = "deny"
 ```
 
 ## See Also
 
 - [async-spawn-blocking](async-spawn-blocking.md) - Use spawn_blocking for CPU work
+- [own-mutex-interior](own-mutex-interior.md) - Mutex usage
 - [async-clone-before-await](async-clone-before-await.md) - Clone data before await
-- [anti-lock-across-await](anti-lock-across-await.md) - Anti-pattern reference
+- [api-types-send](api-types-send.md) - Make public types and futures Send

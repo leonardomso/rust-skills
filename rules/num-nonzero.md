@@ -84,6 +84,7 @@ mod tests {
 
 - All `NonZero*` types live in `std::num`: `NonZeroU8`, `NonZeroU16`, `NonZeroU32`, `NonZeroU64`, `NonZeroU128`, `NonZeroUsize`, and their signed counterparts.
 - **Construction**: `NonZeroU32::new(n) -> Option<NonZeroU32>`. Use `NonZeroU32::new(n).expect("n must be non-zero")` only at well-verified program boundaries, not in production fallible paths.
+- **Generic form**: `NonZero<T>` (stable since Rust 1.79) is the underlying type, and `NonZeroU32` is an alias for `NonZero<u32>`. Write `NonZero<u32>` in generic code or when a type is inferred.
 - **Access**: `.get()` returns the inner primitive value.
 - **Arithmetic**: `NonZeroU32` does not implement `Add`/`Sub` directly (the result could be zero). Extract with `.get()`, do arithmetic, and reconstruct with `NonZeroU32::new(result)?`.
 - **Niche optimization** applies to `Option` and `Result`: the compiler stores the `None`/`Err` discriminant in the zero bit-pattern, so no extra word is needed. This also applies to custom newtypes that wrap `NonZero*`.

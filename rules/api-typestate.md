@@ -100,6 +100,10 @@ conn.send(b"data")?;  // Works - type is Connection<Authenticated>
 ## Builder Typestate
 
 ```rust
+use std::time::Duration;
+
+struct Request { url: String, timeout: Option<Duration> }
+
 // Enforce required fields via typestate
 struct BuilderNoUrl;
 struct BuilderWithUrl { url: String }
@@ -140,14 +144,16 @@ impl RequestBuilder<BuilderWithUrl> {
     }
 }
 
-// Compile error: build() not available
-let bad = RequestBuilder::new().build();
-
 // Correct: must set URL first
-let good = RequestBuilder::new()
-    .url("https://example.com")
-    .timeout(Duration::from_secs(30))
-    .build();
+fn main() {
+    let good = RequestBuilder::new()
+        .url("https://example.com")
+        .timeout(Duration::from_secs(30))
+        .build();
+
+    // Compile error E0599: build() is not available on RequestBuilder<BuilderNoUrl>
+    // let bad = RequestBuilder::new().build();
+}
 ```
 
 ## Transaction Example

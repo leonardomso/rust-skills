@@ -33,21 +33,24 @@ let timeout = settings.get("timeout").unwrap_or_default();  // Won't work
 
 ## Good
 
+Derive when every field's own default is right (`Duration::ZERO`, `0`, `false`, `""`, `[]`):
+
 ```rust
 use std::time::Duration;
 
-// Simple case: derive uses each field type's Default (Duration::ZERO, 0, false)
 #[derive(Default)]
-struct Config {
+struct Simple {
     timeout: Duration,
     retries: u32,
-    verbose: bool,
+    name: String,
+    items: Vec<i32>,
 }
 ```
 
-For a non-zero default, implement `Default` by hand instead of deriving. (Per-field defaults like `timeout: Duration = Duration::from_secs(30)` require the nightly `default_field_values` feature.)
+For non-zero defaults, implement `Default` by hand. (Per-field defaults like `timeout: Duration = Duration::from_secs(30)` need the nightly `default_field_values` feature.)
 
 ```rust
+use std::collections::HashMap;
 use std::time::Duration;
 
 struct Config {
@@ -66,49 +69,24 @@ impl Default for Config {
     }
 }
 
-// Now works with all standard patterns
-let config = Config::default();
-let config = Config { retries: 5, ..Default::default() };
-let value = map.get("key").cloned().unwrap_or_default();
-```
-
-## Derive vs Manual
-
-```rust
-// Derive: all fields use their own Default
-#[derive(Default)]
-struct Simple {
-    count: u32,      // 0
-    name: String,    // ""
-    items: Vec<i32>, // []
-}
-
-// Manual: when you need custom defaults
-struct Connection {
-    host: String,
-    port: u16,
-    timeout: Duration,
-}
-
-impl Default for Connection {
-    fn default() -> Self {
-        Connection {
-            host: "localhost".to_string(),
-            port: 8080,
-            timeout: Duration::from_secs(30),
-        }
-    }
+fn main() {
+    let config = Config::default();
+    let config = Config { retries: 5, ..Default::default() };
+    let map: HashMap<&str, String> = HashMap::new();
+    let value = map.get("key").cloned().unwrap_or_default();
+    let _ = (config, value);
 }
 ```
 
 ## Builder with Default
+
+`Default` gives a builder its starting state.
 
 ```rust
 #[derive(Default)]
 struct ServerBuilder {
     host: String,
     port: u16,
-    workers: usize,
 }
 
 impl ServerBuilder {
@@ -116,62 +94,44 @@ impl ServerBuilder {
         self.host = host.into();
         self
     }
-    
+
     fn port(mut self, port: u16) -> Self {
         self.port = port;
         self
     }
 }
 
-// Clean initialization
-let server = ServerBuilder::default()
-    .host("0.0.0.0")
-    .port(3000)
-    .build();
+fn main() {
+    let _server = ServerBuilder::default().host("0.0.0.0").port(3000);
+}
 ```
 
-## Default with Required Fields
+## When Not to Implement Default
+
+If a field has no sensible default, don't implement `Default`. A `Default` that produces an invalid value is worse than none. Provide a constructor (or a builder with required fields) instead.
 
 ```rust
-// When some fields have no sensible default, don't implement Default
+struct UserId(u64);
+
 struct User {
-    id: UserId,       // No sensible default
-    name: String,     // Could default to ""
+    id: UserId, // no sensible default
+    name: String,
 }
 
-// Instead, provide a constructor
 impl User {
     fn new(id: UserId, name: impl Into<String>) -> Self {
         User { id, name: name.into() }
     }
 }
-
-// Or use builder with required fields
-struct UserBuilder {
-    id: Option<UserId>,
-    name: String,
-}
-
-impl Default for UserBuilder {
-    fn default() -> Self {
-        UserBuilder {
-            id: None,
-            name: String::new(),
-        }
-    }
-}
 ```
 
-## Generic Default
+## Generic Code
+
+`#[derive(Default)]` on a generic type adds a `T: Default` bound. Implement `Default` by hand when the type doesn't need `T` to be `Default`:
 
 ```rust
-// Require Default in generic bounds when needed
-fn create_or_default<T: Default>(opt: Option<T>) -> T {
-    opt.unwrap_or_default()
-}
-
-// PhantomData is Default regardless of T
 use std::marker::PhantomData;
+
 struct Wrapper<T> {
     _marker: PhantomData<T>,
 }
@@ -180,6 +140,10 @@ impl<T> Default for Wrapper<T> {
     fn default() -> Self {
         Wrapper { _marker: PhantomData }
     }
+}
+
+fn create_or_default<T: Default>(opt: Option<T>) -> T {
+    opt.unwrap_or_default()
 }
 ```
 

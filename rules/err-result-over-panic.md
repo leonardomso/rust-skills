@@ -1,6 +1,6 @@
 # err-result-over-panic
 
-> Return `Result<T, E>` instead of panicking for recoverable errors
+> Return `Result<T, E>` for recoverable errors; panic only for bugs and unrecoverable state
 
 ## Why It Matters
 
@@ -23,6 +23,13 @@ fn divide(a: i32, b: i32) -> i32 {
     }
     a / b
 }
+
+// Panic used as control flow for a normal "not found"
+fn find_or_die(items: &[Item], id: u64) -> &Item {
+    items.iter()
+        .find(|i| i.id == id)
+        .unwrap_or_else(|| panic!("item {id} not found"))
+}
 ```
 
 Caller has no chance to recover or provide a fallback.
@@ -34,9 +41,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 enum ConfigError {
-    #[error("Failed to read config file: {0}")]
+    #[error("failed to read config file: {0}")]
     Io(#[from] std::io::Error),
-    #[error("Invalid config format: {0}")]
+    #[error("invalid config format: {0}")]
     Parse(#[from] serde_json::Error),
 }
 
@@ -53,6 +60,11 @@ fn divide(a: i32, b: i32) -> Result<i32, &'static str> {
     Ok(a / b)
 }
 
+// Absence is not an error: return Option
+fn find(items: &[Item], id: u64) -> Option<&Item> {
+    items.iter().find(|i| i.id == id)
+}
+
 // Caller decides how to handle
 match parse_config("app.json") {
     Ok(config) => run_app(config),
@@ -66,26 +78,40 @@ match parse_config("app.json") {
 ## When Panic IS Appropriate
 
 ```rust
+use std::collections::HashMap;
+
+type Value = u32;
+struct Config;
+impl Config {
+    fn load() -> Result<Config, std::io::Error> { Ok(Config) }
+}
+struct Cache { cache: HashMap<String, Value> }
+
+fn parse(input: &str) -> Result<u32, std::num::ParseIntError> { input.parse() }
+fn fetch_data() -> Result<String, std::io::Error> { Ok(String::new()) }
+
 // 1. Bug in the program (invariant violation)
-fn get_cached_value(&self, key: &str) -> &Value {
-    self.cache.get(key).expect("BUG: key was verified to exist")
+impl Cache {
+    fn get_cached_value(&self, key: &str) -> &Value {
+        self.cache.get(key).expect("BUG: key was verified to exist")
+    }
 }
 
 // 2. Setup/initialization that can't reasonably fail
 fn main() {
-    let config = Config::load().expect("Failed to load required config");
+    let config = Config::load().expect("failed to load required config");
     // Can't run without config, panic is reasonable
 }
 
 // 3. Tests
 #[test]
 fn test_parse() {
-    let result = parse("valid input").unwrap(); // unwrap OK in tests
-    assert_eq!(result, expected);
+    let result = parse("42").unwrap(); // unwrap OK in tests
+    assert_eq!(result, 42);
 }
 
 // 4. Examples and prototypes
-fn main() {
+fn prototype() {
     // Quick prototype, panic is fine
     let data = fetch_data().unwrap();
 }
@@ -108,9 +134,14 @@ fn main() {
 ## Library vs Application
 
 ```rust
+struct Ast;
+struct ParseError;
+fn run() -> Result<(), String> { Ok(()) }
+
 // Library: NEVER panic on user input
 pub fn parse(input: &str) -> Result<Ast, ParseError> {
     // Always return Result
+    Ok(Ast)
 }
 
 // Application: Can panic at top level for critical failures
@@ -127,4 +158,3 @@ fn main() {
 - [err-thiserror-lib](./err-thiserror-lib.md) - Define error types for libraries
 - [err-anyhow-app](./err-anyhow-app.md) - Ergonomic errors for applications
 - [err-no-unwrap-prod](./err-no-unwrap-prod.md) - Avoid unwrap in production code
-- [anti-unwrap-abuse](./anti-unwrap-abuse.md) - When unwrap is acceptable

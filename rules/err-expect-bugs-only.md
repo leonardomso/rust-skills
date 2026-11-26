@@ -1,6 +1,6 @@
 # err-expect-bugs-only
 
-> Use `expect()` only for invariants that indicate bugs, not user errors
+> Reserve `expect()` for violated invariants that indicate bugs; return `Result` for user input, I/O, network, and database failures
 
 ## Why It Matters
 
@@ -28,38 +28,56 @@ fn load_config() -> Config {
     let content = fs::read_to_string("config.json")
         .expect("Config file missing");  // Environment issue!
 }
+
+// Database lookups can miss - don't expect
+let user = db.find_user(id).await.expect("user not found");
 ```
 
 ## Good
 
 ```rust
-// Invariant: after insert, key exists
-fn cache_and_get(&mut self, key: String, value: Value) -> &Value {
-    self.cache.insert(key.clone(), value);
-    self.cache.get(&key)
-        .expect("BUG: key must exist immediately after insert")
+use std::collections::HashMap;
+use std::net::IpAddr;
+use std::sync::Mutex;
+
+type Value = u32;
+
+#[derive(serde::Deserialize)]
+struct Config {
+    name: String,
 }
 
-// Invariant: regex is compile-time constant
-fn create_parser() -> Regex {
-    Regex::new(r"^\d{4}-\d{2}-\d{2}$")
-        .expect("BUG: date regex is invalid - this is a compile-time constant")
+const EMBEDDED_CONFIG: &str = r#"{ "name": "default" }"#;
+
+struct Cache {
+    cache: HashMap<String, Value>,
 }
 
-// Invariant: already validated
-fn process_validated(data: ValidatedData) -> Result<Output, ProcessError> {
-    let value = data.required_field
-        .expect("BUG: ValidatedData guarantees required_field is Some");
-    // ...
+impl Cache {
+    // Invariant: after insert, key exists
+    fn cache_and_get(&mut self, key: String, value: Value) -> &Value {
+        self.cache.insert(key.clone(), value);
+        self.cache.get(&key)
+            .expect("BUG: key must exist immediately after insert")
+    }
 }
 
-// Invariant: type system guarantees
-fn get_first<T>(vec: Vec<T>) -> T 
-where 
-    Vec<T>: NonEmpty,  // Hypothetical trait
-{
-    vec.into_iter().next()
-        .expect("BUG: NonEmpty Vec cannot be empty")
+// Invariant: the address is a compile-time constant
+fn loopback() -> IpAddr {
+    "127.0.0.1".parse()
+        .expect("BUG: loopback address literal is invalid - this is a compile-time constant")
+}
+
+// Invariant: poisoning only happens after a panic elsewhere
+fn lock_value(mutex: &Mutex<Value>) -> Value {
+    let guard = mutex.lock().expect("BUG: mutex poisoned by an earlier panic");
+    *guard
+}
+
+// Invariant: embedded data is checked in CI
+fn embedded_config() -> Config {
+    serde_json::from_str(EMBEDDED_CONFIG)
+        .expect("BUG: embedded config is invalid")
 }
 ```
 
@@ -71,15 +89,18 @@ Messages should:
 3. Help developers fix the issue
 
 ```rust
-// ❌ Bad messages
-.expect("failed")                    // No context
-.expect("should not be None")        // Doesn't explain why
-.expect("Invalid state")             // Vague
+fn messages(map: &std::collections::HashMap<u8, u8>) {
+    // ❌ Bad messages
+    map.get(&1).expect("failed");                // No context
+    map.get(&1).expect("should not be None");    // Doesn't explain why
+    map.get(&1).expect("Invalid state");         // Vague
 
-// ✅ Good messages
-.expect("BUG: HashMap entry exists after insert")
-.expect("BUG: validated input must parse - validation is broken")
-.expect("BUG: static regex compilation failed - regex syntax error in source")
+    // ✅ Good messages
+    map.get(&1).expect("BUG: HashMap entry exists after insert");
+    "42".parse::<u16>().expect("BUG: validated input must parse - validation is broken");
+    "127.0.0.1".parse::<std::net::IpAddr>()
+        .expect("BUG: static address literal is invalid - syntax error in source");
+}
 ```
 
 ## Pattern: Validate Once, expect() After
@@ -106,24 +127,49 @@ impl ValidatedEmail {
 
 ## Alternatives When expect() Is Wrong
 
+| Situation | Use |
+|-----------|-----|
+| User input, file/network I/O, database | `?` with error context |
+| Sensible fallback exists | `unwrap_or` / `unwrap_or_default` |
+| Needs logging or custom handling | `match` with a fallback |
+| Value proven by validation or construction | `expect("BUG: ...")` |
+
 ```rust
-// Don't: expect on user data
-let port: u16 = input.parse().expect("Invalid port");
+use anyhow::Context;
 
-// Do: Return Result
-let port: u16 = input.parse().map_err(|_| ConfigError::InvalidPort)?;
+#[derive(Debug)]
+enum ConfigError { InvalidPort }
 
-// Do: Provide default
-let port: u16 = input.parse().unwrap_or(8080);
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("{0} not found")]
+    NotFound(&'static str),
+}
 
-// Do: Handle explicitly
-let port: u16 = match input.parse() {
-    Ok(p) => p,
-    Err(_) => {
-        log::warn!("Invalid port '{}', using default", input);
-        8080
-    }
-};
+struct User;
+async fn fetch(url: &str) -> Result<String, std::io::Error> { Ok(String::new()) }
+async fn find_user(id: u64) -> Result<Option<User>, Error> { Ok(None) }
+
+fn parse_port(input: &str) -> Result<u16, ConfigError> {
+    // Don't: expect on user data
+    // let port: u16 = input.parse().expect("Invalid port");
+
+    // Do: Return Result
+    let port: u16 = input.parse().map_err(|_| ConfigError::InvalidPort)?;
+    Ok(port)
+}
+
+async fn load(url: &str, id: u64) -> anyhow::Result<User> {
+    // Do: Add context to I/O and network errors
+    let response = fetch(url).await.context("failed to fetch URL")?;
+    let user = find_user(id).await?.ok_or(Error::NotFound("user"))?;
+    Ok(user)
+}
+
+fn port_or_default(input: &str) -> u16 {
+    // Do: Provide default
+    input.parse().unwrap_or(8080)
+}
 ```
 
 ## See Also

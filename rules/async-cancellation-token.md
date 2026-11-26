@@ -9,7 +9,7 @@ Dropping a `JoinHandle` doesn't cancel the task—it just detaches it. For grace
 ## Bad
 
 ```rust
-// Dropping handle doesn't stop the task
+// Dropping the handle doesn't stop the task
 let handle = tokio::spawn(async {
     loop {
         do_work().await;
@@ -18,186 +18,157 @@ let handle = tokio::spawn(async {
 
 drop(handle);  // Task continues running in background!
 
-// Using bool flag - not async-aware
+// A bool flag is not async-aware
 let running = Arc::new(AtomicBool::new(true));
 
 tokio::spawn({
     let running = running.clone();
     async move {
         while running.load(Ordering::Relaxed) {
-            do_work().await;  // Can't wake up if blocked here
+            do_work().await; // the flag is only checked between calls
         }
     }
 });
 
-running.store(false, Ordering::Relaxed);
-// Task won't stop until current do_work() completes
+running.store(false, Ordering::Relaxed); // waits for the current do_work()
 ```
 
 ## Good
 
 ```rust
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-let token = CancellationToken::new();
+async fn do_work() {
+    tokio::time::sleep(Duration::from_millis(10)).await;
+}
 
-let handle = tokio::spawn({
-    let token = token.clone();
-    async move {
-        loop {
-            tokio::select! {
-                _ = token.cancelled() => {
-                    println!("Shutting down gracefully");
-                    cleanup().await;
-                    break;
-                }
-                _ = do_work() => {
-                    // Work completed
+async fn cleanup() {}
+
+#[tokio::main]
+async fn main() -> Result<(), tokio::task::JoinError> {
+    let token = CancellationToken::new();
+
+    let handle = tokio::spawn({
+        let token = token.clone(); // cheap, Arc-based clone
+        async move {
+            loop {
+                tokio::select! {
+                    _ = token.cancelled() => {
+                        cleanup().await;
+                        break;
+                    }
+                    _ = do_work() => {}
                 }
             }
         }
-    }
-});
+    });
 
-// Later: trigger cancellation
-token.cancel();
-handle.await?;  // Task completes cleanly
-```
-
-## CancellationToken API
-
-```rust
-use tokio_util::sync::CancellationToken;
-
-// Create token
-let token = CancellationToken::new();
-
-// Clone for sharing (cheap Arc-based clone)
-let token2 = token.clone();
-
-// Check if cancelled (non-blocking)
-if token.is_cancelled() {
-    return;
+    token.cancel();
+    handle.await // the task finishes cleanly
 }
-
-// Wait for cancellation (async)
-token.cancelled().await;
-
-// Trigger cancellation
-token.cancel();
-
-// Child tokens - cancelled when parent is cancelled
-let child = token.child_token();
 ```
+
+Other calls: `token.is_cancelled()` (non-blocking check), `token.cancelled().await` (wait), `token.child_token()`.
 
 ## Hierarchical Cancellation
 
+A child token is cancelled when its parent is, but cancelling a child does not touch the parent. Give each connection or subtask a child token so one shutdown signal reaches all of them.
+
 ```rust
-async fn run_server(shutdown: CancellationToken) {
+use tokio::io::{AsyncReadExt, BufReader};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_util::sync::CancellationToken;
+
+async fn run_server(shutdown: CancellationToken) -> std::io::Result<()> {
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
-    
+
     loop {
         tokio::select! {
-            _ = shutdown.cancelled() => {
-                println!("Server shutting down");
-                break;
-            }
+            _ = shutdown.cancelled() => break,
             result = listener.accept() => {
                 let (socket, _) = result?;
-                // Each connection gets child token
-                let conn_token = shutdown.child_token();
-                tokio::spawn(handle_connection(socket, conn_token));
+                tokio::spawn(handle_connection(socket, shutdown.child_token()));
             }
         }
     }
-    
-    // Child tokens auto-cancelled when we exit
+    Ok(())
 }
 
 async fn handle_connection(socket: TcpStream, token: CancellationToken) {
+    let mut reader = BufReader::new(socket);
+    let mut buf = [0u8; 1024];
     loop {
         tokio::select! {
-            _ = token.cancelled() => {
-                // Connection cleanup
-                break;
-            }
-            data = socket.read() => {
-                // Handle data
-            }
+            _ = token.cancelled() => break,
+            n = reader.read(&mut buf) => match n {
+                Ok(0) | Err(_) => break,
+                Ok(_) => { /* handle data */ }
+            },
         }
     }
 }
 ```
 
-## Graceful Shutdown Pattern
+## Graceful Shutdown
+
+Trigger the token from a signal handler, then wait for tasks with a deadline.
 
 ```rust
-use tokio::signal;
+use std::time::Duration;
+use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
 
-async fn main() -> Result<()> {
-    let shutdown = CancellationToken::new();
-    
-    // Spawn signal handler
-    let shutdown_trigger = shutdown.clone();
-    tokio::spawn(async move {
-        signal::ctrl_c().await.expect("failed to listen for Ctrl+C");
-        println!("Received Ctrl+C, initiating shutdown...");
-        shutdown_trigger.cancel();
-    });
-    
-    // Run application with shutdown token
-    run_app(shutdown).await
+async fn worker(token: CancellationToken) {
+    token.cancelled().await;
 }
 
-async fn run_app(shutdown: CancellationToken) -> Result<()> {
+#[tokio::main]
+async fn main() {
+    let shutdown = CancellationToken::new();
+
+    let trigger = shutdown.clone();
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.expect("failed to listen for ctrl+c");
+        trigger.cancel();
+    });
+
     let mut tasks = JoinSet::new();
-    
-    tasks.spawn(worker_task(shutdown.child_token()));
-    tasks.spawn(server_task(shutdown.child_token()));
-    
-    // Wait for shutdown or task completion
-    tokio::select! {
-        _ = shutdown.cancelled() => {
-            println!("Shutdown requested, waiting for tasks...");
-        }
-        Some(result) = tasks.join_next() => {
-            // A task completed/failed
-            result??;
-        }
-    }
-    
-    // Wait for remaining tasks with timeout
-    tokio::time::timeout(
-        Duration::from_secs(30),
-        async { while tasks.join_next().await.is_some() {} }
-    ).await.ok();
-    
-    Ok(())
+    tasks.spawn(worker(shutdown.child_token()));
+    tasks.spawn(worker(shutdown.child_token()));
+
+    shutdown.cancelled().await;
+
+    // Give tasks 30 seconds to finish their cleanup
+    let drain = async { while tasks.join_next().await.is_some() {} };
+    let _ = tokio::time::timeout(Duration::from_secs(30), drain).await;
 }
 ```
 
-## DropGuard Pattern
+## DropGuard
+
+`drop_guard()` cancels the token when the guard is dropped, so an early return or panic still stops the tasks.
 
 ```rust
 use tokio_util::sync::CancellationToken;
 
-// Auto-cancel on drop
-let token = CancellationToken::new();
-let guard = token.clone().drop_guard();
+#[tokio::main]
+async fn main() {
+    let token = CancellationToken::new();
+    let guard = token.clone().drop_guard();
 
-tokio::spawn({
-    let token = token.clone();
-    async move {
-        token.cancelled().await;
-        println!("Cancelled!");
-    }
-});
+    let task = tokio::spawn({
+        let token = token.clone();
+        async move { token.cancelled().await }
+    });
 
-drop(guard);  // Automatically calls token.cancel()
+    drop(guard); // calls token.cancel()
+    task.await.unwrap();
+}
 ```
 
 ## See Also
 
 - [async-joinset-structured](./async-joinset-structured.md) - Managing multiple tasks
 - [async-select-racing](./async-select-racing.md) - select! for cancellation
-- [async-tokio-runtime](./async-tokio-runtime.md) - Runtime shutdown
+- [async-tokio-runtime](./async-tokio-runtime.md) - Runtime setup and shutdown

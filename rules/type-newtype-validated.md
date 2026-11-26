@@ -118,24 +118,43 @@ impl Percentage {
 
 ## With Serde
 
+Validate during deserialization with `#[serde(try_from = "String")]`, so the type can never hold an invalid value. It reuses the same constructor and cannot drift from it.
+
 ```rust
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(try_from = "String")]
 pub struct Email(String);
 
-impl<'de> Deserialize<'de> for Email {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Email::new(&s).map_err(serde::de::Error::custom)
+#[derive(Debug)]
+pub struct EmailError(String);
+
+impl std::fmt::Display for EmailError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid email: {}", self.0)
     }
 }
 
-// JSON deserialization automatically validates
-let email: Email = serde_json::from_str(r#""user@example.com""#)?;
+impl TryFrom<String> for Email {
+    type Error = EmailError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        if s.contains('@') {
+            Ok(Email(s))
+        } else {
+            Err(EmailError(s))
+        }
+    }
+}
+
+fn main() -> Result<(), serde_json::Error> {
+    // JSON deserialization automatically validates
+    let email: Email = serde_json::from_str(r#""user@example.com""#)?;
+    assert!(serde_json::from_str::<Email>(r#""nope""#).is_err());
+    println!("{email:?}");
+    Ok(())
+}
 ```
 
 ## Compile-Time Validation

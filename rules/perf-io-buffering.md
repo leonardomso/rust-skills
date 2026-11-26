@@ -96,3 +96,4 @@ fn process_large_file(path: &str) -> io::Result<()> {
 
 - [mem-with-capacity](mem-with-capacity.md) - pre-size buffers when the final size is known
 - [perf-profile-first](perf-profile-first.md) - confirm IO is the bottleneck before tuning
+- [api-sans-io](api-sans-io.md) - Take impl Read/Write instead of paths

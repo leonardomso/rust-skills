@@ -36,14 +36,13 @@ fn main() {
 #[macro_export]
 macro_rules! greet {
     ($name:expr) => {
-        $crate::__private::print_greeting($name);
+        // No trailing `;`: the macro stays usable in expression position.
+        $crate::__private::print_greeting($name)
     };
 }
 
-// Re-export so `use mylib::greet;` resolves through the crate's public path.
-// (The re-export is implicit when using #[macro_export]; this is just for clarity
-// or when you want to place it under a module path.)
-pub use greet;
+// `#[macro_export]` already makes `use mylib::greet;` work.
+// Do not add `pub use greet;` at the crate root: that is error E0255.
 ```
 
 ```rust
@@ -78,6 +77,7 @@ macro_rules! greet {
 - Prefer `use mycrate::my_macro;` — it is explicit and plays well with `rustfmt` and IDEs.
 - Avoid `#[macro_use]` in new code; it is required only when supporting pre-2018 edition consumers.
 - If the macro calls internal helpers, pair `#[macro_export]` with `$crate::__private::...` paths.
+- Do not end a macro expansion with a stray `;` when the macro can be used as an expression. Since Rust 1.99 the `semicolon_in_expressions_from_non_local_macros` lint warns about this for macros from other crates too, and it is a future-incompatibility warning.
 - Document macros with `///` just like any other public item.
 
 ## See Also

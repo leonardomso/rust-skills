@@ -56,6 +56,7 @@ impl User {
     }
 }
 
+let user = User { name: "Ada".into(), age: 36 };
 let name = user.name();
 let age = user.age();
 ```
@@ -65,17 +66,36 @@ let age = user.age();
 Use `get` when the method does more than simple access:
 
 ```rust
-impl HashMap<K, V> {
-    // Returns Option - not just field access
-    fn get(&self, key: &K) -> Option<&V> { }
-    
-    // Mutable variant
-    fn get_mut(&mut self, key: &K) -> Option<&mut V> { }
+use std::collections::HashMap;
+
+struct Registry<K, V> {
+    map: HashMap<K, V>,
+    items: Vec<V>,
 }
 
-impl Vec<T> {
-    // Returns Option - bounds checked
-    fn get(&self, index: usize) -> Option<&T> { }
+impl<K: std::hash::Hash + Eq, V> Registry<K, V> {
+    // Returns Option - not just field access (like HashMap::get)
+    fn get(&self, key: &K) -> Option<&V> {
+        self.map.get(key)
+    }
+
+    // Mutable variant
+    fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.map.get_mut(key)
+    }
+
+    // Returns Option - bounds checked (like Vec::get)
+    fn get_nth(&self, index: usize) -> Option<&V> {
+        self.items.get(index)
+    }
+}
+
+#[derive(Clone, Default)]
+struct Config;
+
+struct Context {
+    configs: HashMap<String, Config>,
+    current_env: String,
 }
 
 impl Context {
@@ -89,24 +109,38 @@ impl Context {
 ## Standard Library Examples
 
 ```rust
+use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
+
+let s = String::from("abc");
+let v = vec![1, 2, 3];
+let map: HashMap<&str, i32> = HashMap::new();
+let tree: BTreeMap<&str, i32> = BTreeMap::new();
+
 // No get_ prefix
-String::len()
-Vec::len()
-Vec::capacity()
-Vec::is_empty()
-Path::file_name()
-Option::is_some()
-Result::is_ok()
+s.len();
+v.len();
+v.capacity();
+v.is_empty();
+Path::new("a/b.txt").file_name();
+Some(1).is_some();
+Ok::<i32, ()>(1).is_ok();
 
 // With get - returns Option or does lookup
-Vec::get(index)
-HashMap::get(key)
-BTreeMap::get(key)
+v.get(1);
+map.get("key");
+tree.get("key");
 ```
 
 ## Pattern: Getter/Setter Pairs
 
 ```rust
+use std::time::Duration;
+
+struct Config {
+    timeout: Duration,
+}
+
 impl Config {
     // Getter: no prefix
     fn timeout(&self) -> Duration {
@@ -123,6 +157,13 @@ impl Config {
 ## Pattern: Builder Methods
 
 ```rust
+use std::time::Duration;
+
+struct ConfigBuilder {
+    timeout: Duration,
+    retries: u32,
+}
+
 impl ConfigBuilder {
     // Builder methods: no get_, no set_
     fn timeout(mut self, timeout: Duration) -> Self {
@@ -149,6 +190,5 @@ impl ConfigBuilder {
 
 ## See Also
 
-- [name-is-has-bool](./name-is-has-bool.md) - Boolean naming
 - [name-is-has-bool](./name-is-has-bool.md) - Boolean naming
 - [api-builder-pattern](./api-builder-pattern.md) - Builder pattern

@@ -6,7 +6,7 @@
 
 Writing a proc-macro by hand-parsing `proc_macro::TokenStream` is fragile and verbose. The standard ecosystem trio — `syn` (parsing), `quote` (code generation), and `proc-macro2` (span-aware token types) — gives you a typed AST, readable quasi-quoting, and the ability to unit-test your macro logic outside the compiler.
 
-Enable only the `syn` features you actually use. The `full` feature parses all Rust syntax but adds compile time; `derive` is sufficient for most `#[proc_macro_derive]` implementations.
+Use the current `syn` major version (3). Enable only the `syn` features you actually use. The `full` feature parses all Rust syntax but adds compile time; `derive` is sufficient for most `#[proc_macro_derive]` implementations.
 
 ## Bad
 
@@ -31,7 +31,7 @@ pub fn derive_hello(input: TokenStream) -> TokenStream {
 ```toml
 # Cargo.toml for the derive crate
 [dependencies]
-syn  = { version = "2", features = ["derive"] }
+syn  = { version = "3", features = ["derive"] }
 quote = "1"
 proc-macro2 = "1"
 ```
@@ -103,6 +103,10 @@ mod tests {
     }
 }
 ```
+
+## Attribute Macros on Outlined Modules
+
+Since Rust 1.99, an attribute macro can be applied to an outlined module declaration such as `#[my_macro] mod foo;`. The input then parses as a `syn::ItemMod` with no inline content, so do not assume `item.content` is `Some`.
 
 ## See Also
 

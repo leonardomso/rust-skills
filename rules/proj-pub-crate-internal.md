@@ -137,3 +137,4 @@ pub use service::UserService;  // Only export the public API
 - [proj-pub-super-parent](./proj-pub-super-parent.md) - Parent-only visibility
 - [proj-pub-use-reexport](./proj-pub-use-reexport.md) - Clean re-exports
 - [api-non-exhaustive](./api-non-exhaustive.md) - Future-proof structs
+- [api-no-glob-reexports](api-no-glob-reexports.md) - Re-export items individually

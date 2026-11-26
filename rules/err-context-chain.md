@@ -44,23 +44,39 @@ fn load_user(id: u64) -> Result<User> {
 ## context() vs with_context()
 
 ```rust
-// context() - static string (slight allocation)
-fs::read_to_string(path)
-    .context("failed to read config")?;
+use anyhow::{Context, Result};
+use std::fs;
 
-// with_context() - lazy evaluation (only allocates on error)
-fs::read_to_string(path)
-    .with_context(|| format!("failed to read {}", path))?;
+fn read(path: &str) -> Result<()> {
+    // context() - static string (slight allocation)
+    fs::read_to_string(path)
+        .context("failed to read config")?;
 
-// Use with_context() when:
-// - Message includes runtime data (format!)
-// - Computing the message is expensive
-// - Error path is cold (most of the time)
+    // with_context() - lazy evaluation (only allocates on error)
+    fs::read_to_string(path)
+        .with_context(|| format!("failed to read {}", path))?;
+
+    // Use with_context() when:
+    // - Message includes runtime data (format!)
+    // - Computing the message is expensive
+    // - Error path is cold (most of the time)
+    Ok(())
+}
 ```
 
 ## Building Context Chains
 
 ```rust
+use anyhow::{Context, Result};
+
+struct Order { user_id: u64 }
+struct User;
+struct Payment;
+fn fetch_order(id: u64) -> Result<Order> { Ok(Order { user_id: 1 }) }
+fn load_user(id: u64) -> Result<User> { Ok(User) }
+fn process_payment(order: &Order, user: &User) -> Result<Payment> { Ok(Payment) }
+fn ship_order(order: &Order, payment: &Payment) -> Result<()> { Ok(()) }
+
 fn process_order(order_id: u64) -> Result<()> {
     let order = fetch_order(order_id)
         .with_context(|| format!("failed to fetch order {}", order_id))?;

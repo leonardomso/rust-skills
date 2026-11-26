@@ -1,6 +1,6 @@
 # mem-avoid-format
 
-> Avoid `format!()` when string literals work
+> Use string literals or `&'static str` where the text is fixed; reserve `format!()` for text that varies
 
 ## Why It Matters
 
@@ -95,7 +95,7 @@ fn build_message(parts: &[&str]) -> String {
 }
 
 // Good: Pre-allocate
-fn build_message(parts: &[&str]) -> String {
+fn build_message_prealloc(parts: &[&str]) -> String {
     let total_len: usize = parts.iter().map(|p| p.len() + 1).sum();
     let mut result = String::with_capacity(total_len);
     for part in parts {
@@ -106,7 +106,7 @@ fn build_message(parts: &[&str]) -> String {
 }
 
 // Good: Use join
-fn build_message(parts: &[&str]) -> String {
+fn build_message_join(parts: &[&str]) -> String {
     parts.join("\n")
 }
 ```
@@ -137,7 +137,7 @@ fn create_user_greeting(name: &str) -> String {
 }
 
 // Error messages (already on error path)
-return Err(format!("Invalid value: {}", value).into());
+return Err(format!("invalid value: {}", value).into());
 ```
 
 ## See Also

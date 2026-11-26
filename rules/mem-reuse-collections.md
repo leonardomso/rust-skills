@@ -42,7 +42,14 @@ fn format_lines(items: &[Item]) -> String {
 ## Good
 
 ```rust
-fn process_batches(batches: &[Batch]) -> Vec<Result> {
+struct Item { name: String, value: u32 }
+struct Batch { items: Vec<Item> }
+struct Summary;
+
+fn transform(item: &Item) -> u32 { item.value }
+fn aggregate(values: &[u32]) -> Summary { Summary }
+
+fn process_batches(batches: &[Batch]) -> Vec<Summary> {
     let mut results = Vec::with_capacity(batches.len());
     let mut temp = Vec::new();  // Allocate once outside loop
     
@@ -160,7 +167,7 @@ fn produce_results() -> Vec<Vec<Item>> {
 std::thread::scope(|s| {
     for _ in 0..4 {
         s.spawn(|| {
-            let local_buffer = Vec::new();  // Thread-local, can't share
+            let local_buffer = Vec::<u8>::new();  // Thread-local, can't share
             // ...
         });
     }
@@ -172,3 +179,4 @@ std::thread::scope(|s| {
 - [mem-with-capacity](./mem-with-capacity.md) - Pre-allocating capacity
 - [mem-clone-from](./mem-clone-from.md) - Reusing allocations when cloning
 - [mem-write-over-format](./mem-write-over-format.md) - Avoiding format! allocations
+- [mem-shrink-to-fit](mem-shrink-to-fit.md) - Shrink long-lived collections after building

@@ -28,13 +28,16 @@ struct Container<T> {
     items: Vec<T>,
 }
 
-fn process<I, O>(input: I) -> O { ... }
+fn process<I, O: Default>(input: I) -> O {
+    let _ = input;
+    O::default()
+}
 
 // Standard conventions
-struct HashMap<K, V> { ... }     // K=Key, V=Value
-enum Result<T, E> { ... }         // T=Type, E=Error
-enum Option<T> { ... }            // T=Type
-struct Ref<'a, T> { ... }        // Lifetime + Type
+struct HashMap<K, V> { entries: Vec<(K, V)> }  // K=Key, V=Value
+enum Result<T, E> { Ok(T), Err(E) }             // T=Type, E=Error
+enum Option<T> { Some(T), None }                // T=Type
+struct Ref<'a, T> { value: &'a T }              // Lifetime + Type
 ```
 
 ## Standard Type Parameter Names
@@ -55,34 +58,56 @@ struct Ref<'a, T> { ... }        // Lifetime + Type
 ## Multiple Type Parameters
 
 ```rust
+use std::error::Error;
+
+trait Input {}
+trait Output {}
+
 // Use related letters
 fn transform<I, O, E>(input: I) -> Result<O, E>
 where
     I: Input,
     O: Output,
     E: Error,
-{ ... }
+{
+    let _ = input;
+    unimplemented!()
+}
 
 // Or sequential: T, U, V
-fn combine<T, U, V>(a: T, b: U) -> V { ... }
+fn combine<T, U, V: Default>(a: T, b: U) -> V {
+    let _ = (a, b);
+    V::default()
+}
 
 // Descriptive only when many parameters need clarity
-struct Query<Db, Row, Err> { ... }
+struct Query<Db, Row, Err> {
+    db: Db,
+    rows: Vec<Row>,
+    error: Option<Err>,
+}
 ```
 
 ## Trait Bounds
 
 ```rust
+use std::error::Error;
+use std::fmt::Debug;
+use std::io::Error as IoError;
+
 // Keep type params short, move complexity to where clause
-fn process<T, E>(value: T) -> Result<T, E>
+fn process_where<T, E>(value: T) -> Result<T, E>
 where
     T: Clone + Debug + Send + Sync,
     E: Error + From<IoError>,
-{ ... }
+{
+    Ok(value)
+}
 
-// Not inline
-fn process<T: Clone + Debug + Send + Sync, E: Error + From<IoError>>(value: T) -> Result<T, E>
-// Too long!
+// Not inline: the bounds crowd out the signature. Too long!
+fn process_inline<T: Clone + Debug + Send + Sync, E: Error + From<IoError>>(value: T) -> Result<T, E> {
+    Ok(value)
+}
 ```
 
 ## See Also

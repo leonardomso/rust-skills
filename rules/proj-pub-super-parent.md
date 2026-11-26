@@ -31,6 +31,10 @@ pub mod lexer;
 pub mod ast;
 
 // Shared types for parser submodules only
+pub(super) enum TokenKind { Ident }
+pub(super) struct Span { start: usize, end: usize }
+pub(super) struct Ast;
+
 pub(super) struct Token {
     pub(super) kind: TokenKind,
     pub(super) span: Span,
@@ -38,21 +42,23 @@ pub(super) struct Token {
 
 pub(super) fn shared_helper() -> Token {
     // Only visible in parser/*
+    Token { kind: TokenKind::Ident, span: Span { start: 0, end: 0 } }
 }
 
 // src/parser/lexer.rs
-use super::{Token, shared_helper};
+use super::{shared_helper, Token};
 
 pub fn lex(input: &str) -> Vec<Token> {
-    shared_helper();
-    // ...
+    let _ = input;
+    vec![shared_helper()]
 }
 
 // src/parser/ast.rs
-use super::Token;
+use super::{Ast, Token};
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
-    // ...
+    let _ = tokens;
+    Ast
 }
 ```
 

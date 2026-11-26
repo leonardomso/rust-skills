@@ -1,6 +1,6 @@
 # perf-chain-avoid
 
-> Avoid chain in hot loops
+> Use a single iterator or an explicit loop in hot loops; `chain` adds a branch per item
 
 ## Why It Matters
 
@@ -74,7 +74,7 @@ fn collect_all(a: Vec<i32>, b: Vec<i32>) -> Vec<i32> {
 }
 
 // Lazy evaluation with short-circuit
-fn find_in_either(a: &[Item], b: &[Item], target: i32) -> Option<&Item> {
+fn find_in_either<'a>(a: &'a [Item], b: &'a [Item], target: i32) -> Option<&'a Item> {
     a.iter().chain(b.iter()).find(|x| x.id == target)
 }
 

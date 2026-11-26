@@ -31,11 +31,21 @@ let state = process_state(state);  // Two large memcpys
 ## Good
 
 ```rust
+#[derive(Clone, Copy)]
+struct Cell(u8);
+struct Move;
+struct Player;
+struct LargeStruct([u8; 4096]);
+
 // Box reduces move cost to 8 bytes
 struct GameState {
     board: Box<[[Cell; 100]; 100]>,  // Pointer to heap
     history: Vec<Move>,               // Already heap-allocated
     players: [Player; 4],
+}
+
+impl GameState {
+    fn apply_rules(&mut self) {}
 }
 
 fn process_state(mut state: GameState) -> GameState {

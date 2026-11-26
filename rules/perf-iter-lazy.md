@@ -120,4 +120,3 @@ let total: i64 = data.iter()
 
 - [perf-collect-once](./perf-collect-once.md) - Single collect
 - [perf-iter-over-index](./perf-iter-over-index.md) - Prefer iterators
-- [anti-collect-intermediate](./anti-collect-intermediate.md) - Anti-pattern

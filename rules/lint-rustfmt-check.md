@@ -49,14 +49,13 @@ cargo fmt --all --check
 Create `rustfmt.toml` for custom settings:
 
 ```toml
-# rustfmt.toml
-edition = "2021"
+# rustfmt.toml (stable options only)
 max_width = 100
 use_small_heuristics = "Max"
-imports_granularity = "Module"
-group_imports = "StdExternalCrate"
 reorder_imports = true
 ```
+
+`cargo fmt` reads the edition from `Cargo.toml`, so you do not need an `edition` key in `rustfmt.toml`.
 
 ## Common Options
 
@@ -64,10 +63,8 @@ reorder_imports = true
 |--------|---------|-------------|
 | `max_width` | 100 | Maximum line width |
 | `tab_spaces` | 4 | Spaces per indent |
-| `edition` | "2015" | Rust edition |
 | `use_small_heuristics` | "Default" | Layout heuristics |
-| `imports_granularity` | "Preserve" | Import grouping |
-| `group_imports` | "Preserve" | Import ordering |
+| `reorder_imports` | true | Sort `use` items |
 
 ## Running Locally
 
@@ -130,6 +127,7 @@ Some options require nightly:
 # rustfmt.toml (nightly only)
 unstable_features = true
 imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
 wrap_comments = true
 format_code_in_doc_comments = true
 ```
@@ -152,6 +150,6 @@ Most IDEs format on save. Configure to use project `rustfmt.toml`:
 
 ## See Also
 
-- [lint-warn-style](./lint-warn-style.md) - Style lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Style lints
 - [lint-pedantic-selective](./lint-pedantic-selective.md) - Pedantic lints
 - [name-funcs-snake](./name-funcs-snake.md) - Naming conventions

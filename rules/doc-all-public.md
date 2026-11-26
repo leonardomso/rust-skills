@@ -111,3 +111,4 @@ missing_docs = "warn"
 - [doc-module-inner](./doc-module-inner.md) - Module-level documentation
 - [doc-examples-section](./doc-examples-section.md) - Adding examples
 - [lint-missing-docs](./lint-missing-docs.md) - Enforcing documentation
+- [doc-first-sentence](doc-first-sentence.md) - Keep the first doc sentence short

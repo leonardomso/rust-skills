@@ -34,6 +34,10 @@ pub trait DatabaseDriver {
 ## Good
 
 ```rust
+pub struct Connection;
+pub struct Rows;
+pub struct Error;
+
 // Create a private module with a private trait
 mod private {
     pub trait Sealed {}
@@ -49,15 +53,15 @@ pub trait DatabaseDriver: private::Sealed {
 pub struct PostgresDriver;
 impl private::Sealed for PostgresDriver {}
 impl DatabaseDriver for PostgresDriver {
-    fn connect(&self, url: &str) -> Connection { ... }
-    fn execute(&self, query: &str) -> Result<Rows, Error> { ... }
+    fn connect(&self, url: &str) -> Connection { Connection }
+    fn execute(&self, query: &str) -> Result<Rows, Error> { Ok(Rows) }
 }
 
 pub struct MySqlDriver;
 impl private::Sealed for MySqlDriver {}
 impl DatabaseDriver for MySqlDriver {
-    fn connect(&self, url: &str) -> Connection { ... }
-    fn execute(&self, query: &str) -> Result<Rows, Error> { ... }
+    fn connect(&self, url: &str) -> Connection { Connection }
+    fn execute(&self, query: &str) -> Result<Rows, Error> { Ok(Rows) }
 }
 
 // External crate cannot implement - private::Sealed is not accessible
@@ -73,6 +77,10 @@ fn use_driver(driver: &impl DatabaseDriver) {
 
 ```rust
 pub mod db {
+    pub struct Connection;
+    pub struct Rows;
+    pub struct Error;
+
     mod private {
         pub trait Sealed {}
     }
@@ -90,21 +98,30 @@ pub mod db {
     
     pub struct Postgres;
     impl private::Sealed for Postgres {}
-    impl Driver for Postgres { ... }
+    impl Driver for Postgres {
+        fn connect(&self, url: &str) -> Result<Connection, Error> { Ok(Connection) }
+        fn execute(&self, sql: &str) -> Result<Rows, Error> { Ok(Rows) }
+    }
     
     pub struct Sqlite;
     impl private::Sealed for Sqlite {}
-    impl Driver for Sqlite { ... }
+    impl Driver for Sqlite {
+        fn connect(&self, url: &str) -> Result<Connection, Error> { Ok(Connection) }
+        fn execute(&self, sql: &str) -> Result<Rows, Error> { Ok(Rows) }
+    }
 }
 
 // Usage works fine
 use db::{Driver, Postgres};
 
-fn query(driver: &impl Driver) {
+fn query(driver: &impl Driver) -> Result<(), db::Error> {
     driver.execute("SELECT 1")?;
+    Ok(())
 }
 
-query(&Postgres);
+fn main() {
+    let _ = query(&Postgres);
+}
 ```
 
 ## Benefits of Sealing

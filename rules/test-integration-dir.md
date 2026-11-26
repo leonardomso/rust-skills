@@ -142,3 +142,4 @@ cargo test --test api_tests test_login
 - [test-cfg-test-module](./test-cfg-test-module.md) - Unit test modules
 - [test-descriptive-names](./test-descriptive-names.md) - Test naming
 - [test-tokio-async](./test-tokio-async.md) - Async integration tests
+- [test-utils-feature-gated](test-utils-feature-gated.md) - Gate test utilities behind a feature

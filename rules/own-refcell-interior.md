@@ -37,7 +37,13 @@ struct Cache {
     data: RefCell<HashMap<String, String>>,
 }
 
+fn expensive_compute(key: &str) -> String { key.to_uppercase() }
+
 impl Cache {
+    fn new() -> Self {
+        Cache { data: RefCell::new(HashMap::new()) }
+    }
+
     fn get_or_compute(&self, key: &str) -> String {
         // Can mutate through &self
         let mut data = self.data.borrow_mut();
@@ -48,12 +54,14 @@ impl Cache {
     }
 }
 
-// Multiple references can coexist
-let cache = Cache::new();
-let ref1 = &cache;
-let ref2 = &cache;
-ref1.get_or_compute("key1");
-ref2.get_or_compute("key2");
+fn main() {
+    // Multiple references can coexist
+    let cache = Cache::new();
+    let ref1 = &cache;
+    let ref2 = &cache;
+    ref1.get_or_compute("key1");
+    ref2.get_or_compute("key2");
+}
 ```
 
 ## Common Pattern: Rc<RefCell<T>>
@@ -61,6 +69,12 @@ ref2.get_or_compute("key2");
 ```rust
 use std::rc::Rc;
 use std::cell::RefCell;
+
+struct AppState { count: i32 }
+impl AppState {
+    fn increment(&mut self) { self.count += 1; }
+    fn decrement(&mut self) { self.count -= 1; }
+}
 
 // Shared mutable state in single-threaded code
 type SharedState = Rc<RefCell<AppState>>;
@@ -84,6 +98,8 @@ fn create_handlers(state: SharedState) -> Vec<Box<dyn Fn()>> {
 `RefCell` panics if you violate borrowing rules at runtime:
 
 ```rust
+use std::cell::RefCell;
+
 let cell = RefCell::new(5);
 let borrow1 = cell.borrow();
 let borrow2 = cell.borrow_mut(); // PANIC: already borrowed
@@ -104,7 +120,7 @@ struct Counter {
 
 impl Counter {
     fn bump(&self) {
-        self.count.set(self.count.get() + 1); // mutate through &self, never panics
+        self.count.set(self.count.get() + 1); // mutate through &self; no borrow-tracking panics (the `+ 1` can still overflow)
     }
 }
 ```

@@ -105,8 +105,8 @@ pub use queries::{UserQueries, OrderQueries};
 
 Pick one style for your project and stick with it:
 
-```rust
-// Cargo.toml or clippy.toml
+```toml
+# Cargo.toml
 [lints.clippy]
 mod_module_files = "warn"  # Enforces mod.rs style
 # OR

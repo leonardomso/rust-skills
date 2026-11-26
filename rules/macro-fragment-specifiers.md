@@ -6,7 +6,7 @@
 
 Fragment specifiers tell the compiler — and readers — exactly what syntactic category a macro arm expects. They produce targeted error messages ("expected expression" instead of "no rules expected token"), enable better IDE tooling, and prevent ambiguous parses. Using raw `:tt` (token tree) forces you to re-parse or validate by hand and leaks implementation details into error messages.
 
-Note the **follow-set restriction**: after `:expr`, `:ty`, `:pat`, and a few others, only a limited set of tokens may appear — most commonly `=>`, `,`, `;`, `|`, or another fragment. Plan your separator tokens accordingly.
+Note the **follow-set restriction**: after `:expr`, `:ty`, `:pat`, and a few others, only a limited set of tokens may appear: after `:expr` and `:stmt` only `=>`, `,` or `;`; after `:pat` only `=>`, `,`, `=`, `if` or `in`; after `:ty` and `:path` a few more, such as `{`, `[`, `>` and `as`. Plan your separator tokens accordingly.
 
 ## Bad
 
@@ -45,10 +45,12 @@ fn main() {
 
 | Specifier | Matches | Common uses |
 |-----------|---------|-------------|
-| `:expr` | An expression | Values, arithmetic, closures |
+| `:expr` | An expression (2024 edition: also `const { }` and `_`) | Values, arithmetic, closures |
+| `:expr_2021` | An expression, 2021 rules (no `const { }` or `_`) | Macros that must keep the old behavior |
+| `:item` | An item (`fn`, `struct`, `impl`, ...) | Macros that wrap definitions |
 | `:ty` | A type | Generic helpers, type aliases |
 | `:ident` | An identifier | Field names, variable names |
-| `:pat` | A pattern | `match` arm patterns |
+| `:pat` | A pattern (top-level `|` allowed since 2021) | `match` arm patterns |
 | `:pat_param` | A pattern (no `|` at top level) | Fn param patterns |
 | `:path` | A path (`a::b::c`) | Trait bounds, type paths |
 | `:literal` | A literal (`42`, `"hi"`) | Constant values |
@@ -58,6 +60,11 @@ fn main() {
 | `:vis` | A visibility qualifier | `pub`, `pub(crate)` |
 | `:lifetime` | A lifetime (`'a`) | Generic lifetime params |
 | `:tt` | Any single token tree | Last resort; combinators |
+
+## Edition and Version Notes
+
+- In the 2024 edition `:expr` also matches `const { ... }` blocks and `_`. If a macro has another arm that must see those tokens first, order the arms carefully, or use `:expr_2021` to keep the old behavior.
+- Since Rust 1.100, `let ... else` respects the grouping of an `:expr` metavariable. A macro that expands to `let Some(x) = $e else { return };` now treats `$e` as a single expression, so an `$e` such as `a || b` no longer changes how the `else` is parsed.
 
 ## Trailing-Comma Pattern
 

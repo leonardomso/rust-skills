@@ -119,15 +119,28 @@ enum Result<T, E> {
 }
 
 // Use these instead of nullable/sentinel values
-fn find_user(id: u64) -> Option<User> { ... }
-fn parse_config(s: &str) -> Result<Config, ParseError> { ... }
+struct User;
+struct Config;
+struct ParseError;
+
+fn find_user(id: u64) -> Option<User> {
+    if id == 0 { Option::None } else { Option::Some(User) }
+}
+fn parse_config(s: &str) -> Result<Config, ParseError> {
+    if s.is_empty() { Result::Err(ParseError) } else { Result::Ok(Config) }
+}
 ```
 
 ## Avoid Boolean Flags
 
 ```rust
+use std::time::Instant;
+
+struct Error;
+struct Output;
+
 // Bad: boolean flags
-struct Task {
+struct FlagTask {
     is_running: bool,
     is_completed: bool,
     is_failed: bool,

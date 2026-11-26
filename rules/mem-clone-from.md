@@ -38,7 +38,8 @@ for source in sources {
 
 ## How clone_from Works
 
-```rust
+```rust,ignore
+// Excerpt of std's `impl Clone for String` (simplified), shown for illustration
 impl Clone for String {
     fn clone(&self) -> Self {
         // Always allocates new memory
@@ -76,7 +77,8 @@ path.clone_from(&other_path);
 ## Benchmarking the Difference
 
 ```rust
-use criterion::{black_box, criterion_group, Criterion};
+use criterion::{criterion_group, Criterion};
+use std::hint::black_box;
 
 fn bench_clone_patterns(c: &mut Criterion) {
     let source = "x".repeat(1000);

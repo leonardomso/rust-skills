@@ -33,14 +33,14 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 enum ConfigError {
-    #[error("Failed to read config file '{path}'")]
+    #[error("failed to read config file '{path}'")]
     ReadFailed {
         path: String,
         #[source]  // Preserves the error chain
         source: std::io::Error,
     },
     
-    #[error("Failed to parse config file '{path}'")]
+    #[error("failed to parse config file '{path}'")]
     ParseFailed {
         path: String,
         #[source]  // Original parse error preserved
@@ -114,16 +114,16 @@ use anyhow::{Context, Result};
 
 fn load_config(path: &str) -> Result<Config> {
     let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read '{}'", path))?;
+        .with_context(|| format!("failed to read '{}'", path))?;
     
     let config: Config = serde_json::from_str(&content)
-        .with_context(|| format!("Failed to parse '{}'", path))?;
+        .with_context(|| format!("failed to parse '{}'", path))?;
     
     Ok(config)
 }
 
 // Output:
-// Error: Failed to parse 'config.json'
+// Error: failed to parse 'config.json'
 // Caused by: expected `:` at line 5 column 10
 ```
 

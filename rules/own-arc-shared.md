@@ -6,6 +6,8 @@
 
 `Arc` (Atomic Reference Counted) provides shared ownership across threads. Unlike `Rc`, its reference count is updated atomically, making it safe for concurrent access. Use it when multiple threads need to read the same data.
 
+`Arc` only makes the *handle* shareable. `Arc<T>` is `Send` and `Sync` only when `T: Send + Sync`, so `Arc<RefCell<T>>` or `Arc<Rc<T>>` still can't cross threads. For shared mutation, put a thread-safe type inside: `Arc<Mutex<T>>`, `Arc<RwLock<T>>`, or atomics.
+
 ## Bad
 
 ```rust
@@ -138,6 +140,7 @@ for item in items {
 
 - [own-rc-single-thread](own-rc-single-thread.md) - Use Rc for single-threaded sharing
 - [own-mutex-interior](own-mutex-interior.md) - Use Mutex for interior mutability
-- [async-clone-before-await](async-clone-before-await.md) - Clone Arc before await points
+- [async-clone-before-await](async-clone-before-await.md) - Clone the Arc handle, not its contents
 - [conc-scoped-threads](conc-scoped-threads.md) - Borrow stack data instead of Arc
 - [unsafe-send-sync-manual](unsafe-send-sync-manual.md) - Document manual Send/Sync impls
+- [api-types-send](api-types-send.md) - Make public types and futures Send
