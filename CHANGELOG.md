@@ -4,6 +4,47 @@ All notable changes to this skill are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning for the rule set.
 
+## [1.6.0]
+
+Current for Rust 1.100. Now 289 rules across 26 categories.
+
+### Added
+- 18 rules adopted from Microsoft's Pragmatic Rust Guidelines, written in
+  this repo's own words: `api-types-send`, `api-dont-leak-types`,
+  `api-impl-rangebounds`, `api-sans-io`, `api-no-glob-reexports`,
+  `api-avoid-statics`, `async-yield-points`, `async-future-size`,
+  `unsafe-sound-abstractions`, `mem-shrink-to-fit`, `mem-global-allocator`,
+  `test-no-tautological`, `test-utils-feature-gated`, `name-weasel-words`,
+  `obs-log-overhead`, `doc-first-sentence`, `lint-expect-over-allow`,
+  `macro-pin-impl-crate` (#3).
+- `references/pragmatic-rust-guidelines.md`: an optional crosswalk from every
+  `M-*` guideline to these rules, including what was not adopted and why.
+- Rules for features stabilized in Rust 1.95–1.100: `mem-allocator-api`,
+  `macro-cfg-select`, `lint-cargo-lints`, `lint-build-warnings`,
+  `proj-dependency-cooldown`, `doc-alias-suggestions`.
+- A "Where the rules come from" section in the README (#1).
+
+### Changed
+- Every category reviewed against Rust 1.100. Highlights: never type and
+  `Infallible = !`, `std::mem::DropGuard`, `NumBuffer::format_into`, atomic
+  `update`/`try_update`, `LocalKey::update`, `if let` guards,
+  `assert_matches!`, sample-based PGO, `[lints.cargo]`, `build.warnings`,
+  the `debug` profile, and clippy lint groups re-verified on 1.100.
+- `async-clone-before-await` rewritten: clone the `Arc` handle, not its
+  contents; cloning an `Rc` never makes a future `Send` (#10).
+- `async-fn-in-trait`: `trait-variant` does not make a trait
+  dyn-compatible; added a compile-checked boxed-future adapter (#6).
+- Ownership rules corrected and clarified: `&Path` vs strings, `Mutex`
+  sizes, `RwLock` downgrade, `Cow::to_mut` vs `into_owned`, and more (#8).
+- Install instructions now use `npx skills add` and document the Node.js
+  >= 22.20 requirement and a Node-free fallback (#9).
+- The compile harness is pinned to Rust 1.100.0, and the example
+  dependencies are on current majors (syn 3, mockall 0.15, parking_lot 0.13).
+  Fixing broken Good examples cut the accepted-suspect baseline from 123
+  to 96.
+- `checks/gen_index.py` also keeps the README category counts and the
+  documented Rust version (read from `checks/rust-toolchain.toml`) in sync.
+
 ## [1.5.1]
 
 ### Changed

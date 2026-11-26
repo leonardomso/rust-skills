@@ -1,7 +1,7 @@
 ---
 name: rust-skills
 description: >
-  Comprehensive Rust coding guidelines with 265 rules across 26 categories.
+  Comprehensive Rust coding guidelines with 289 rules across 26 categories.
   Use when writing, reviewing, or refactoring Rust code. Covers ownership,
   error handling, async patterns, concurrency, unsafe code, API design, memory
   optimization, performance, numeric safety, conversions, serde, pattern
@@ -10,18 +10,19 @@ description: >
 license: MIT
 metadata:
   author: leonardomso
-  version: "1.5.1"
+  version: "1.6.0"
   sources:
     - Rust API Guidelines
     - Rust Performance Book
     - Rust 2024 Edition Guide
     - The Rustonomicon
+    - Microsoft Pragmatic Rust Guidelines (selected; see references/)
     - ripgrep, tokio, serde, polars, axum, cargo codebases
 ---
 
 # Rust Best Practices
 
-Comprehensive guide for writing high-quality, idiomatic, and highly optimized Rust code. Contains 265 rules across 26 categories, prioritized by impact to guide LLMs in code generation and refactoring. Current for Rust 1.96 (2024 edition).
+Comprehensive guide for writing high-quality, idiomatic, and highly optimized Rust code. Contains 289 rules across 26 categories, prioritized by impact to guide LLMs in code generation and refactoring. Current for Rust 1.100 (2024 edition).
 
 ## When to Apply
 
@@ -41,10 +42,10 @@ Reference these guidelines when:
 |----------|----------|--------|--------|-------|
 | 1 | Ownership & Borrowing | CRITICAL | `own-` | 12 |
 | 2 | Error Handling | CRITICAL | `err-` | 12 |
-| 3 | Memory Optimization | CRITICAL | `mem-` | 17 |
-| 4 | Unsafe Code | CRITICAL | `unsafe-` | 7 |
-| 5 | API Design | HIGH | `api-` | 17 |
-| 6 | Async/Await | HIGH | `async-` | 18 |
+| 3 | Memory Optimization | CRITICAL | `mem-` | 20 |
+| 4 | Unsafe Code | CRITICAL | `unsafe-` | 8 |
+| 5 | API Design | HIGH | `api-` | 23 |
+| 6 | Async/Await | HIGH | `async-` | 20 |
 | 7 | Concurrency | HIGH | `conc-` | 4 |
 | 8 | Compiler Optimization | HIGH | `opt-` | 12 |
 | 9 | Numeric & Arithmetic Safety | HIGH | `num-` | 5 |
@@ -54,16 +55,16 @@ Reference these guidelines when:
 | 13 | Const & Compile-Time | MEDIUM | `const-` | 4 |
 | 14 | Serde | MEDIUM | `serde-` | 8 |
 | 15 | Pattern Matching | MEDIUM | `pat-` | 5 |
-| 16 | Macros | MEDIUM | `macro-` | 8 |
+| 16 | Macros | MEDIUM | `macro-` | 10 |
 | 17 | Closures | MEDIUM | `closure-` | 5 |
 | 18 | Collections | MEDIUM | `coll-` | 4 |
-| 19 | Naming Conventions | MEDIUM | `name-` | 16 |
-| 20 | Testing | MEDIUM | `test-` | 15 |
-| 21 | Documentation | MEDIUM | `doc-` | 12 |
-| 22 | Observability | MEDIUM | `obs-` | 7 |
+| 19 | Naming Conventions | MEDIUM | `name-` | 17 |
+| 20 | Testing | MEDIUM | `test-` | 17 |
+| 21 | Documentation | MEDIUM | `doc-` | 14 |
+| 22 | Observability | MEDIUM | `obs-` | 8 |
 | 23 | Performance Patterns | MEDIUM | `perf-` | 13 |
-| 24 | Project Structure | LOW | `proj-` | 14 |
-| 25 | Clippy & Linting | LOW | `lint-` | 13 |
+| 24 | Project Structure | LOW | `proj-` | 15 |
+| 25 | Clippy & Linting | LOW | `lint-` | 16 |
 | 26 | Anti-patterns | REFERENCE | `anti-` | 15 |
 
 ---
@@ -119,6 +120,9 @@ Reference these guidelines when:
 - [`mem-assert-type-size`](rules/mem-assert-type-size.md) - Use static assertions to guard against accidental type size growth
 - [`mem-take-replace`](rules/mem-take-replace.md) - Use `mem::take` / `mem::replace` to move a value out of a `&mut` without cloning
 - [`mem-drop-order`](rules/mem-drop-order.md) - Know and control drop order: struct fields drop top-to-bottom, locals in reverse
+- [`mem-allocator-api`](rules/mem-allocator-api.md) - Use the stable `Allocator` trait with `Vec::new_in` and `Box::new_in` to control where a collection allocates
+- [`mem-global-allocator`](rules/mem-global-allocator.md) - For allocation-heavy applications, try a different global allocator and keep it only if benchmarks improve
+- [`mem-shrink-to-fit`](rules/mem-shrink-to-fit.md) - Call `shrink_to_fit()` on large, long-lived collections that were built by pushing
 
 ### 4. Unsafe Code (CRITICAL)
 
@@ -129,6 +133,7 @@ Reference these guidelines when:
 - [`unsafe-extern-block`](rules/unsafe-extern-block.md) - In Rust 2024, wrap `extern` blocks in `unsafe extern { }` and annotate each item as `safe` or `unsafe`.
 - [`unsafe-send-sync-manual`](rules/unsafe-send-sync-manual.md) - Document the invariants when manually implementing `Send` or `Sync`; prefer letting the compiler derive them automatically.
 - [`unsafe-no-mangle-unsafe`](rules/unsafe-no-mangle-unsafe.md) - In Rust 2024, write `#[unsafe(no_mangle)]`, `#[unsafe(export_name = "...")]`, and `#[unsafe(link_section = "...")]` — not the bare attribute forms.
+- [`unsafe-sound-abstractions`](rules/unsafe-sound-abstractions.md) - Never expose a safe function that can cause undefined behavior, and use `unsafe` only to mark UB risk
 
 ### 5. API Design (HIGH)
 
@@ -149,6 +154,12 @@ Reference these guidelines when:
 - [`api-serde-optional`](rules/api-serde-optional.md) - Make serde a feature flag, not a hard dependency for library crates
 - [`api-impl-fromiterator`](rules/api-impl-fromiterator.md) - Implement `FromIterator` and `Extend` for collection types, and `IntoIterator` for all three reference forms
 - [`api-operator-overload`](rules/api-operator-overload.md) - Overload operators only when the semantics are natural and unsurprising
+- [`api-avoid-statics`](rules/api-avoid-statics.md) - Do not keep correctness-relevant state in `static` items inside a library; pass it explicitly
+- [`api-dont-leak-types`](rules/api-dont-leak-types.md) - Prefer `std` types in public APIs; expose third-party types only when they give a clear benefit
+- [`api-impl-rangebounds`](rules/api-impl-rangebounds.md) - Accept `impl RangeBounds<T>` for range parameters instead of separate bounds or a concrete `Range`
+- [`api-no-glob-reexports`](rules/api-no-glob-reexports.md) - Re-export items one by one, not with `pub use module::*`
+- [`api-sans-io`](rules/api-sans-io.md) - Take `impl Read`/`impl Write` (or their async counterparts) instead of files or paths for one-shot I/O
+- [`api-types-send`](rules/api-types-send.md) - Make public types and the futures they produce `Send`, and assert it so it stays that way
 
 ### 6. Async/Await (HIGH)
 
@@ -166,10 +177,12 @@ Reference these guidelines when:
 - [`async-watch-latest`](rules/async-watch-latest.md) - Use `watch` channel for sharing the latest value with multiple observers
 - [`async-oneshot-response`](rules/async-oneshot-response.md) - Use `oneshot` channel for request-response patterns
 - [`async-joinset-structured`](rules/async-joinset-structured.md) - Use `JoinSet` for managing dynamic collections of spawned tasks
-- [`async-clone-before-await`](rules/async-clone-before-await.md) - Clone Arc/Rc data before await points to avoid holding references across suspension
+- [`async-clone-before-await`](rules/async-clone-before-await.md) - Clone the `Arc` handle, not its contents, before moving it into a spawned task; keep owned handles across `.await` and borrow after it
 - [`async-fn-in-trait`](rules/async-fn-in-trait.md) - Use native `async fn` in traits (stable 1.75) instead of the `async_trait` macro
 - [`async-async-fn-bounds`](rules/async-async-fn-bounds.md) - Use `AsyncFn`/`AsyncFnMut`/`AsyncFnOnce` bounds instead of `F: Fn() -> Fut, Fut: Future`
 - [`async-cancel-safety`](rules/async-cancel-safety.md) - Ensure futures used in `tokio::select!` branches are cancellation-safe
+- [`async-future-size`](rules/async-future-size.md) - Track the size of futures on hot paths and keep large values out of their state machines
+- [`async-yield-points`](rules/async-yield-points.md) - Add `yield_now().await` points to long CPU-bound loops in async code so they do not starve other tasks
 
 ### 7. Concurrency (HIGH)
 
@@ -268,6 +281,8 @@ Reference these guidelines when:
 - [`macro-proc-two-crate`](rules/macro-proc-two-crate.md) - Put procedural macros in a dedicated `proc-macro = true` crate and re-export from the facade
 - [`macro-proc-syn-quote`](rules/macro-proc-syn-quote.md) - Build procedural macros with `syn`, `quote`, and `proc-macro2`
 - [`macro-proc-error-spans`](rules/macro-proc-error-spans.md) - Report proc-macro errors as spanned compile errors, never by panicking
+- [`macro-cfg-select`](rules/macro-cfg-select.md) - Use `cfg_select!` (stable since Rust 1.95) to pick one compile-time branch instead of stacked `#[cfg]` or the `cfg-if` crate
+- [`macro-pin-impl-crate`](rules/macro-pin-impl-crate.md) - Pin a companion proc-macro crate to your crate's exact version with `=x.y.z`
 
 ### 17. Closures (MEDIUM)
 
@@ -302,6 +317,7 @@ Reference these guidelines when:
 - [`name-iter-type-match`](rules/name-iter-type-match.md) - Name iterator types after their source method
 - [`name-acronym-word`](rules/name-acronym-word.md) - Treat acronyms as words in identifiers: `HttpServer`, not `HTTPServer`
 - [`name-crate-no-rs`](rules/name-crate-no-rs.md) - Don't suffix crate names with `-rs` or `-rust`
+- [`name-weasel-words`](rules/name-weasel-words.md) - Avoid names built on `Service`, `Manager`, `Factory`, and similar words that say nothing about what the type does
 
 ### 20. Testing (MEDIUM)
 
@@ -320,6 +336,8 @@ Reference these guidelines when:
 - [`test-doctest-examples`](rules/test-doctest-examples.md) - Keep documentation examples as executable doctests
 - [`test-loom-concurrency`](rules/test-loom-concurrency.md) - Use `loom` to exhaustively test lock-free and concurrent code
 - [`test-snapshot-testing`](rules/test-snapshot-testing.md) - Use snapshot testing (insta) for complex or serialized output
+- [`test-no-tautological`](rules/test-no-tautological.md) - Test properties and independently known values, not a restatement of the code under test
+- [`test-utils-feature-gated`](rules/test-utils-feature-gated.md) - Put mocks, fake data, and safety-check overrides behind a `test-util` feature
 
 ### 21. Documentation (MEDIUM)
 
@@ -335,6 +353,8 @@ Reference these guidelines when:
 - [`doc-link-types`](rules/doc-link-types.md) - Use intra-doc links to connect related types and functions
 - [`doc-cargo-metadata`](rules/doc-cargo-metadata.md) - Fill `Cargo.toml` metadata for published crates
 - [`doc-crate-readme`](rules/doc-crate-readme.md) - Unify the README and crate root docs with `#![doc = include_str!("../README.md")]`
+- [`doc-alias-suggestions`](rules/doc-alias-suggestions.md) - Add `#[doc(alias = "...")]` so users and rustc find an item under the name they expect
+- [`doc-first-sentence`](rules/doc-first-sentence.md) - Make the first sentence of a doc comment a short, one-line summary of about 15 words or fewer
 
 ### 22. Observability (MEDIUM)
 
@@ -345,6 +365,7 @@ Reference these guidelines when:
 - [`obs-levels-filter`](rules/obs-levels-filter.md) - Use log levels meaningfully and filter with `EnvFilter` / `RUST_LOG`
 - [`obs-error-chain`](rules/obs-error-chain.md) - Log errors with their full source chain, and log each error exactly once
 - [`obs-no-sensitive-data`](rules/obs-no-sensitive-data.md) - Never log secrets or PII; redact or skip them
+- [`obs-log-overhead`](rules/obs-log-overhead.md) - Keep telemetry on hot paths cheap: no allocation per event and no per-item events in inner loops
 
 ### 23. Performance Patterns (MEDIUM)
 
@@ -378,6 +399,7 @@ Reference these guidelines when:
 - [`proj-feature-additive`](rules/proj-feature-additive.md) - Design Cargo features to be strictly additive
 - [`proj-msrv-declare`](rules/proj-msrv-declare.md) - Declare `rust-version` (MSRV) in Cargo.toml and test it in CI
 - [`proj-build-rs-minimal`](rules/proj-build-rs-minimal.md) - Keep `build.rs` minimal, deterministic, and idempotent
+- [`proj-dependency-cooldown`](rules/proj-dependency-cooldown.md) - Set a minimum publish age so the resolver skips brand-new dependency versions
 
 ### 25. Clippy & Linting (LOW)
 
@@ -394,6 +416,9 @@ Reference these guidelines when:
 - [`lint-workspace-lints`](rules/lint-workspace-lints.md) - Configure lints at workspace level for consistent enforcement
 - [`lint-cfg-check`](rules/lint-cfg-check.md) - Enable `unexpected_cfgs` and declare known cfgs to catch feature-gate typos
 - [`lint-clippy-nursery-selected`](rules/lint-clippy-nursery-selected.md) - Enable high-value `clippy::nursery` lints selectively, not the whole group
+- [`lint-build-warnings`](rules/lint-build-warnings.md) - Deny warnings in CI with `build.warnings` instead of `RUSTFLAGS=-Dwarnings`
+- [`lint-cargo-lints`](rules/lint-cargo-lints.md) - Configure Cargo's own lints in `[lints.cargo]` and deny unused dependencies
+- [`lint-expect-over-allow`](rules/lint-expect-over-allow.md) - Use `#[expect(lint, reason = "...")]` instead of `#[allow]` when overriding a lint for one item
 
 ### 26. Anti-patterns (REFERENCE)
 
@@ -430,12 +455,24 @@ inherits = "release"
 debug = true
 strip = false
 
-[profile.dev]
-opt-level = 0
-debug = true
-
 [profile.dev.package."*"]
 opt-level = 3  # Optimize dependencies in dev
+
+[lints.cargo]
+unused_dependencies = "warn"  # Cargo's own lints, stable since Rust 1.100
+```
+
+And in `.cargo/config.toml`:
+
+```toml
+[resolver]
+incompatible-rust-versions = "fallback"  # prefer dependency versions that support your MSRV
+
+[registry]
+global-min-publish-age = "7 days"  # dependency cooldown, stable since Rust 1.100
+
+[build]
+warnings = "deny"  # optional, typically set in CI via CARGO_BUILD_WARNINGS=deny
 ```
 
 ---
