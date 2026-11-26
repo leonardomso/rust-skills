@@ -150,6 +150,6 @@ Most IDEs format on save. Configure to use project `rustfmt.toml`:
 
 ## See Also
 
-- [lint-warn-style](./lint-warn-style.md) - Style lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Style lints
 - [lint-pedantic-selective](./lint-pedantic-selective.md) - Pedantic lints
 - [name-funcs-snake](./name-funcs-snake.md) - Naming conventions

@@ -39,5 +39,5 @@ The levels are `"warn"` (default), `"allow"` and `"deny"`. With `deny`, a crate 
 ## See Also
 
 - [lint-workspace-lints](lint-workspace-lints.md) - lint levels in Cargo.toml
-- [lint-deny-correctness](lint-deny-correctness.md) - correctness lints and CI
+- [lint-clippy-groups](lint-clippy-groups.md) - correctness lints and CI
 - [lint-cargo-lints](lint-cargo-lints.md) - Cargo's own lints

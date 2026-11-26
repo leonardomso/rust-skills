@@ -128,4 +128,4 @@ double_must_use = "warn"          # Redundant #[must_use] on a type that is alre
 
 - [api-builder-must-use](./api-builder-must-use.md) - Builder pattern must_use
 - [err-result-over-panic](./err-result-over-panic.md) - Result types require handling
-- [lint-deny-correctness](./lint-deny-correctness.md) - Enabling useful lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Enabling useful lints

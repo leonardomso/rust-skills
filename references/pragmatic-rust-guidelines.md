@@ -19,7 +19,7 @@ New rules adopted from this set were written in this library's own words and exa
 | Guideline | Our rules | Status | Notes |
 |---|---|---|---|
 | M-UPSTREAM-GUIDELINES | [api-common-traits](../rules/api-common-traits.md), [name-types-camel](../rules/name-types-camel.md) | partial | Follow the official Rust API Guidelines and style guide. Our naming and API rules are drawn from them, but the full upstream set is not restated. |
-| M-STATIC-VERIFICATION | [lint-rustfmt-check](../rules/lint-rustfmt-check.md), [lint-deny-correctness](../rules/lint-deny-correctness.md), [lint-warn-suspicious](../rules/lint-warn-suspicious.md), [unsafe-miri-ci](../rules/unsafe-miri-ci.md) | partial | rustc, clippy, rustfmt, and Miri are covered. cargo-audit and cargo-hack are not mentioned. |
+| M-STATIC-VERIFICATION | [lint-rustfmt-check](../rules/lint-rustfmt-check.md), [lint-clippy-groups](../rules/lint-clippy-groups.md), [unsafe-miri-ci](../rules/unsafe-miri-ci.md) | partial | rustc, clippy, rustfmt, and Miri are covered. cargo-audit and cargo-hack are not mentioned. |
 | M-LINT-OVERRIDE-EXPECT | [lint-expect-over-allow](../rules/lint-expect-over-allow.md) | adopted | New rule. |
 | M-PUBLIC-DEBUG | [api-common-traits](../rules/api-common-traits.md) | covered | Public types implement `Debug`. |
 | M-PUBLIC-DISPLAY | [type-display-vs-debug](../rules/type-display-vs-debug.md), [api-common-traits](../rules/api-common-traits.md) | covered | Types meant to be read implement `Display`. |

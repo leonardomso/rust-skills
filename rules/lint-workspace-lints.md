@@ -180,7 +180,7 @@ missing_errors_doc = "allow"  # Override pedantic
 
 ## See Also
 
-- [lint-deny-correctness](./lint-deny-correctness.md) - Critical lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Critical lints
 - [proj-workspace-deps](./proj-workspace-deps.md) - Workspace configuration
 - [lint-cargo-lints](./lint-cargo-lints.md) - `[lints.cargo]` table
 - [lint-build-warnings](./lint-build-warnings.md) - deny warnings in CI with `build.warnings`

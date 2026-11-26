@@ -135,4 +135,4 @@ multiple_crate_versions = "allow"  # Acceptable in this project
 
 - [doc-cargo-metadata](./doc-cargo-metadata.md) - Cargo.toml metadata
 - [proj-workspace-deps](./proj-workspace-deps.md) - Workspace dependencies
-- [lint-deny-correctness](./lint-deny-correctness.md) - Correctness lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Correctness lints

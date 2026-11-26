@@ -35,6 +35,6 @@ fn helper() {}
 ## See Also
 
 - [lint-workspace-lints](lint-workspace-lints.md) - Configure lints in one place
-- [lint-warn-style](lint-warn-style.md) - Enable clippy style lints
+- [lint-clippy-groups](lint-clippy-groups.md) - Enable clippy style lints
 - [lint-pedantic-selective](lint-pedantic-selective.md) - Choose pedantic lints deliberately
 - Source: Microsoft Pragmatic Rust Guidelines, M-LINT-OVERRIDE-EXPECT

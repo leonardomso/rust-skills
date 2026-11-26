@@ -164,4 +164,4 @@ broken_intra_doc_links = "deny"
 - [doc-all-public](./doc-all-public.md) - Documenting public items
 - [doc-examples-section](./doc-examples-section.md) - Adding examples
 - [doc-errors-section](./doc-errors-section.md) - Documenting errors
-- [lint-deny-correctness](./lint-deny-correctness.md) - Lint settings
+- [lint-clippy-groups](./lint-clippy-groups.md) - Lint settings

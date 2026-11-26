@@ -134,5 +134,5 @@ multiple_unsafe_ops_per_block = "warn"  # restriction group: one unsafe operatio
 ## See Also
 
 - [doc-safety-section](./doc-safety-section.md) - `# Safety` in docs
-- [lint-deny-correctness](./lint-deny-correctness.md) - Correctness lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Correctness lints
 - [type-repr-transparent](./type-repr-transparent.md) - FFI safety
