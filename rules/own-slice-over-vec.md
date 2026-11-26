@@ -82,10 +82,10 @@ process(&arc);    // Works
 // Bad
 fn read_config(path: &PathBuf) -> Config { /* ... */ }
 
-// Good - accepts &Path, &PathBuf, &str, &String
+// Good - accepts &Path and &PathBuf (via deref coercion), but not &str
 fn read_config(path: &Path) -> Config { /* ... */ }
 
-// Even better - accept anything path-like
+// Even better - also accepts &str, String, &String, OsStr, ...
 fn read_config(path: impl AsRef<Path>) -> Config {
     let path = path.as_ref();
     // ...

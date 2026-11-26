@@ -9,35 +9,56 @@ Unlike `Copy` which is implicit and "free," `Clone` requires an explicit `.clone
 ## Bad
 
 ```rust
-// Hiding expensive operations
-fn process_data(data: Vec<u32>) -> Vec<u32> {
-    let backup = data; // Moved, not copied - but unclear at call site
-    transform(backup)
+// `Copy` on a 4 KiB buffer: every assignment and by-value call silently
+// copies 4096 bytes, and nothing at the call site shows it
+#[derive(Clone, Copy)]
+struct Frame {
+    pixels: [u8; 4096],
 }
 
-let my_data = vec![1, 2, 3, 4, 5];
-let result = process_data(my_data);
-// my_data is moved - surprise if you expected it to still exist
+fn checksum(frame: Frame) -> u32 {
+    frame.pixels.iter().map(|&b| u32::from(b)).sum()
+}
+
+fn render(frame: Frame) {
+    let a = checksum(frame); // 4 KiB copy
+    let b = checksum(frame); // another 4 KiB copy
+    let _ = (a, b);
+}
 ```
 
 ## Good
 
 ```rust
-fn process_data(data: Vec<u32>) -> Vec<u32> {
-    let backup = data; 
-    transform(backup)
+// `Clone` only: duplication now needs a visible `.clone()`
+#[derive(Clone)]
+struct Frame {
+    pixels: Box<[u8; 4096]>,
 }
 
-let my_data = vec![1, 2, 3, 4, 5];
-let result = process_data(my_data.clone()); // Explicit: "I know this allocates"
-// my_data still available
-
-// Or better - take reference if you don't need ownership
-fn process_data_ref(data: &[u32]) -> Vec<u32> {
-    transform(data)
+// Doesn't need ownership: borrow instead
+fn checksum(frame: &Frame) -> u32 {
+    frame.pixels.iter().map(|&b| u32::from(b)).sum()
 }
-let result = process_data_ref(&my_data); // No clone needed
+
+// Needs ownership: take it by value
+fn archive(frame: Frame) -> Vec<Frame> {
+    vec![frame]
+}
+
+fn render(frame: Frame) -> Vec<Frame> {
+    let _sum = checksum(&frame);      // no copy at all
+    let kept = archive(frame.clone()); // explicit: "I know this allocates"
+    let _ = checksum(&frame);         // still usable because we cloned
+    kept
+}
+
+fn finish(frame: Frame) -> Vec<Frame> {
+    archive(frame) // caller is done with it: just move, no clone
+}
 ```
+
+At a call site, the cheapest correct option wins: borrow if the callee only reads, move if the caller no longer needs the value, and write `.clone()` only when both sides need their own copy.
 
 ## Custom Clone Implementation
 

@@ -52,8 +52,9 @@ fn build_tree() -> Rc<Node> {
 |----------|-----|
 | Single-threaded, shared ownership | `Rc<T>` |
 | Multi-threaded, shared ownership | `Arc<T>` |
-| Single owner, might need multiple later | Start with `Rc`, upgrade if needed |
-| Library code, unknown threading model | `Arc<T>` (safer default) |
+| Single owner | Plain ownership or `Box<T>`; add `Rc` only when a second owner actually appears |
+| Library type that callers may share across threads | `Arc<T>` (an `Rc` field would make your type `!Send`/`!Sync`) |
+| Library type that is single-threaded by design | `Rc<T>` is fine; document that the type is `!Send` |
 
 ## Breaking Cycles with Weak
 

@@ -6,6 +6,8 @@
 
 `Arc` (Atomic Reference Counted) provides shared ownership across threads. Unlike `Rc`, its reference count is updated atomically, making it safe for concurrent access. Use it when multiple threads need to read the same data.
 
+`Arc` only makes the *handle* shareable. `Arc<T>` is `Send` and `Sync` only when `T: Send + Sync`, so `Arc<RefCell<T>>` or `Arc<Rc<T>>` still can't cross threads. For shared mutation, put a thread-safe type inside: `Arc<Mutex<T>>`, `Arc<RwLock<T>>`, or atomics.
+
 ## Bad
 
 ```rust

@@ -4,7 +4,7 @@
 
 ## Why It Matters
 
-Cloning allocates new memory and copies data, while borrowing is free. Unnecessary clones can significantly impact performance, especially in hot paths or with large data structures.
+Cloning a heap-owning value (`String`, `Vec`, `HashMap`, a struct containing them) allocates and copies its contents, while borrowing is free. Not every clone is expensive: `Arc::clone`/`Rc::clone` only bump a reference count and `Copy` types are bitwise copies, so the target here is *needless deep* clones. Unnecessary clones can significantly impact performance, especially in hot paths or with large data structures.
 
 ## Bad
 

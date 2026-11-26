@@ -71,27 +71,39 @@ pub(crate) fn file_name<'a>(path: &Cow<'a, [u8]>) -> Option<Cow<'a, [u8]>> {
 
 ## Clone-on-Write Pattern
 
+Two methods turn a `Cow` into something you can change, and they do different things:
+
+- `to_mut(&mut self) -> &mut B::Owned` keeps the `Cow`. If it is `Borrowed`, it clones the data into `Owned` once and returns a mutable reference. If it is already `Owned`, it just returns the reference.
+- `into_owned(self) -> B::Owned` consumes the `Cow` and returns the owned value. It clones if `Borrowed` and moves if `Owned`.
+
 ```rust
 use std::borrow::Cow;
 
-fn process_text(text: Cow<'_, str>) -> Cow<'_, str> {
+// to_mut: mutate in place, converting to Owned only when needed
+fn censor(mut text: Cow<'_, str>) -> Cow<'_, str> {
     if text.contains("bad_word") {
-        // to_mut() clones if borrowed, returns &mut if owned
-        let mut owned = text.into_owned();
-        owned = owned.replace("bad_word", "***");
-        Cow::Owned(owned)
-    } else {
-        text  // Pass through unchanged
+        let s = text.to_mut(); // clones only if `text` was Borrowed
+        *s = s.replace("bad_word", "***");
     }
+    text // unchanged input passes through still Borrowed
 }
 
-// Usage
-let borrowed: Cow<str> = Cow::Borrowed("hello world");
-let result = process_text(borrowed);  // No allocation!
+// into_owned: you need a plain String at the end regardless
+fn into_message(text: Cow<'_, str>) -> String {
+    text.into_owned() // moves if Owned, clones if Borrowed
+}
 
-let with_bad: Cow<str> = Cow::Borrowed("hello bad_word");
-let result = process_text(with_bad);  // Allocates only here
+fn demo() {
+    let clean = censor(Cow::Borrowed("hello world"));
+    assert!(matches!(clean, Cow::Borrowed(_))); // no allocation on this path
+
+    let dirty = censor(Cow::Borrowed("hello bad_word"));
+    assert_eq!(dirty, "hello ***"); // allocated only here
+    let _owned: String = into_message(dirty);
+}
 ```
+
+`Cow` removes allocations on the paths that leave data unchanged. It does not make the changing path free, so measure if a hot path changes most of its inputs.
 
 ## Cow with Collections
 

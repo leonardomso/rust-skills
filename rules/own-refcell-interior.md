@@ -104,7 +104,7 @@ struct Counter {
 
 impl Counter {
     fn bump(&self) {
-        self.count.set(self.count.get() + 1); // mutate through &self, never panics
+        self.count.set(self.count.get() + 1); // mutate through &self; no borrow-tracking panics (the `+ 1` can still overflow)
     }
 }
 ```
