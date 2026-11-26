@@ -45,8 +45,8 @@ serde = { version = "1", optional = true }
 tokio = { version = "1", optional = true }
 ```
 
-```rust
-// lib.rs — std is opt-in, no_std is the default baseline
+```rust,ignore
+// lib.rs (a library-crate root, so it cannot build as a binary) — std is opt-in, no_std is the default baseline
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]

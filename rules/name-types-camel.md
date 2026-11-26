@@ -22,38 +22,43 @@ struct HTTP_CLIENT { ... }  // Not idiomatic
 
 ```rust
 // UpperCamelCase for all types
-struct HttpClient { ... }
-trait Serializable { ... }
-enum ResponseType { ... }
+struct HttpClient {}
+trait Serializable {}
+enum ResponseType {}
 
 // Compound words
-struct TcpConnection { ... }
-struct IoError { ... }
-struct FileReader { ... }
+struct TcpConnection {}
+struct IoError {}
+struct FileReader {}
 
 // Generic types
-struct HashMap<K, V> { ... }
-struct Result<T, E> { ... }
+struct HashMap<K, V> { entries: Vec<(K, V)> }
+struct Result<T, E> { ok: Option<T>, err: Option<E> }
 ```
 
 ## Acronyms
 
 ```rust
 // Treat acronyms as words (capitalize first letter only)
-struct HttpServer { ... }      // Not HTTPServer
-struct JsonParser { ... }      // Not JSONParser
-struct Uuid { ... }            // Not UUID
-struct TcpStream { ... }       // Not TCPStream
+struct HttpServer {}      // Not HTTPServer
+struct JsonParser {}      // Not JSONParser
+struct Uuid {}            // Not UUID
+struct TcpStream {}       // Not TCPStream
 
 // Exception: Two-letter acronyms can be all caps
-struct IOError { ... }         // Acceptable
-struct IoError { ... }         // Also acceptable (preferred)
+struct IOError {}         // Acceptable
+struct IoError {}         // Also acceptable (preferred)
 ```
 
 ## Type Aliases
 
 ```rust
 // Type aliases also use UpperCamelCase
+use std::future::Future;
+use std::pin::Pin;
+
+struct Error;
+
 type Result<T> = std::result::Result<T, Error>;
 type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 ```

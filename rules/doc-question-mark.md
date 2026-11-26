@@ -88,6 +88,8 @@ Rust wraps doc examples in a function. You can make this explicit:
 /// # Ok(())
 /// # }
 /// ```
+pub fn parse_config_doc() {}
+fn main() {} // the doc comment above is a doctest; main only lets this block build
 ```
 
 Or use the implicit wrapper (Rust 2021+):
@@ -101,6 +103,7 @@ Or use the implicit wrapper (Rust 2021+):
 /// assert_eq!(value.key, "value");
 /// # Ok::<(), my_crate::Error>(())
 /// ```
+pub fn parse_config_implicit() {}
 ```
 
 ## When to Use `.unwrap()`
@@ -117,6 +120,7 @@ There are specific cases where `.unwrap()` is acceptable in examples:
 /// // Parsing a literal that cannot fail
 /// let n: i32 = "42".parse().unwrap();
 /// ```
+pub fn unwrap_is_fine() {}
 ```
 
 But still prefer `?` when demonstrating error handling patterns.

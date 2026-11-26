@@ -28,6 +28,8 @@ async fn fetch_all() -> (Result<A>, Result<B>, Result<C>) {
 ## Good
 
 ```rust
+use anyhow::Result;
+use futures::future::try_join_all;
 use tokio::try_join;
 
 async fn fetch_all() -> Result<(A, B, C)> {
@@ -37,25 +39,43 @@ async fn fetch_all() -> Result<(A, B, C)> {
         fetch_b(),
         fetch_c(),
     )?;
-    
+
     Ok((a, b, c))
 }
 
 // For dynamic collections
-use futures::future::try_join_all;
-
 async fn fetch_users(ids: &[u64]) -> Result<Vec<User>> {
     let futures: Vec<_> = ids.iter()
         .map(|id| fetch_user(*id))
         .collect();
-    
+
     try_join_all(futures).await
 }
+
+struct A;
+struct B;
+struct C;
+struct User { id: u64 }
+async fn fetch_a() -> Result<A> { Ok(A) }
+async fn fetch_b() -> Result<B> { Ok(B) }
+async fn fetch_c() -> Result<C> { Ok(C) }
+async fn fetch_user(id: u64) -> Result<User> { Ok(User { id }) }
 ```
 
 ## Error Handling Patterns
 
 ```rust
+use anyhow::Result;
+use futures::TryFutureExt;
+use futures::future::try_join_all;
+use tokio::try_join;
+
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
 // Different error types - need common error type
 async fn mixed_operations() -> Result<(A, B), Error> {
     let (a, b) = try_join!(
@@ -75,7 +95,7 @@ async fn best_effort(ids: &[u64]) -> Vec<User> {
     let results = futures::future::join_all(
         ids.iter().map(|id| fetch_user(*id))
     ).await;
-    
+
     results.into_iter()
         .filter_map(|r| match r {
             Ok(user) => Some(user),
@@ -86,17 +106,31 @@ async fn best_effort(ids: &[u64]) -> Vec<User> {
         })
         .collect()
 }
+
+struct A;
+struct B;
+struct User { id: u64 }
+async fn fetch_a() -> Result<A, std::io::Error> { Ok(A) }
+async fn fetch_b() -> Result<B, std::io::Error> { Ok(B) }
+async fn fetch_user(id: u64) -> Result<User> { Ok(User { id }) }
 ```
 
 ## Cancellation Behavior
 
 ```rust
+use anyhow::Result;
+use tokio::try_join;
+
+#[derive(Debug, thiserror::Error)]
+#[error("fetch failed")]
+struct Error;
+
 // try_join! cancels remaining futures on error
 async fn with_cancellation() -> Result<()> {
     // If fetch_a() fails, fetch_b() and fetch_c() are dropped
     // But "dropped" != "immediately stopped"
     // They stop at their next .await point
-    
+
     try_join!(
         async {
             fetch_a().await?;
@@ -109,29 +143,36 @@ async fn with_cancellation() -> Result<()> {
             Ok::<_, Error>(())
         },
     )?;
-    
+
     Ok(())
 }
 
 // For guaranteed cleanup, use Drop guards or explicit handling
+
+async fn fetch_a() -> Result<(), Error> { Ok(()) }
+async fn fetch_b() -> Result<(), Error> { Ok(()) }
+async fn cleanup_a() {}
+async fn cleanup_b() {}
 ```
 
 ## With Timeout
 
 ```rust
+use futures::TryFutureExt;
 use tokio::time::{timeout, Duration};
+use tokio::try_join;
 
-async fn fetch_with_timeout() -> Result<(A, B)> {
+async fn fetch_with_timeout() -> Result<(A, B), Error> {
     timeout(
         Duration::from_secs(10),
-        try_join!(fetch_a(), fetch_b())
+        async { try_join!(fetch_a(), fetch_b()) }
     )
     .await
     .map_err(|_| Error::Timeout)?
 }
 
 // Per-operation timeout
-async fn individual_timeouts() -> Result<(A, B)> {
+async fn individual_timeouts() -> Result<(A, B), Error> {
     try_join!(
         timeout(Duration::from_secs(5), fetch_a())
             .map_err(|_| Error::Timeout)
@@ -141,28 +182,43 @@ async fn individual_timeouts() -> Result<(A, B)> {
             .and_then(|r| async { r }),
     )
 }
+
+#[derive(Debug)]
+enum Error { Timeout }
+struct A;
+struct B;
+async fn fetch_a() -> Result<A, Error> { Ok(A) }
+async fn fetch_b() -> Result<B, Error> { Ok(B) }
 ```
 
 ## try_join! vs FuturesUnordered
 
 ```rust
+use anyhow::Result;
 use futures::stream::{FuturesUnordered, StreamExt};
+use tokio::try_join;
 
-// try_join!: wait for all, fail fast
-let (a, b, c) = try_join!(fa, fb, fc)?;
+async fn run() -> Result<()> {
+    // try_join!: wait for all, fail fast
+    let (a, b, c) = try_join!(fetch(1), fetch(2), fetch(3))?;
 
-// FuturesUnordered: process as they complete
-let mut futures = FuturesUnordered::new();
-futures.push(fetch_a());
-futures.push(fetch_b());
-futures.push(fetch_c());
+    // FuturesUnordered: process as they complete
+    let mut futures = FuturesUnordered::new();
+    futures.push(fetch(1));
+    futures.push(fetch(2));
+    futures.push(fetch(3));
 
-while let Some(result) = futures.next().await {
-    match result {
-        Ok(data) => process(data),
-        Err(e) => return Err(e),  // Can fail fast manually
+    while let Some(result) = futures.next().await {
+        match result {
+            Ok(data) => process(data),
+            Err(e) => return Err(e),  // Can fail fast manually
+        }
     }
+    Ok(())
 }
+
+async fn fetch(id: u64) -> Result<u64> { Ok(id) }
+fn process(_data: u64) {}
 ```
 
 ## See Also

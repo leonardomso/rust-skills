@@ -26,6 +26,7 @@ async fn read_large_file(path: &Path) -> Vec<u8> {
 ## Good
 
 ```rust
+use std::path::{Path, PathBuf};
 use tokio::task;
 
 // GOOD: Offload CPU work to blocking pool
@@ -51,11 +52,18 @@ async fn read_with_sync_lib(path: PathBuf) -> Vec<u8> {
     .await
     .unwrap()
 }
+
+struct ProcessedImage(Vec<u8>);
+fn resize_image(data: &[u8]) -> Vec<u8> { data.to_vec() }
+fn compress(data: Vec<u8>) -> ProcessedImage { ProcessedImage(data) }
+mod sync_library {
+    pub fn read_file(path: &std::path::Path) -> Vec<u8> { std::fs::read(path).unwrap() }
+}
 ```
 
 ## What Counts as Blocking
 
-```rust
+```text
 // CPU-intensive operations
 - Cryptographic operations (hashing, encryption)
 - Image/video processing
@@ -78,6 +86,9 @@ async fn read_with_sync_lib(path: PathBuf) -> Vec<u8> {
 ## Practical Examples
 
 ```rust
+use std::io::Write;
+use tokio::task;
+
 // Password hashing (CPU-intensive)
 async fn hash_password(password: String) -> String {
     task::spawn_blocking(move || {
@@ -130,11 +141,17 @@ tokio::task::spawn_blocking(|| {
 let result = tokio::task::spawn_blocking(|| {
     expensive_sync_operation()
 }).await?;
+
+async fn some_async_operation() {}
+fn heavy_computation() {}
+fn expensive_sync_operation() -> u64 { 42 }
 ```
 
 ## Rayon for Parallel CPU Work
 
 ```rust
+use tokio::task;
+
 // For parallel CPU work, consider Rayon inside spawn_blocking
 async fn parallel_process(items: Vec<Item>) -> Vec<Output> {
     task::spawn_blocking(move || {
@@ -146,6 +163,10 @@ async fn parallel_process(items: Vec<Item>) -> Vec<Output> {
     .await
     .unwrap()
 }
+
+struct Item;
+struct Output;
+fn cpu_intensive_transform(_item: &Item) -> Output { Output }
 ```
 
 ## See Also

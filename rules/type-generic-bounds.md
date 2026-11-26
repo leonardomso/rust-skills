@@ -29,6 +29,9 @@ where
 ## Good
 
 ```rust
+use std::error::Error;
+use std::fmt::Debug;
+
 // No bounds on struct - store anything
 struct Container<T> {
     items: Vec<T>,
@@ -52,7 +55,9 @@ fn process<T, E>(value: T) -> Result<T, E>
 where
     T: Clone + Debug + Send + Sync + 'static,
     E: Error + Send + Clone,
-{ ... }
+{
+    Ok(value)
+}
 ```
 
 ## Bound Placement
@@ -61,11 +66,19 @@ where
 // On struct: affects all uses of the type
 struct MustBeClone<T: Clone> { data: T }  // Rarely needed
 
+struct Container<T> { items: Vec<T> }
+
 // On impl: affects specific functionality
-impl<T: Clone> Container<T> { ... }  // Common pattern
+impl<T: Clone> Container<T> {
+    fn duplicate(&self) -> Self {
+        Container { items: self.items.clone() }
+    }
+}  // Common pattern
 
 // On function: affects that function only
-fn requires_send<T: Send>(value: T) { ... }
+fn requires_send<T: Send>(value: T) {
+    let _ = value;
+}
 
 // Recommendation: start with no bounds, add as needed
 ```
@@ -73,15 +86,21 @@ fn requires_send<T: Send>(value: T) { ... }
 ## Where Clause Benefits
 
 ```rust
+use std::fmt::Debug;
+
 // Inline: hard to read
-fn complex<T: Clone + Debug + Send, U: AsRef<str> + Into<String>>(t: T, u: U) { }
+fn complex_inline<T: Clone + Debug + Send, U: AsRef<str> + Into<String>>(t: T, u: U) {
+    let _ = (t, u);
+}
 
 // Where clause: clear and scannable
-fn complex<T, U>(t: T, u: U)
+fn complex_where<T, U>(t: T, u: U)
 where
     T: Clone + Debug + Send,
     U: AsRef<str> + Into<String>,
-{ }
+{
+    let _ = (t, u);
+}
 
 // Essential for complex bounds
 fn foo<T, U>(t: T, u: U)
@@ -89,32 +108,40 @@ where
     T: Iterator<Item = U>,
     U: Clone + Into<String>,
     Vec<U>: Debug,  // Bounds on expressions
-{ }
+{
+    let _ = (t, u);
+}
 ```
 
 ## Implied Bounds
 
 ```rust
+use std::fmt::Debug;
+
 // Supertrait bounds are implied
 trait Foo: Clone + Debug {}
 
-fn process<T: Foo>(value: T) {
+fn process_foo<T: Foo>(value: T) {
     // T: Clone and T: Debug are implied by T: Foo
     let cloned = value.clone();
     println!("{:?}", cloned);
 }
 
 // Associated type bounds
-fn process<I>(iter: I)
+fn process_iter<I>(iter: I)
 where
     I: Iterator,
     I::Item: Clone,  // Bound on associated type
-{ }
+{
+    let _ = iter;
+}
 ```
 
 ## Conditional Trait Implementation
 
 ```rust
+use std::fmt::{self, Debug, Formatter};
+
 struct Wrapper<T>(T);
 
 // Implement Clone only when T: Clone

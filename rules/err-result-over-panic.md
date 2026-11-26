@@ -78,9 +78,23 @@ match parse_config("app.json") {
 ## When Panic IS Appropriate
 
 ```rust
+use std::collections::HashMap;
+
+type Value = u32;
+struct Config;
+impl Config {
+    fn load() -> Result<Config, std::io::Error> { Ok(Config) }
+}
+struct Cache { cache: HashMap<String, Value> }
+
+fn parse(input: &str) -> Result<u32, std::num::ParseIntError> { input.parse() }
+fn fetch_data() -> Result<String, std::io::Error> { Ok(String::new()) }
+
 // 1. Bug in the program (invariant violation)
-fn get_cached_value(&self, key: &str) -> &Value {
-    self.cache.get(key).expect("BUG: key was verified to exist")
+impl Cache {
+    fn get_cached_value(&self, key: &str) -> &Value {
+        self.cache.get(key).expect("BUG: key was verified to exist")
+    }
 }
 
 // 2. Setup/initialization that can't reasonably fail
@@ -92,12 +106,12 @@ fn main() {
 // 3. Tests
 #[test]
 fn test_parse() {
-    let result = parse("valid input").unwrap(); // unwrap OK in tests
-    assert_eq!(result, expected);
+    let result = parse("42").unwrap(); // unwrap OK in tests
+    assert_eq!(result, 42);
 }
 
 // 4. Examples and prototypes
-fn main() {
+fn prototype() {
     // Quick prototype, panic is fine
     let data = fetch_data().unwrap();
 }
@@ -120,9 +134,14 @@ fn main() {
 ## Library vs Application
 
 ```rust
+struct Ast;
+struct ParseError;
+fn run() -> Result<(), String> { Ok(()) }
+
 // Library: NEVER panic on user input
 pub fn parse(input: &str) -> Result<Ast, ParseError> {
     // Always return Result
+    Ok(Ast)
 }
 
 // Application: Can panic at top level for critical failures

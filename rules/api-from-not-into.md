@@ -49,21 +49,30 @@ process(42u64);  // Works!
 ## Blanket Implementation
 
 ```rust
-// This is in std, you don't write it
-impl<T, U> Into<U> for T
+// This is in std, you don't write it (shown under a local name)
+trait MyInto<U>: Sized {
+    fn my_into(self) -> U;
+}
+
+impl<T, U> MyInto<U> for T
 where
     U: From<T>,
 {
-    fn into(self) -> U {
+    fn my_into(self) -> U {
         U::from(self)
     }
 }
 
 // So when you implement From:
-impl From<String> for MyType { ... }
+struct MyType(String);
+impl From<String> for MyType {
+    fn from(s: String) -> Self { MyType(s) }
+}
 
-// You automatically get:
-// impl Into<MyType> for String { ... }
+// You automatically get Into<MyType> for String:
+fn demo() {
+    let m: MyType = String::from("x").into();
+}
 ```
 
 ## Multiple From Implementations
@@ -123,9 +132,12 @@ from_over_into = "warn"  # Warns when implementing Into instead of From
 ```
 
 ```rust
+struct Foo;
+struct Bar;
+
 // Clippy will warn:
 impl Into<Bar> for Foo {  // Warning: prefer From
-    fn into(self) -> Bar { ... }
+    fn into(self) -> Bar { Bar }
 }
 ```
 

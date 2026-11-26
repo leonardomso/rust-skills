@@ -23,55 +23,56 @@ fn connectTCP(addr: &str) { ... }
 
 ```rust
 // Acronyms as words - clear boundaries
-struct HttpServer { ... }      // Http + Server
-struct TcpIpConnection { ... } // Tcp + Ip + Connection
-struct JsonParser { ... }
-struct XmlHttpRequest { ... }
+struct HttpServer {}      // Http + Server
+struct TcpIpConnection {} // Tcp + Ip + Connection
+struct JsonParser {}
+struct XmlHttpRequest {}
 
-fn parse_json(input: &str) { ... }
-fn connect_tcp(addr: &str) { ... }
+fn parse_json(input: &str) {}
+fn connect_tcp(addr: &str) {}
 
 // More examples
-struct Uuid { ... }            // Not UUID
-struct Uri { ... }             // Not URI
-struct Url { ... }             // Not URL
-struct Html { ... }            // Not HTML
-struct Css { ... }             // Not CSS
-struct Api { ... }             // Not API
+struct Uuid {}            // Not UUID
+struct Uri {}             // Not URI
+struct Url {}             // Not URL
+struct Html {}            // Not HTML
+struct Css {}             // Not CSS
+struct Api {}             // Not API
 ```
 
 ## Standard Library Examples
 
 ```rust
 // std uses acronyms as words
-std::net::TcpStream            // Not TCPStream
-std::net::TcpListener          // Not TCPListener
-std::net::UdpSocket            // Not UDPSocket
-std::net::IpAddr               // Not IPAddr
-std::string::FromUtf8Error     // Not FromUTF8Error
+use std::net::TcpStream;            // Not TCPStream
+use std::net::TcpListener;          // Not TCPListener
+use std::net::UdpSocket;            // Not UDPSocket
+use std::net::IpAddr;               // Not IPAddr
+use std::string::FromUtf8Error;     // Not FromUTF8Error
 ```
 
 ## Two-Letter Acronyms
 
 ```rust
 // Two-letter acronyms can go either way
-struct Io { ... }    // or IO - both acceptable
-struct Id { ... }    // or ID - both acceptable
+struct Io {}    // or IO - both acceptable
+struct Id {}    // or ID - both acceptable
 
 // Preference: treat as word for consistency
-struct IoHandler { ... }     // Preferred
-struct IdGenerator { ... }   // Preferred
+struct IoHandler {}     // Preferred
+struct IdGenerator {}   // Preferred
 ```
 
 ## In snake_case
 
 ```rust
 // Acronyms become lowercase in snake_case
-fn parse_json() { ... }
-fn connect_tcp() { ... }
-fn generate_uuid() { ... }
-fn fetch_http() { ... }
-fn encode_url() { ... }
+fn parse_json() {}
+fn connect_tcp() {}
+fn generate_uuid() -> u64 { 0 }
+fn fetch_http() {}
+fn encode_url() {}
+fn fetch_json() -> String { String::new() }
 
 // Variables
 let json_response = fetch_json();
@@ -83,13 +84,13 @@ let user_id = generate_uuid();
 
 ```rust
 // When acronym is part of compound
-struct HttpsConnection { ... }   // Https (not HTTPS)
-struct Utf8String { ... }        // Utf8 (not UTF8)
-struct Base64Encoder { ... }     // Base64 as word
+struct HttpsConnection {}   // Https (not HTTPS)
+struct Utf8String {}        // Utf8 (not UTF8)
+struct Base64Encoder {}     // Base64 as word
 
 // Multiple acronyms
-struct JsonApiClient { ... }     // Json + Api + Client
-struct RestApiHandler { ... }    // Rest + Api + Handler
+struct JsonApiClient {}     // Json + Api + Client
+struct RestApiHandler {}    // Rest + Api + Handler
 ```
 
 ## See Also

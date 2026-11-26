@@ -69,6 +69,16 @@ Fields drop in declaration order, so the field at the top of the struct drops fi
 Local variables drop in **reverse** declaration order, which is often what you want (last-in, first-out). When the natural order is wrong, use explicit `drop`:
 
 ```rust
+struct Conn;
+struct Txn;
+struct Lock;
+impl Txn { fn commit(self) {} }
+
+fn open_connection() -> Conn { Conn }
+fn begin_transaction() -> Txn { Txn }
+fn acquire_lock() -> Lock { Lock }
+fn do_work(_: &Txn) {}
+
 fn process() {
     let conn = open_connection();   // dropped third (last to drop)
     let txn  = begin_transaction(); // dropped second
@@ -79,12 +89,6 @@ fn process() {
     drop(guard); // lock released here
     txn.commit(); // runs before conn closes
 } // conn drops here
-# fn open_connection() -> () {}
-# fn begin_transaction() -> () {}
-# fn acquire_lock() -> () {}
-# fn do_work(_: &()) {}
-# trait Commit { fn commit(self); }
-# impl Commit for () { fn commit(self) {} }
 ```
 
 ## `ManuallyDrop` for Full Control

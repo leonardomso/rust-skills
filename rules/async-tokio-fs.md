@@ -27,17 +27,19 @@ async fn process_files(paths: &[PathBuf]) -> Result<Vec<String>> {
 ## Good
 
 ```rust
+use std::io::Result;
+use std::path::PathBuf;
 use tokio::fs;
 
 async fn process_files(paths: &[PathBuf]) -> Result<Vec<String>> {
     let mut contents = Vec::new();
-    
+
     for path in paths {
         // Non-blocking: allows other tasks to run
         let data = fs::read_to_string(path).await?;
         contents.push(data);
     }
-    
+
     Ok(contents)
 }
 
@@ -46,7 +48,7 @@ async fn process_files_concurrent(paths: &[PathBuf]) -> Result<Vec<String>> {
     let futures: Vec<_> = paths.iter()
         .map(|path| fs::read_to_string(path))
         .collect();
-    
+
     futures::future::try_join_all(futures).await
 }
 ```
@@ -125,12 +127,16 @@ while let Some(line) = lines.next_line().await? {
 fn main() {
     let config = std::fs::read_to_string("config.toml")
         .expect("config file required");
-    
+
     tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(run_with_config(config));
 }
 
+async fn run_with_config(_config: String) {}
+```
+
+```rust
 // Single-threaded current_thread runtime (less impact)
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -144,6 +150,10 @@ async fn main() {
 ## Performance Considerations
 
 ```rust
+use tokio::fs;
+
+let entries: Vec<std::fs::DirEntry> = std::fs::read_dir(".")?.collect::<Result<_, _>>()?;
+
 // tokio::fs uses spawn_blocking internally
 // For many small files, the overhead adds up
 

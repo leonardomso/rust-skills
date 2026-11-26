@@ -59,11 +59,24 @@ impl From<u64> for UserId {
 
 // Into is automatically provided by blanket impl
 let id: UserId = 42u64.into();  // Works!
+```
 
-// ❌ Don't implement Into directly
+Implementing `Into` directly is non-idiomatic, and next to the `From` impl it is a conflict:
+
+```rust,compile_fail
+struct UserId(u64);
+
+impl From<u64> for UserId {
+    fn from(id: u64) -> Self {
+        UserId(id)
+    }
+}
+
+// ❌ Error E0119: conflicting implementations of `Into<UserId>` for `u64`,
+// because the blanket impl already derives it from `From`
 impl Into<UserId> for u64 {
     fn into(self) -> UserId {
-        UserId(self)  // This works but is non-idiomatic
+        UserId(self)
     }
 }
 ```
@@ -71,18 +84,22 @@ impl Into<UserId> for u64 {
 ## Common Conversions
 
 ```rust
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
 // String-like types
-fn log_message(msg: impl Into<String>) { ... }
+fn log_message(msg: impl Into<String>) { }
 log_message("literal");           // &str
 log_message(String::from("own")); // String
 log_message(Cow::from("cow"));    // Cow<str>
 
 // Path-like types  
-fn read_file(path: impl AsRef<Path>) { ... }  // AsRef for borrowed access
-fn write_file(path: impl Into<PathBuf>) { ... }  // Into when storing
+fn read_file(path: impl AsRef<Path>) { }  // AsRef for borrowed access
+fn write_file(path: impl Into<PathBuf>) { }  // Into when storing
 
 // Duration
-fn set_timeout(duration: impl Into<Duration>) { ... }
+fn set_timeout(duration: impl Into<Duration>) { }
 set_timeout(Duration::from_secs(5));
 // Note: no blanket impl for integers, would need custom wrapper
 ```
@@ -107,15 +124,19 @@ fn store_data(data: impl Into<Vec<u8>>) {
 
 ## When NOT to Use impl Into
 
+```rust,compile_fail
+// ❌ Error E0562: `impl Trait` is not allowed in field types
+struct Node {
+    children: Vec<impl Into<Node>>,
+}
+```
+
 ```rust
+trait Handler {}
+
 // ❌ Trait objects need Sized
 fn process(handler: impl Into<Box<dyn Handler>>) { }
 // Better: just take Box<dyn Handler> directly
-
-// ❌ Recursive types
-struct Node {
-    children: Vec<impl Into<Node>>,  // Error: impl Trait not allowed here
-}
 
 // ❌ Performance-critical hot paths (minor overhead of trait dispatch)
 fn hot_path(value: impl Into<u64>) {
@@ -123,7 +144,7 @@ fn hot_path(value: impl Into<u64>) {
 }
 
 // ❌ When you need to name the type
-fn returns_impl() -> impl Into<String> { }  // Opaque, hard to use
+fn returns_impl() -> impl Into<String> { "x" }  // Opaque, hard to use
 ```
 
 ## Builder Pattern with Into

@@ -65,7 +65,7 @@ fn process_file(path: &str) -> Result<ProcessedData, Error> {
 }
 
 // Equivalent to:
-fn process_file(path: &str) -> Result<ProcessedData, Error> {
+fn process_file_expanded(path: &str) -> Result<ProcessedData, Error> {
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => return Err(e.into()),

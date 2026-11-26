@@ -84,13 +84,22 @@ fn example() -> Result<()> {
 ```rust
 use anyhow::Result;
 
+struct Config;
+fn load_config() -> Result<Config> { Ok(Config) }
+fn run_app(config: Config) -> Result<()> { Ok(()) }
+
 fn main() -> Result<()> {
     let config = load_config()?;
     run_app(config)?;
     Ok(())
 }
+```
 
-// Or with custom exit handling
+Or with custom exit handling, where `main` returns `()` and prints the error itself:
+
+```rust
+use anyhow::Result;
+
 fn main() {
     if let Err(e) = run() {
         eprintln!("Error: {:#}", e);  // Pretty-print with causes

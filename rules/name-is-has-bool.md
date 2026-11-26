@@ -27,26 +27,38 @@ if user.active() { ... }  // Is this checking or activating?
 ## Good
 
 ```rust
-impl User {
-    // Clear: answers "is the user active?"
-    fn is_active(&self) -> bool { ... }
-    
-    // Clear: answers "is the user deleted?"
-    fn is_deleted(&self) -> bool { ... }
-    
-    // Clear: answers "is the user an admin?"
-    fn is_admin(&self) -> bool { ... }
-    
-    // Clear: answers "does the user have permission X?"
-    fn has_permission(&self, perm: Permission) -> bool { ... }
-    
-    // Clear: answers "can the user edit?"
-    fn can_edit(&self) -> bool { ... }
+#[derive(PartialEq)]
+enum Permission { Read, Write }
+
+struct User {
+    active: bool,
+    deleted: bool,
+    admin: bool,
+    permissions: Vec<Permission>,
 }
 
-// Reads naturally
-if user.is_active() && user.has_permission(Permission::Write) {
-    // ...
+impl User {
+    // Clear: answers "is the user active?"
+    fn is_active(&self) -> bool { self.active }
+
+    // Clear: answers "is the user deleted?"
+    fn is_deleted(&self) -> bool { self.deleted }
+
+    // Clear: answers "is the user an admin?"
+    fn is_admin(&self) -> bool { self.admin }
+
+    // Clear: answers "does the user have permission X?"
+    fn has_permission(&self, perm: Permission) -> bool { self.permissions.contains(&perm) }
+
+    // Clear: answers "can the user edit?"
+    fn can_edit(&self) -> bool { self.is_admin() || self.has_permission(Permission::Write) }
+}
+
+fn example(user: &User) {
+    // Reads naturally
+    if user.is_active() && user.has_permission(Permission::Write) {
+        // ...
+    }
 }
 ```
 
@@ -64,38 +76,53 @@ if user.is_active() && user.has_permission(Permission::Write) {
 ## Standard Library Examples
 
 ```rust
-// is_ prefix
-vec.is_empty()
-option.is_some()
-option.is_none()
-result.is_ok()
-result.is_err()
-char.is_alphabetic()
-str.is_ascii()
-path.is_file()
-path.is_dir()
+use std::path::Path;
 
-// has_ prefix (less common in std)
-iterator.has_next()  // conceptual
+let vec: Vec<i32> = Vec::new();
+let option = Some(1);
+let result: Result<i32, ()> = Ok(1);
+let path = Path::new("/tmp");
+
+// is_ prefix
+vec.is_empty();
+option.is_some();
+option.is_none();
+result.is_ok();
+result.is_err();
+'a'.is_alphabetic();
+"abc".is_ascii();
+path.is_file();
+path.is_dir();
+
+// has_ prefix (less common in std): iterator.has_next() is conceptual, not real std
 
 // Checking methods
-str.contains("foo")      // Not is_ because takes argument
-str.starts_with("bar")   // Descriptive verb phrase
-str.ends_with("baz")
+"foo".contains("foo");      // Not is_ because takes argument
+"bar".starts_with("bar");   // Descriptive verb phrase
+"baz".ends_with("baz");
 ```
 
 ## Negation
 
 ```rust
-// Prefer positive form with caller negation
-if !user.is_active() { ... }
+struct User { active: bool }
+impl User {
+    fn is_active(&self) -> bool { self.active }
+    fn is_inactive(&self) -> bool { !self.active }
+}
+struct Buffer(Vec<u8>);
+impl Buffer {
+    fn is_empty(&self) -> bool { self.0.is_empty() }         // Checking for empty is common
+    fn is_not_empty(&self) -> bool { !self.0.is_empty() }    // Rarely needed, use !is_empty()
+}
 
-// Rather than negative method
-if user.is_inactive() { ... }  // Avoid double negatives: !is_inactive()
+fn example(user: &User) {
+    // Prefer positive form with caller negation
+    if !user.is_active() { /* ... */ }
 
-// Exception: when negative is the common case
-fn is_empty(&self) -> bool { ... }     // Checking for empty is common
-fn is_not_empty(&self) -> bool { ... } // Rarely needed, use !is_empty()
+    // Rather than negative method
+    if user.is_inactive() { /* ... */ }  // Avoid double negatives: !is_inactive()
+}
 ```
 
 ## Boolean Fields

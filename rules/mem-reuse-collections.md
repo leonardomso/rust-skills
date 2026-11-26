@@ -42,7 +42,14 @@ fn format_lines(items: &[Item]) -> String {
 ## Good
 
 ```rust
-fn process_batches(batches: &[Batch]) -> Vec<Result> {
+struct Item { name: String, value: u32 }
+struct Batch { items: Vec<Item> }
+struct Summary;
+
+fn transform(item: &Item) -> u32 { item.value }
+fn aggregate(values: &[u32]) -> Summary { Summary }
+
+fn process_batches(batches: &[Batch]) -> Vec<Summary> {
     let mut results = Vec::with_capacity(batches.len());
     let mut temp = Vec::new();  // Allocate once outside loop
     

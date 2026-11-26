@@ -49,6 +49,11 @@ read_file(OsStr::new("/path")); // &OsStr
 ## AsRef vs Into vs Borrow
 
 ```rust
+use std::borrow::Borrow;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::path::{Path, PathBuf};
+
 // AsRef<T>: cheap borrow, no ownership transfer
 fn read(p: impl AsRef<Path>) {
     let path: &Path = p.as_ref();
@@ -60,7 +65,6 @@ fn store(p: impl Into<PathBuf>) {
 }
 
 // Borrow<T>: like AsRef but with Eq/Hash consistency guarantee
-use std::borrow::Borrow;
 fn lookup<'a, Q: ?Sized, V>(map: &'a HashMap<String, V>, key: &Q) -> Option<&'a V>
 where
     String: Borrow<Q>,
@@ -97,7 +101,9 @@ greet(Name("Alice".into()));
 
 ## Common AsRef Implementations
 
-```rust
+```rust,ignore
+// Excerpt of std: these impls already exist, you cannot write them yourself
+// (orphan rule), so this block is not compiled.
 // Standard library provides many
 impl AsRef<str> for String { ... }
 impl AsRef<str> for str { ... }
@@ -130,7 +136,7 @@ fn process<T: AsRef<U>, U>(value: T) {
 }
 
 // More flexible: accept T or &T
-fn process<T: AsRef<U> + ?Sized, U: ?Sized>(value: &T) {
+fn process_ref<T: AsRef<U> + ?Sized, U: ?Sized>(value: &T) {
     let inner: &U = value.as_ref();
 }
 ```

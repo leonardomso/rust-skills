@@ -9,23 +9,21 @@ Iterator types should match the method that creates them. `iter()` returns `Iter
 ## Standard Library Pattern
 
 ```rust
-// Vec
-impl<T> Vec<T> {
-    fn iter(&self) -> Iter<'_, T> { }       // Returns Iter
-    fn iter_mut(&mut self) -> IterMut<'_, T> { }  // Returns IterMut
-}
+use std::collections::{hash_map, HashMap};
+use std::{slice, vec};
 
-impl<T> IntoIterator for Vec<T> {
-    type IntoIter = IntoIter<T>;  // Returns IntoIter
-}
+// Vec (via slice)
+let mut v = vec![1, 2, 3];
+let _: slice::Iter<'_, i32> = v.iter();          // iter() -> Iter
+let _: slice::IterMut<'_, i32> = v.iter_mut();   // iter_mut() -> IterMut
+let _: vec::IntoIter<i32> = v.clone().into_iter(); // into_iter() -> IntoIter
 
 // HashMap
-impl<K, V> HashMap<K, V> {
-    fn iter(&self) -> Iter<'_, K, V> { }
-    fn keys(&self) -> Keys<'_, K, V> { }    // Returns Keys
-    fn values(&self) -> Values<'_, K, V> { }  // Returns Values
-    fn drain(&mut self) -> Drain<'_, K, V> { }  // Returns Drain
-}
+let mut map: HashMap<String, i32> = HashMap::new();
+let _: hash_map::Iter<'_, String, i32> = map.iter();
+let _: hash_map::Keys<'_, String, i32> = map.keys();     // keys() -> Keys
+let _: hash_map::Values<'_, String, i32> = map.values(); // values() -> Values
+let _: hash_map::Drain<'_, String, i32> = map.drain();   // drain() -> Drain
 ```
 
 ## Implementation

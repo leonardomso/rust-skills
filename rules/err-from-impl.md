@@ -98,6 +98,10 @@ fn load_config(path: &str) -> Result<Config, AppError> {
 Sometimes you need to add context during conversion:
 
 ```rust
+use thiserror::Error;
+
+struct Config;
+
 #[derive(Error, Debug)]
 enum ConfigError {
     #[error("failed to read config from '{path}': {source}")]
@@ -115,16 +119,19 @@ fn load_config(path: &str) -> Result<Config, ConfigError> {
             path: path.to_string(),
             source,
         })?;
-    // ...
+    Ok(Config)
 }
 
 // Or use anyhow for ad-hoc context
-use anyhow::{Context, Result};
+mod with_anyhow {
+    use super::Config;
+    use anyhow::{Context, Result};
 
-fn load_config(path: &str) -> Result<Config> {
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("failed to read config from '{}'", path))?;
-    // ...
+    fn load_config(path: &str) -> Result<Config> {
+        let content = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read config from '{}'", path))?;
+        Ok(Config)
+    }
 }
 ```
 
@@ -132,7 +139,15 @@ fn load_config(path: &str) -> Result<Config> {
 
 Be careful with blanket implementations:
 
-```rust
+```rust,compile_fail
+use std::num::ParseIntError;
+
+enum AppError {
+    Other(String),
+    Io(std::io::Error),
+    Parse(ParseIntError),
+}
+
 // ❌ Too broad - conflicts with other From impls
 impl<E: std::error::Error> From<E> for AppError {
     fn from(err: E) -> Self {
@@ -140,9 +155,28 @@ impl<E: std::error::Error> From<E> for AppError {
     }
 }
 
+// Error E0119: conflicting implementations of `From<std::io::Error>`,
+// because io::Error also matches the blanket impl above
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self { AppError::Io(err) }
+}
+```
+
+```rust
+use std::num::ParseIntError;
+
+enum AppError {
+    Io(std::io::Error),
+    Parse(ParseIntError),
+}
+
 // ✅ Specific implementations
-impl From<std::io::Error> for AppError { ... }
-impl From<ParseIntError> for AppError { ... }
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self { AppError::Io(err) }
+}
+impl From<ParseIntError> for AppError {
+    fn from(err: ParseIntError) -> Self { AppError::Parse(err) }
+}
 ```
 
 ## See Also

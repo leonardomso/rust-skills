@@ -30,7 +30,8 @@ async fn read_configs() -> Result<(Config, Settings)> {
 ## Good
 
 ```rust
-use tokio::join;
+use anyhow::Result;
+use tokio::{fs, join, try_join};
 
 async fn fetch_data() -> (User, Posts, Comments) {
     // Concurrent: ~100ms total (max of all three)
@@ -39,11 +40,9 @@ async fn fetch_data() -> (User, Posts, Comments) {
         fetch_posts(),
         fetch_comments(),
     );
-    
+
     (user, posts, comments)
 }
-
-use tokio::try_join;
 
 async fn read_configs() -> Result<(Config, Settings)> {
     // Concurrent: ~20ms total
@@ -51,14 +50,34 @@ async fn read_configs() -> Result<(Config, Settings)> {
         fs::read_to_string("config.toml"),
         fs::read_to_string("settings.json"),
     )?;
-    
+
     Ok((parse_config(&config_str)?, parse_settings(&settings_str)?))
 }
+
+struct User;
+struct Posts;
+struct Comments;
+struct Config;
+struct Settings;
+async fn fetch_user() -> User { User }
+async fn fetch_posts() -> Posts { Posts }
+async fn fetch_comments() -> Comments { Comments }
+fn parse_config(_s: &str) -> Result<Config> { Ok(Config) }
+fn parse_settings(_s: &str) -> Result<Settings> { Ok(Settings) }
 ```
 
 ## join! vs try_join!
 
 ```rust
+use tokio::{join, try_join};
+
+let future_a = async { 1 };
+let future_b = async { 2 };
+let future_c = async { 3 };
+let fallible_a = async { Ok::<_, std::io::Error>(1) };
+let fallible_b = async { Ok::<_, std::io::Error>(2) };
+let fallible_c = async { Ok::<_, std::io::Error>(3) };
+
 // join! - all futures run to completion, returns tuple
 let (a, b, c) = join!(future_a, future_b, future_c);
 
@@ -71,32 +90,39 @@ let (a, b, c) = try_join!(fallible_a, fallible_b, fallible_c)?;
 ## futures::join_all for Dynamic Collections
 
 ```rust
-use futures::future::join_all;
+use anyhow::Result;
+use futures::future::{join_all, try_join_all};
 
 async fn fetch_all_users(ids: &[u64]) -> Vec<User> {
     let futures: Vec<_> = ids.iter()
         .map(|id| fetch_user(*id))
         .collect();
-    
+
     join_all(futures).await
 }
 
 // With fallible futures
-use futures::future::try_join_all;
-
-async fn fetch_all_users(ids: &[u64]) -> Result<Vec<User>> {
+async fn try_fetch_all_users(ids: &[u64]) -> Result<Vec<User>> {
     let futures: Vec<_> = ids.iter()
-        .map(|id| fetch_user(*id))
+        .map(|id| try_fetch_user(*id))
         .collect();
-    
+
     try_join_all(futures).await
 }
+
+struct User { id: u64 }
+async fn fetch_user(id: u64) -> User { User { id } }
+async fn try_fetch_user(id: u64) -> Result<User> { Ok(User { id }) }
 ```
 
 ## Limiting Concurrency
 
 ```rust
+use std::sync::Arc;
+use anyhow::Result;
+use futures::future::join_all;
 use futures::stream::{self, StreamExt};
+use tokio::sync::Semaphore;
 
 async fn fetch_with_limit(ids: &[u64]) -> Vec<Result<User>> {
     stream::iter(ids)
@@ -107,11 +133,9 @@ async fn fetch_with_limit(ids: &[u64]) -> Vec<Result<User>> {
 }
 
 // Or with tokio::sync::Semaphore
-use tokio::sync::Semaphore;
-
-async fn fetch_with_semaphore(ids: &[u64]) -> Vec<User> {
+async fn fetch_with_semaphore(ids: &[u64]) -> Vec<Result<User>> {
     let semaphore = Arc::new(Semaphore::new(10));
-    
+
     let futures: Vec<_> = ids.iter().map(|id| {
         let semaphore = semaphore.clone();
         async move {
@@ -119,14 +143,22 @@ async fn fetch_with_semaphore(ids: &[u64]) -> Vec<User> {
             fetch_user(*id).await
         }
     }).collect();
-    
+
     join_all(futures).await
 }
+
+struct User { id: u64 }
+async fn fetch_user(id: u64) -> Result<User> { Ok(User { id }) }
 ```
 
 ## When NOT to Use join!
 
 ```rust
+use std::sync::Arc;
+use anyhow::Result;
+use tokio::join;
+use tokio::sync::Mutex;
+
 // ❌ Dependent futures - must be sequential
 async fn create_and_populate() -> Result<()> {
     let db = create_database().await?;   // Must complete first
@@ -138,6 +170,7 @@ async fn create_and_populate() -> Result<()> {
 async fn find_first() -> Option<Data> {
     // Want to stop when one succeeds
     // Use select! instead
+    None
 }
 
 // ❌ Shared mutable state
@@ -149,6 +182,12 @@ async fn bad_shared_state() {
         increment(counter.clone()),
     );
 }
+
+struct Db;
+struct Data;
+async fn create_database() -> Result<Db> { Ok(Db) }
+async fn populate_tables(_db: &Db) -> Result<()> { Ok(()) }
+async fn increment(counter: Arc<Mutex<u32>>) { *counter.lock().await += 1; }
 ```
 
 ## See Also

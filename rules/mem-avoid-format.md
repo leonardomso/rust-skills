@@ -95,7 +95,7 @@ fn build_message(parts: &[&str]) -> String {
 }
 
 // Good: Pre-allocate
-fn build_message(parts: &[&str]) -> String {
+fn build_message_prealloc(parts: &[&str]) -> String {
     let total_len: usize = parts.iter().map(|p| p.len() + 1).sum();
     let mut result = String::with_capacity(total_len);
     for part in parts {
@@ -106,7 +106,7 @@ fn build_message(parts: &[&str]) -> String {
 }
 
 // Good: Use join
-fn build_message(parts: &[&str]) -> String {
+fn build_message_join(parts: &[&str]) -> String {
     parts.join("\n")
 }
 ```

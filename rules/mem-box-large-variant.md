@@ -97,18 +97,22 @@ large_enum_variant = "warn"  # Warns when variants differ significantly
 
 ## Recursive Types Require Boxing
 
-```rust
-// Won't compile - infinite size
+```rust,compile_fail
+// Error E0072: recursive type `List` has infinite size
 enum List {
     Cons(i32, List),
     Nil,
 }
+```
 
+```rust
 // Must box recursive variant
 enum List {
     Cons(i32, Box<List>),  // Now finite size
     Nil,
 }
+
+enum Op { Add, Sub }
 
 // Same for ASTs
 enum Expr {
@@ -124,6 +128,8 @@ enum Expr {
 ## Pattern Matching with Boxed Variants
 
 ```rust
+struct LargeData { size: usize }
+
 enum Event {
     Small(u32),
     Large(Box<LargeData>),
@@ -155,5 +161,5 @@ fn handle_ref(event: &Event) {
 
 - [own-move-large](./own-move-large.md) - Boxing large types for cheap moves
 - [mem-smallvec](./mem-smallvec.md) - Alternative for inline small collections
-- [lint-deny-correctness](./lint-deny-correctness.md) - Enabling clippy lints
+- [lint-clippy-groups](./lint-clippy-groups.md) - Enabling clippy lints
 - [async-future-size](async-future-size.md) - Keep hot futures small

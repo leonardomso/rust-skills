@@ -31,17 +31,25 @@ async fn main() {
 ## Good
 
 ```rust
+use futures::future::join_all;
+
 // Multi-threaded for concurrent IO (default)
 #[tokio::main]
 async fn main() {
+    let urls = vec!["https://example.com".to_string()];
+
     // Good for many concurrent network connections
     let handles: Vec<_> = urls.iter()
         .map(|url| tokio::spawn(fetch(url.clone())))
         .collect();
-    
-    futures::future::join_all(handles).await;
+
+    join_all(handles).await;
 }
 
+async fn fetch(url: String) -> usize { url.len() }
+```
+
+```rust
 // Current-thread for single-threaded scenarios
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -50,12 +58,22 @@ async fn main() {
     client.run().await;
 }
 
+struct Client;
+impl Client {
+    fn new() -> Self { Client }
+    async fn run(&self) {}
+}
+```
+
+```rust
 // Custom configuration
 #[tokio::main(worker_threads = 4)]
 async fn main() {
     // Limit to 4 worker threads
 }
+```
 
+```rust
 // Or manual setup for more control
 fn main() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -64,9 +82,11 @@ fn main() {
         .thread_name("my-worker")
         .build()
         .unwrap();
-    
+
     runtime.block_on(async_main());
 }
+
+async fn async_main() {}
 ```
 
 ## Runtime Types
@@ -105,6 +125,9 @@ let cpu_runtime = Builder::new_multi_thread()
 ## Multiple Runtimes
 
 ```rust
+use std::future::Future;
+use tokio::runtime::{Builder, Runtime};
+
 // Separate runtimes for different workloads
 struct App {
     io_runtime: Runtime,
@@ -126,15 +149,15 @@ impl App {
                 .unwrap(),
         }
     }
-    
-    fn spawn_io<F>(&self, future: F) 
-    where F: Future + Send + 'static, F::Output: Send + 'static 
+
+    fn spawn_io<F>(&self, future: F)
+    where F: Future + Send + 'static, F::Output: Send + 'static
     {
         self.io_runtime.spawn(future);
     }
-    
-    fn spawn_cpu<F>(&self, task: F) 
-    where F: FnOnce() + Send + 'static 
+
+    fn spawn_cpu<F>(&self, task: F)
+    where F: FnOnce() + Send + 'static
     {
         self.cpu_runtime.spawn_blocking(task);
     }

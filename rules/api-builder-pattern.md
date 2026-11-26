@@ -95,7 +95,14 @@ let client = ClientBuilder::new()
 ## Builder Variations
 
 ```rust
+use std::time::Duration;
+
 // 1. Infallible builder (build() returns T, not Result)
+enum Color { Black }
+enum Size { Medium }
+struct Widget { color: Color, size: Size }
+struct WidgetBuilder { color: Option<Color>, size: Option<Size> }
+
 impl WidgetBuilder {
     pub fn build(self) -> Widget {
         Widget {
@@ -106,6 +113,8 @@ impl WidgetBuilder {
 }
 
 // 2. Typestate builder (compile-time required field checking)
+pub struct Client { url: String, timeout: Option<Duration> }
+
 pub struct ClientBuilder<Url> {
     url: Url,
     timeout: Option<Duration>,
@@ -132,11 +141,24 @@ impl ClientBuilder<HasUrl> {
 }
 
 // 3. Consuming vs borrowing (consuming is more common)
-// Consuming (takes self)
-pub fn timeout(mut self, t: Duration) -> Self { ... }
+struct ConsumingBuilder { timeout: Option<Duration> }
+struct BorrowingBuilder { timeout: Option<Duration> }
 
-// Borrowing (takes &mut self, allows reuse)
-pub fn timeout(&mut self, t: Duration) -> &mut Self { ... }
+impl ConsumingBuilder {
+    // Consuming (takes self)
+    pub fn timeout(mut self, t: Duration) -> Self {
+        self.timeout = Some(t);
+        self
+    }
+}
+
+impl BorrowingBuilder {
+    // Borrowing (takes &mut self, allows reuse)
+    pub fn timeout(&mut self, t: Duration) -> &mut Self {
+        self.timeout = Some(t);
+        self
+    }
+}
 ```
 
 ## Evidence from reqwest
@@ -172,11 +194,16 @@ impl ClientBuilder {
 ```rust
 #[derive(Default)]  // Enables MyBuilder::default()
 #[must_use = "builders do nothing unless you call build()"]
-pub struct MyBuilder { ... }
+pub struct MyBuilder {
+    option: Option<u32>,
+}
 
 impl MyBuilder {
     #[must_use]  // Each method should have this
-    pub fn option(mut self, value: T) -> Self { ... }
+    pub fn option(mut self, value: u32) -> Self {
+        self.option = Some(value);
+        self
+    }
 }
 ```
 

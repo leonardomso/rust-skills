@@ -144,20 +144,20 @@ mod tests {
 
 ```rust
 // ✅ Types stored in large collections
-struct Node { /* ... */ }
+struct Node { value: u64, next: Option<Box<Node>> }
 const _: () = assert!(std::mem::size_of::<Node>() <= 64);
 
 // ✅ Types used in FFI / binary protocols
 #[repr(C)]
-struct WireFormat { /* ... */ }
+struct WireFormat { header: [u8; 16], payload: [u8; 240] }
 const _: () = assert!(std::mem::size_of::<WireFormat>() == 256);
 
 // ✅ Performance-critical types
-struct HotPath { /* ... */ }
+struct HotPath { id: u64, flags: u32, state: [u8; 32] }
 const _: () = assert!(std::mem::size_of::<HotPath>() <= 128);
 
 // ❌ Skip for rarely-instantiated types
-struct AppConfig { /* many fields */ }
+struct AppConfig { name: String, paths: Vec<String> /* many fields */ }
 // Size doesn't matter, only one instance
 ```
 

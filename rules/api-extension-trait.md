@@ -86,23 +86,30 @@ impl<T, E: std::fmt::Display> ResultExt<T, E> for Result<T, E> {
 ## Ecosystem Examples
 
 ```rust
-// itertools::Itertools
-use itertools::Itertools;
-let uniques: Vec<_> = vec![1, 1, 2, 2, 3].into_iter().unique().collect();
-
-// futures::StreamExt
-use futures::StreamExt;
-let next = stream.next().await;
-
-// tokio::io::AsyncReadExt
-use tokio::io::AsyncReadExt;
-let mut buf = [0u8; 1024];
-reader.read(&mut buf).await?;
-
-// anyhow::Context
 use anyhow::Context;
-let content = std::fs::read_to_string(path)
-    .with_context(|| format!("failed to read {}", path))?;
+use futures::StreamExt;
+use tokio::io::AsyncReadExt;
+
+async fn examples(
+    mut stream: impl futures::Stream<Item = u32> + Unpin,
+    mut reader: impl tokio::io::AsyncRead + Unpin,
+    path: &str,
+) -> anyhow::Result<()> {
+    // itertools::Itertools adds .unique(), .join(), ... to every Iterator
+    // (itertools is not a dependency of this repo's example checks)
+
+    // futures::StreamExt
+    let next = stream.next().await;
+
+    // tokio::io::AsyncReadExt
+    let mut buf = [0u8; 1024];
+    reader.read(&mut buf).await?;
+
+    // anyhow::Context
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read {}", path))?;
+    Ok(())
+}
 ```
 
 ## Scoped Extensions
@@ -125,9 +132,11 @@ mod string_utils {
     }
 }
 
-// Only available when explicitly imported
-use string_utils::StringExt;
-let short = "very long string".truncate_ellipsis(10);
+fn main() {
+    // Only available when explicitly imported
+    use string_utils::StringExt;
+    let short = "very long string".truncate_ellipsis(10);
+}
 ```
 
 ## Generic Extensions with Bounds

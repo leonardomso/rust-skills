@@ -133,17 +133,24 @@ impl Clone for CachedValue {
 ## When to Avoid Clone
 
 ```rust
+use std::borrow::Cow;
+use std::sync::Arc;
+
+struct MyType;
+
 // Instead of cloning, consider:
 
 // 1. References
-fn process(data: &MyType) { } // Borrow instead of clone
+fn process_ref(data: &MyType) { } // Borrow instead of clone
 
 // 2. Cow for conditional cloning
-fn process(data: Cow<'_, str>) { } // Clone only if mutation needed
+fn process_cow(data: Cow<'_, str>) { } // Clone only if mutation needed
 
 // 3. Arc for shared ownership
-let shared = Arc::new(expensive_data);
-let handle = shared.clone(); // Cheap: just increments counter
+fn share(expensive_data: MyType) {
+    let shared = Arc::new(expensive_data);
+    let handle = shared.clone(); // Cheap: just increments counter
+}
 
 // 4. Passing by value when caller is done with it
 fn consume(data: MyType) { } // Caller moves, no clone

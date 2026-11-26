@@ -38,7 +38,8 @@ for source in sources {
 
 ## How clone_from Works
 
-```rust
+```rust,ignore
+// Excerpt of std's `impl Clone for String` (simplified), shown for illustration
 impl Clone for String {
     fn clone(&self) -> Self {
         // Always allocates new memory

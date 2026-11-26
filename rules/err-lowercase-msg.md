@@ -52,7 +52,7 @@ enum ConfigError {
 
 The standard library follows this convention:
 
-```rust
+```text
 // std::io::Error messages
 "entity not found"
 "permission denied"
@@ -79,12 +79,16 @@ The standard library follows this convention:
 ```rust
 use anyhow::{Context, Result};
 
+struct User;
+fn fetch(id: u64) -> Result<String> { Ok(String::new()) }
+fn parse_user(data: String) -> Result<User> { Ok(User) }
+
 fn load_user(id: u64) -> Result<User> {
     let data = fetch(id)
         .with_context(|| format!("failed to fetch user {}", id))?;
     
     parse_user(data)
-        .with_context(|| "failed to parse user data")?
+        .with_context(|| "failed to parse user data")
 }
 
 // Output: "failed to fetch user 42: connection refused"
@@ -94,6 +98,9 @@ fn load_user(id: u64) -> Result<User> {
 ## Display vs Debug
 
 ```rust
+use std::{io, path::PathBuf};
+use thiserror::Error;
+
 #[derive(Error, Debug)]
 #[error("invalid configuration")]  // Display: for users/logs
 pub struct ConfigError {
@@ -108,13 +115,22 @@ pub struct ConfigError {
 ## When to Use Capitals
 
 ```rust
-// Proper nouns / acronyms keep their case
-#[error("invalid JSON syntax")]     // JSON is an acronym
-#[error("OAuth token expired")]     // OAuth is a proper noun
-#[error("HTTP request failed")]     // HTTP is an acronym
+use thiserror::Error;
 
-// Error codes can be uppercase
-#[error("error code E0001: invalid input")]
+#[derive(Error, Debug)]
+enum Error {
+    // Proper nouns / acronyms keep their case
+    #[error("invalid JSON syntax")]     // JSON is an acronym
+    Json,
+    #[error("OAuth token expired")]     // OAuth is a proper noun
+    OAuth,
+    #[error("HTTP request failed")]     // HTTP is an acronym
+    Http,
+
+    // Error codes can be uppercase
+    #[error("error code E0001: invalid input")]
+    Code,
+}
 ```
 
 ## See Also
