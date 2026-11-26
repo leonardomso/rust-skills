@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate SKILL.md's priority table + Quick Reference from rules/ and README counts.
+"""Generate SKILL.md's rule index (the `## Index` section, which runs to EOF) and README counts.
 
 Single source of truth: each rule file's `# id` header, its `> summary` line, and
 the ordered CATEGORIES config below (prefix -> title + impact). Rule order within a
@@ -58,6 +58,25 @@ CATEGORIES = [
     ("anti-",   "Anti-patterns",             "REFERENCE"),
 ]
 
+# Anti-patterns section: common mistakes, each pointing at the rule that fixes it.
+# The fixes live in their home categories (one source of truth per meaning);
+# this list is the symptom -> rule lookup a reviewer scans. Real `anti-` rule
+# files, for mistakes with no other home, are listed above the lookup.
+ANTI_LOOKUP = [
+    ("`.unwrap()` in production code", ["err-no-unwrap-prod"]),
+    ("`expect()` on a recoverable error", ["err-expect-bugs-only"]),
+    ("Panicking on expected failures", ["err-result-over-panic"]),
+    ("`.clone()` to quiet the borrow checker", ["own-borrow-over-clone"]),
+    ("`&String` / `&Vec<T>` parameters", ["own-slice-over-vec"]),
+    ("A lock guard held across `.await`", ["async-no-lock-await"]),
+    ("Index loops where an iterator fits", ["perf-iter-over-index"]),
+    ("Collecting between iterator steps", ["perf-collect-once"]),
+    ("`format!` in a hot path", ["mem-write-over-format", "mem-avoid-format"]),
+    ("Optimizing without a profile", ["perf-profile-first"]),
+    ("Strings where an enum or newtype fits", ["type-no-stringly"]),
+    ("`Box<dyn Trait>` where `impl Trait` works", ["trait-dyn-vs-generic"]),
+]
+
 def prefix_of(rule_id):
     return rule_id.split("-", 1)[0] + "-"
 
@@ -85,30 +104,37 @@ def build():
         if m.group(1) not in seen:
             seen.add(m.group(1)); existing.append(m.group(1))
 
-    table_rows, qr_sections = [], []
+    qr_sections = []
     total = 0
     for i, (prefix, title, impact) in enumerate(CATEGORIES, 1):
         rules = by_prefix.get(prefix, [])
         ordered = [r for r in existing if r in rules] + sorted(r for r in rules if r not in existing)
         total += len(ordered)
-        table_rows.append(f"| {i} | {title} | {impact} | `{prefix}` | {len(ordered)} |")
         lines = [f"### {i}. {title} ({impact})", ""]
         for rid in ordered:
             lines.append(f"- [`{rid}`](rules/{rid}.md) - {summary_of(RULES / f'{rid}.md')}")
+        if prefix == "anti-":
+            if ordered:
+                lines.append("")
+            lines += ["Common mistakes and the rule that fixes each:", "",
+                      "| Symptom | Fix |", "|---------|-----|"]
+            for symptom, fixes in ANTI_LOOKUP:
+                for rid in fixes:
+                    if not (RULES / f"{rid}.md").exists():
+                        raise SystemExit(f"ANTI_LOOKUP: rules/{rid}.md does not exist")
+                links = ", ".join(f"[`{rid}`](rules/{rid}.md)" for rid in fixes)
+                lines.append(f"| {symptom} | {links} |")
         qr_sections.append("\n".join(lines))
 
     counts = [len(by_prefix.get(prefix, [])) for prefix, _, _ in CATEGORIES]
-    table = ("| Priority | Category | Impact | Prefix | Rules |\n"
-             "|----------|----------|--------|--------|-------|\n"
-             + "\n".join(table_rows))
     quickref = "\n\n".join(qr_sections)
-    return table, quickref, total, len(CATEGORIES), counts
+    return quickref, total, len(CATEGORIES), counts
 
-def render_skill(text, table, quickref, total, ncat):
-    text = re.sub(r"(## Rule Categories by Priority\n\n).*?(\n\n---\n\n## Quick Reference)",
-                  lambda m: m.group(1) + table + m.group(2), text, flags=re.S)
-    text = re.sub(r"(## Quick Reference\n\n).*?(\n\n---\n\n## Recommended Cargo\.toml Settings)",
-                  lambda m: m.group(1) + quickref + m.group(2), text, flags=re.S)
+def render_skill(text, quickref, total, ncat):
+    head, sep, _ = text.partition("\n## Index\n")
+    if not sep:
+        raise SystemExit("SKILL.md: no '## Index' section")
+    text = head + sep + "\n" + quickref + "\n"
     text = re.sub(r"\d+ rules across \d+ categories", f"{total} rules across {ncat} categories", text)
     text = re.sub(r"Current for Rust [\d.]+", f"Current for Rust {rust_version()}", text)
     return text
@@ -134,8 +160,8 @@ def render_readme(text, total, ncat, counts):
     return text
 
 def main():
-    table, quickref, total, ncat, counts = build()
-    skill_new = render_skill(SKILL.read_text(encoding="utf-8"), table, quickref, total, ncat)
+    quickref, total, ncat, counts = build()
+    skill_new = render_skill(SKILL.read_text(encoding="utf-8"), quickref, total, ncat)
     readme_new = render_readme(README.read_text(encoding="utf-8"), total, ncat, counts)
 
     if "--check" in sys.argv:
