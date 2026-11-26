@@ -4,7 +4,7 @@
 
 ## Why It Matters
 
-Concrete dependencies make testing hard—you can't easily test error paths, timeouts, or edge cases without real external systems. Extracting dependencies behind traits lets you inject test doubles (mocks, fakes, stubs), enabling isolated unit tests that run fast and cover edge cases.
+Concrete dependencies make testing hard. You can't test error paths, timeouts, or edge cases without the real external system. Put each dependency behind a small trait and inject a test double (a fake or stub). Tests then run fast and can force any failure.
 
 ## Bad
 
@@ -15,18 +15,11 @@ struct UserService {
 
 impl UserService {
     async fn get_user(&self, id: u64) -> Result<User, Error> {
-        // Directly calls Postgres - needs real database to test
         self.db.query("SELECT * FROM users WHERE id = $1", &[&id]).await
     }
 }
 
-// Test requires real Postgres instance
-#[tokio::test]
-async fn test_get_user() {
-    let db = PostgresConnection::connect("postgres://...").await?;
-    let service = UserService { db };
-    // Slow, flaky, can't test error paths
-}
+// A test needs a real Postgres instance: slow, flaky, no error paths
 ```
 
 ## Good
@@ -74,7 +67,7 @@ impl<R: UserRepository> UserService<R> {
 }
 
 // The production implementation (for example a database pool) implements
-// `UserRepository` the same way the fake does below.
+// `UserRepository` the same way the fakes below do.
 
 #[cfg(test)]
 mod tests {
@@ -129,67 +122,9 @@ mod tests {
 }
 ```
 
-## mockall Crate
+## Generics vs `dyn`
 
-`#[automock]` works on traits with native `async fn`, so no `#[async_trait]` is needed.
-
-```rust
-use mockall::automock;
-use mockall::predicate::eq;
-
-#[automock]
-trait Database {
-    async fn query(&self, sql: &str) -> Result<Vec<String>, String>;
-}
-
-#[tokio::test]
-async fn query_runs_once_with_expected_sql() {
-    let mut mock = MockDatabase::new();
-
-    mock.expect_query()
-        .with(eq("SELECT 1"))
-        .times(1)
-        .returning(|_| Ok(vec!["1".to_string()]));
-
-    let result = mock.query("SELECT 1").await;
-    assert!(result.is_ok());
-}
-```
-
-## Testing Error Paths
-
-```rust
-#[derive(Debug)]
-enum HttpError {
-    Timeout,
-}
-
-trait HttpClient {
-    async fn get(&self, url: &str) -> Result<String, HttpError>;
-}
-
-struct FailingClient;
-
-impl HttpClient for FailingClient {
-    async fn get(&self, _url: &str) -> Result<String, HttpError> {
-        Err(HttpError::Timeout) // always fails
-    }
-}
-
-async fn fetch_data(client: &impl HttpClient) -> Result<String, HttpError> {
-    client.get("https://example.invalid/data").await
-}
-
-#[tokio::test]
-async fn fetch_data_reports_timeout() {
-    let result = fetch_data(&FailingClient).await;
-    assert!(matches!(result, Err(HttpError::Timeout)));
-}
-```
-
-## Dynamic Dispatch Alternative
-
-A trait with a native `async fn` is not dyn-compatible, so `Box<dyn UserRepository>` does not work with the repository above. Keep the generic parameter, or use a trait with synchronous methods (or methods returning boxed futures) behind `dyn`. If you need `dyn` with async methods, see [async-fn-in-trait](async-fn-in-trait.md).
+A trait with a native `async fn` is not dyn-compatible, so `Box<dyn UserRepository>` does not work above. Keep the generic parameter. For synchronous dependencies, `dyn` keeps the service type simple. For `dyn` with async methods, see [async-fn-in-trait](async-fn-in-trait.md).
 
 ```rust
 // Synchronous dependency: `dyn` works and keeps the service type simple
@@ -212,20 +147,11 @@ impl Service {
 }
 ```
 
-## Cargo.toml
-
-```toml
-[dev-dependencies]
-mockall = "0.15"
-tokio = { version = "1", features = ["macros", "rt"] }
-```
-
 ## See Also
 
-- [async-fn-in-trait](async-fn-in-trait.md) - Native async fn in traits
-- [test-mockall-mocking](test-mockall-mocking.md) - Mocking with mockall
-- [api-sealed-trait](./api-sealed-trait.md) - Trait design
-- [test-proptest-properties](./test-proptest-properties.md) - Property-based testing
-- [proj-lib-main-split](./proj-lib-main-split.md) - Testable architecture
-- [api-sans-io](api-sans-io.md) - Take impl Read/Write instead of paths
+- [test-mockall-mocking](test-mockall-mocking.md) - Generate mocks with mockall instead of writing fakes by hand
+- [async-fn-in-trait](async-fn-in-trait.md) - Native async fn in traits, and `dyn` with async methods
+- [trait-dyn-vs-generic](trait-dyn-vs-generic.md) - Choosing generics or `dyn`
+- [api-sans-io](api-sans-io.md) - Take `impl Read`/`Write` instead of paths
 - [test-utils-feature-gated](test-utils-feature-gated.md) - Gate test utilities behind a feature
+- [proj-lib-main-split](proj-lib-main-split.md) - Testable architecture

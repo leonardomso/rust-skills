@@ -4,9 +4,20 @@
 
 ## Why It Matters
 
-Unit tests should isolate the code under test from external dependencies (databases, APIs, file systems). Mockall generates mock implementations of traits, allowing you to control and verify behavior without real dependencies.
+Hand-written fakes grow with every method and can't check how they were called. Mockall generates a mock from a trait. You set what each method returns and how often it must be called, and the mock fails the test if the expectations are not met.
 
-## Setup
+For how to design the trait and its seams, see [test-mock-traits](test-mock-traits.md). This rule covers the mockall API.
+
+## Bad
+
+```rust
+// Hand-rolled mock: counts calls by hand, and every new method adds more code
+struct MockDb {
+    calls: std::cell::Cell<u32>,
+}
+```
+
+## Good
 
 ```toml
 # Cargo.toml
@@ -14,214 +25,147 @@ Unit tests should isolate the code under test from external dependencies (databa
 mockall = "0.15"
 ```
 
-## Basic Usage
+```rust
+use mockall::automock;
+use mockall::predicate::eq;
+
+#[automock]
+trait Database {
+    fn get_user(&self, id: u64) -> Option<String>;
+    fn save_user(&self, name: &str) -> Result<(), String>;
+}
+
+fn find_user(db: &impl Database, id: u64) -> Option<String> {
+    db.get_user(id)
+}
+
+#[test]
+fn find_user_returns_stored_name() {
+    let mut mock = MockDatabase::new();
+    mock.expect_get_user()
+        .with(eq(42))
+        .times(1)
+        .returning(|_| Some("Alice".to_string()));
+
+    assert_eq!(find_user(&mock, 42).as_deref(), Some("Alice"));
+    // Expectations are verified when `mock` is dropped
+}
+```
+
+## Expectations and Predicates
+
+```rust
+use mockall::automock;
+use mockall::predicate::*;
+
+#[automock]
+trait Search {
+    fn validate(&self, input: &str) -> bool;
+    fn search(&self, query: &str, limit: usize) -> Vec<String>;
+    fn count(&self) -> u32;
+}
+
+#[test]
+fn matchers() {
+    let mut mock = MockSearch::new();
+
+    // Custom predicate on one argument
+    mock.expect_validate()
+        .with(function(|s: &str| s.len() > 5))
+        .returning(|_| true);
+
+    // `withf` checks all arguments at once
+    mock.expect_search()
+        .withf(|query, limit| query.len() < 100 && *limit <= 1000)
+        .returning(|_, _| vec![]);
+
+    // Call counts: `.times(1)`, `.times(3..)`, `.never()`
+    mock.expect_count().times(1..).returning(|| 42);
+
+    assert!(mock.validate("long enough"));
+    assert!(mock.search("rust", 10).is_empty());
+    assert_eq!(mock.count(), 42);
+}
+```
+
+A call that matches no expectation panics. For a different value on each call, add several expectations with `.times(1)`. They match in the order added. Use `return_const(value)` for a fixed value.
+
+## Sequences
+
+```rust
+use mockall::{automock, Sequence};
+
+#[automock]
+trait Connection {
+    fn connect(&self);
+    fn disconnect(&self);
+}
+
+#[test]
+fn connects_before_disconnecting() {
+    let mut seq = Sequence::new();
+    let mut mock = MockConnection::new();
+
+    mock.expect_connect().times(1).in_sequence(&mut seq).return_const(());
+    mock.expect_disconnect().times(1).in_sequence(&mut seq).return_const(());
+
+    mock.connect();
+    mock.disconnect();
+}
+```
+
+## Async Traits
+
+`#[automock]` handles native `async fn` in traits directly. You do not need `#[async_trait]`.
 
 ```rust
 use mockall::automock;
 
 #[automock]
-trait Database {
-    fn get_user(&self, id: u64) -> Option<User>;
-    fn save_user(&self, user: &User) -> Result<(), Error>;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use mockall::predicate::*;
-    
-    #[test]
-    fn test_get_user() {
-        let mut mock = MockDatabase::new();
-        
-        mock.expect_get_user()
-            .with(eq(42))
-            .returning(|_| Some(User { id: 42, name: "Alice".into() }));
-        
-        let service = UserService::new(mock);
-        let user = service.find_user(42);
-        
-        assert_eq!(user.unwrap().name, "Alice");
-    }
-}
-```
-
-## Expectations
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_save_calls() {
-        let mut mock = MockDatabase::new();
-        
-        // Expect exactly one call
-        mock.expect_save_user()
-            .times(1)
-            .returning(|_| Ok(()));
-        
-        // Expect call with specific argument
-        mock.expect_get_user()
-            .with(eq(42))
-            .returning(|_| Some(User::default()));
-        
-        // Expect multiple calls
-        mock.expect_get_user()
-            .times(3..)  // At least 3 times
-            .returning(|_| None);
-        
-        // Expectations are verified on drop
-    }
-}
-```
-
-## Predicates
-
-```rust
-use mockall::predicate::*;
-
-mock.expect_process()
-    .with(eq(42))                    // Exact match
-    .returning(|_| Ok(()));
-
-mock.expect_validate()
-    .with(function(|s: &str| s.len() > 5))  // Custom predicate
-    .returning(|_| true);
-
-mock.expect_search()
-    .withf(|query, limit| {           // Multiple args
-        query.len() < 100 && *limit <= 1000
-    })
-    .returning(|_, _| vec![]);
-```
-
-## Sequences
-
-```rust
-use mockall::Sequence;
-
-#[test]
-fn test_ordered_calls() {
-    let mut seq = Sequence::new();
-    let mut mock = MockDatabase::new();
-    
-    mock.expect_connect()
-        .times(1)
-        .in_sequence(&mut seq)
-        .returning(|| Ok(()));
-    
-    mock.expect_query()
-        .times(1)
-        .in_sequence(&mut seq)
-        .returning(|_| Ok(vec![]));
-    
-    mock.expect_disconnect()
-        .times(1)
-        .in_sequence(&mut seq)
-        .returning(|| Ok(()));
-}
-```
-
-## Return Values
-
-```rust
-// Fixed value
-mock.expect_count().returning(|| 42);
-
-// Based on input
-mock.expect_double().returning(|x| x * 2);
-
-// Different values per call
-mock.expect_next()
-    .times(3)
-    .returning(|| 1)
-    .returning(|| 2)
-    .returning(|| 3);
-
-// Return owned values
-mock.expect_get_name()
-    .returning(|| "Alice".to_string());
-```
-
-## Mocking External Traits
-
-```rust
-// For traits you don't own
-#[cfg_attr(test, mockall::automock)]
-trait HttpClient {
-    fn get(&self, url: &str) -> Result<Response, Error>;
-}
-
-// In production
-struct RealHttpClient;
-impl HttpClient for RealHttpClient {
-    fn get(&self, url: &str) -> Result<Response, Error> { /* ... */ }
-}
-
-// In tests
-#[cfg(test)]
-fn mock_client() -> MockHttpClient {
-    let mut mock = MockHttpClient::new();
-    mock.expect_get()
-        .returning(|_| Ok(Response::new(200, "OK")));
-    mock
-}
-```
-
-## Async Mocking
-
-`#[automock]` handles native `async fn` in traits directly. You do not need `#[async_trait]`.
-
-```rust
-#[automock]
 trait AsyncDatabase {
-    async fn fetch(&self, id: u64) -> Option<Data>;
+    async fn fetch(&self, id: u64) -> Option<String>;
 }
 
 #[tokio::test]
-async fn test_async() {
+async fn fetch_returns_value() {
     let mut mock = MockAsyncDatabase::new();
-    
-    mock.expect_fetch()
-        .returning(|_| Some(Data::default()));
-    
-    let result = mock.fetch(1).await;
-    assert!(result.is_some());
+    mock.expect_fetch().returning(|_| Some("data".to_string()));
+
+    assert!(mock.fetch(1).await.is_some());
 }
 ```
 
-## Design for Testability
+## Traits You Don't Own
+
+`#[automock]` needs the trait definition. For a trait from another crate, declare the mock with `mock!`, repeating the method signatures you use.
 
 ```rust
-// Accept trait, not concrete type
-struct Service<D: Database> {
-    db: D,
+use mockall::mock;
+
+trait Greeter {
+    fn greet(&self, name: &str) -> String;
 }
 
-impl<D: Database> Service<D> {
-    fn new(db: D) -> Self {
-        Self { db }
+mock! {
+    pub Greet {}
+    impl Greeter for Greet {
+        fn greet(&self, name: &str) -> String;
     }
 }
 
-// Tests use mock
 #[test]
-fn test_service() {
-    let mock = MockDatabase::new();
-    let service = Service::new(mock);
-}
-
-// Production uses real implementation
-fn main() {
-    let db = PostgresDatabase::connect();
-    let service = Service::new(db);
+fn mocks_foreign_trait() {
+    let mut mock = MockGreet::new();
+    mock.expect_greet().returning(|n| format!("hi {n}"));
+    assert_eq!(mock.greet("bo"), "hi bo");
 }
 ```
 
+Gate `#[automock]` on your own traits with `#[cfg_attr(test, mockall::automock)]` so release builds don't need mockall.
+
 ## See Also
 
-- [test-mock-traits](./test-mock-traits.md) - Mock trait design
-- [test-proptest-properties](./test-proptest-properties.md) - Property testing
-- [test-arrange-act-assert](./test-arrange-act-assert.md) - Test structure
+- [test-mock-traits](test-mock-traits.md) - Design dependencies behind traits, and when a hand-written fake is enough
+- [async-fn-in-trait](async-fn-in-trait.md) - Native async fn in traits
+- [test-arrange-act-assert](test-arrange-act-assert.md) - Test structure
+- [test-proptest-properties](test-proptest-properties.md) - Property testing
