@@ -81,3 +81,4 @@ fn get_call_count() -> u32 {
 
 - [own-refcell-interior](own-refcell-interior.md) - interior mutability for single-threaded code
 - [own-mutex-interior](own-mutex-interior.md) - shared mutable state across threads requires `Mutex`
+- [api-avoid-statics](api-avoid-statics.md) - Avoid correctness-relevant statics in libraries

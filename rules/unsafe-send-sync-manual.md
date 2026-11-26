@@ -97,3 +97,5 @@ fn make_shared() -> Arc<SafeCounter> {
 - [unsafe-safety-comment](unsafe-safety-comment.md) - write `// SAFETY:` above every unsafe impl
 - [type-phantom-marker](type-phantom-marker.md) - use `PhantomData<T>` for type-level markers
 - [own-arc-shared](own-arc-shared.md) - use `Arc<T>` for thread-safe shared ownership
+- [api-types-send](api-types-send.md) - Make public types and futures Send
+- [unsafe-sound-abstractions](unsafe-sound-abstractions.md) - Safe functions must never cause UB

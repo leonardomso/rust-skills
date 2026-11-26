@@ -133,3 +133,4 @@ fn explicit_return() -> i32 {
 - [lint-warn-suspicious](./lint-warn-suspicious.md) - Suspicious patterns
 - [lint-warn-complexity](./lint-warn-complexity.md) - Complexity warnings
 - [lint-rustfmt-check](./lint-rustfmt-check.md) - Formatting checks
+- [lint-expect-over-allow](lint-expect-over-allow.md) - Prefer #[expect] over #[allow]

@@ -227,3 +227,5 @@ tokio = { version = "1", features = ["macros", "rt"] }
 - [api-sealed-trait](./api-sealed-trait.md) - Trait design
 - [test-proptest-properties](./test-proptest-properties.md) - Property-based testing
 - [proj-lib-main-split](./proj-lib-main-split.md) - Testable architecture
+- [api-sans-io](api-sans-io.md) - Take impl Read/Write instead of paths
+- [test-utils-feature-gated](test-utils-feature-gated.md) - Gate test utilities behind a feature

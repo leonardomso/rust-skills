@@ -155,3 +155,4 @@ codegen-units = 16
 - [opt-lto-release](./opt-lto-release.md) - LTO details
 - [opt-codegen-units](./opt-codegen-units.md) - Codegen units
 - [opt-pgo-profile](./opt-pgo-profile.md) - Profile-guided optimization
+- [mem-global-allocator](mem-global-allocator.md) - Benchmark an alternative global allocator

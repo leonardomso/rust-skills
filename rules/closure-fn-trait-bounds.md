@@ -89,3 +89,4 @@ fn demo() {
 - [closure-static-vs-dyn](closure-static-vs-dyn.md) - generic vs dynamic dispatch for callbacks
 - [closure-move-capture](closure-move-capture.md) - when and how to use `move` closures
 - [async-async-fn-bounds](async-async-fn-bounds.md) - `AsyncFn*` bounds for async callbacks
+- [name-weasel-words](name-weasel-words.md) - Avoid Manager/Service/Factory names

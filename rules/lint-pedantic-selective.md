@@ -116,3 +116,4 @@ Pedantic lints are style choices. Agree as a team:
 - [lint-warn-style](./lint-warn-style.md) - Style warnings
 - [lint-warn-complexity](./lint-warn-complexity.md) - Complexity warnings
 - [lint-deny-correctness](./lint-deny-correctness.md) - Correctness lints
+- [lint-expect-over-allow](lint-expect-over-allow.md) - Prefer #[expect] over #[allow]

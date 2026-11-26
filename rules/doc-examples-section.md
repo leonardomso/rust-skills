@@ -177,3 +177,4 @@ pub fn to_json(n: &i32) -> String { n.to_string() }
 - [doc-question-mark](doc-question-mark.md) - Use ? in examples
 - [doc-hidden-setup](doc-hidden-setup.md) - Hide setup code with #
 - [doc-errors-section](doc-errors-section.md) - Document error conditions
+- [doc-first-sentence](doc-first-sentence.md) - Keep the first doc sentence short

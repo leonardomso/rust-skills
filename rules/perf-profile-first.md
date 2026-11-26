@@ -176,3 +176,4 @@ Flamegraph Reading:
 - [opt-lto-release](opt-lto-release.md) - Enable LTO for release builds
 - [test-criterion-bench](test-criterion-bench.md) - Use criterion for benchmarking
 - [anti-premature-optimize](anti-premature-optimize.md) - Don't optimize without data
+- [mem-global-allocator](mem-global-allocator.md) - Benchmark an alternative global allocator

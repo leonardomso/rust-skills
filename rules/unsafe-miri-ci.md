@@ -63,3 +63,4 @@ jobs:
 - [unsafe-maybeuninit](unsafe-maybeuninit.md) - use `MaybeUninit<T>` for uninitialized memory
 - [unsafe-safety-comment](unsafe-safety-comment.md) - document every unsafe block
 - [test-criterion-bench](test-criterion-bench.md) - use criterion for benchmarking (separate from Miri)
+- [unsafe-sound-abstractions](unsafe-sound-abstractions.md) - Safe functions must never cause UB

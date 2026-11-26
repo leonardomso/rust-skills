@@ -81,3 +81,4 @@ fn main() {
 
 - [obs-tracing-over-log](obs-tracing-over-log.md) - foundational `tracing` setup
 - [obs-library-facade](obs-library-facade.md) - libraries emit events; binaries configure filtering
+- [obs-log-overhead](obs-log-overhead.md) - Keep telemetry cheap on hot paths

@@ -172,3 +172,4 @@ std::thread::scope(|s| {
 - [mem-with-capacity](./mem-with-capacity.md) - Pre-allocating capacity
 - [mem-clone-from](./mem-clone-from.md) - Reusing allocations when cloning
 - [mem-write-over-format](./mem-write-over-format.md) - Avoiding format! allocations
+- [mem-shrink-to-fit](mem-shrink-to-fit.md) - Shrink long-lived collections after building

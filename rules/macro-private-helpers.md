@@ -96,3 +96,4 @@ impl ::mycrate::__private::Describe for MyStruct {
 - [macro-rules-hygiene](macro-rules-hygiene.md) - `$crate` for correct path resolution
 - [macro-proc-two-crate](macro-proc-two-crate.md) - separating proc-macro and facade crates
 - [doc-all-public](doc-all-public.md) - documenting public items
+- [macro-pin-impl-crate](macro-pin-impl-crate.md) - Pin companion proc-macro crates

@@ -69,3 +69,4 @@ fn handle_request(req: &Request, status: u16) {
 - [obs-tracing-over-log](obs-tracing-over-log.md) - foundational setup for `tracing`
 - [obs-no-sensitive-data](obs-no-sensitive-data.md) - never put secrets or PII in structured fields
 - [obs-error-chain](obs-error-chain.md) - log errors as structured fields with full source chain
+- [obs-log-overhead](obs-log-overhead.md) - Keep telemetry cheap on hot paths

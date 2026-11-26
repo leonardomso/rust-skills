@@ -152,3 +152,4 @@ async fn parallel_process(items: Vec<Item>) -> Vec<Output> {
 
 - [async-tokio-fs](async-tokio-fs.md) - Use tokio::fs for async file I/O
 - [async-no-lock-await](async-no-lock-await.md) - Don't hold locks across await
+- [async-yield-points](async-yield-points.md) - Yield in long CPU-bound async loops

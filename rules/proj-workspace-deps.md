@@ -206,3 +206,4 @@ proptest.workspace = true
 - [lint-workspace-lints](./lint-workspace-lints.md) - Workspace lints
 - [lint-cargo-lints](./lint-cargo-lints.md) - Find unused dependencies
 - [proj-dependency-cooldown](./proj-dependency-cooldown.md) - Delay brand-new versions
+- [macro-pin-impl-crate](macro-pin-impl-crate.md) - Pin companion proc-macro crates

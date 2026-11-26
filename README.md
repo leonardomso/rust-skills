@@ -268,6 +268,9 @@ These rules are an independent synthesis of official Rust guidance, well-known b
 - [Rust Atomics and Locks](https://marabos.nl/atomics/) — Mara Bos
 - [Effective Rust](https://effective-rust.com/) — David Drysdale
 
+**Companion guidelines**
+- [Microsoft Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) (MIT). Widely accepted items were adopted as new rules, written in this repo's own words, and each credits its source guideline. [`references/pragmatic-rust-guidelines.md`](./references/pragmatic-rust-guidelines.md) maps every `M-*` guideline to our rules and explains what was left out. It is optional reading for teams that want the full Microsoft style.
+
 **Tooling**
 - [Clippy lint documentation](https://rust-lang.github.io/rust-clippy/)
 - [Miri](https://github.com/rust-lang/miri)

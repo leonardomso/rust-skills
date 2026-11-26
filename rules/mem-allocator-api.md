@@ -74,3 +74,4 @@ fn main() {
 - [mem-arena-allocator](mem-arena-allocator.md) - Arena allocation for batches
 - [mem-with-capacity](mem-with-capacity.md) - Pre-allocate when size is known
 - [unsafe-safety-comment](unsafe-safety-comment.md) - Document every unsafe impl
+- [mem-global-allocator](mem-global-allocator.md) - Benchmark an alternative global allocator

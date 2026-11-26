@@ -76,3 +76,4 @@ fn set_greeting(name: &str) {
 
 - [name-consts-screaming](name-consts-screaming.md) - naming `SCREAMING_SNAKE_CASE` for `const` and `static`
 - [own-mutex-interior](own-mutex-interior.md) - use `Mutex<T>` for interior mutability in multi-threaded code
+- [api-avoid-statics](api-avoid-statics.md) - Avoid correctness-relevant statics in libraries

@@ -117,3 +117,4 @@ impl Logger {
 
 - [api-impl-asref](api-impl-asref.md) - Accept `impl AsRef<T>` for maximum flexibility
 - [own-borrow-over-clone](own-borrow-over-clone.md) - Prefer borrowing over cloning
+- [api-impl-rangebounds](api-impl-rangebounds.md) - Accept impl RangeBounds for ranges

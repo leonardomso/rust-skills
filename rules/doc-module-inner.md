@@ -114,3 +114,4 @@ pub mod prelude;
 - [doc-all-public](./doc-all-public.md) - Documenting public items
 - [doc-examples-section](./doc-examples-section.md) - Adding examples
 - [doc-cargo-metadata](./doc-cargo-metadata.md) - Crate metadata
+- [doc-first-sentence](doc-first-sentence.md) - Keep the first doc sentence short

@@ -173,3 +173,4 @@ fn test_with_custom_runtime() {
 - [async-spawn-blocking](./async-spawn-blocking.md) - Handling blocking code
 - [async-no-lock-await](./async-no-lock-await.md) - Avoiding lock issues
 - [async-joinset-structured](./async-joinset-structured.md) - Managing spawned tasks
+- [async-yield-points](async-yield-points.md) - Yield in long CPU-bound async loops

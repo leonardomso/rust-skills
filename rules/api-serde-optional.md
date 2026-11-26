@@ -182,3 +182,4 @@ serde = "1.0"
 - [lint-deny-correctness](./lint-deny-correctness.md) - Feature testing
 - [serde-try-from-validate](./serde-try-from-validate.md) - Validate while deserializing
 - [serde-rename-all](./serde-rename-all.md) - Match external naming conventions
+- [api-dont-leak-types](api-dont-leak-types.md) - Keep third-party types out of public APIs

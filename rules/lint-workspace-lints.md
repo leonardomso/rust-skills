@@ -185,3 +185,4 @@ missing_errors_doc = "allow"  # Override pedantic
 - [lint-cargo-lints](./lint-cargo-lints.md) - `[lints.cargo]` table
 - [lint-build-warnings](./lint-build-warnings.md) - deny warnings in CI with `build.warnings`
 - [anti-unwrap-abuse](./anti-unwrap-abuse.md) - unwrap lints
+- [lint-expect-over-allow](lint-expect-over-allow.md) - Prefer #[expect] over #[allow]

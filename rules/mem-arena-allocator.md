@@ -170,3 +170,4 @@ confirm the benefit in your specific use case.
 - [mem-reuse-collections](mem-reuse-collections.md) - Reuse collections with clear()
 - [mem-allocator-api](mem-allocator-api.md) - Stable `Allocator` trait and `Vec::new_in`
 - [perf-profile-first](perf-profile-first.md) - Profile to verify benefit
+- [mem-global-allocator](mem-global-allocator.md) - Benchmark an alternative global allocator

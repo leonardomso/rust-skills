@@ -159,3 +159,4 @@ proptest! {
 - [test-criterion-bench](./test-criterion-bench.md) - Benchmarking
 - [test-mockall-mocking](./test-mockall-mocking.md) - Mocking
 - [test-arrange-act-assert](./test-arrange-act-assert.md) - Test structure
+- [test-no-tautological](test-no-tautological.md) - Test properties, not a restatement of the code

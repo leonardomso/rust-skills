@@ -160,3 +160,4 @@ struct X(i32);  // Just use i32
 - [type-newtype-ids](./type-newtype-ids.md) - Newtype pattern for IDs
 - [api-parse-dont-validate](./api-parse-dont-validate.md) - Type-driven validation
 - [own-copy-small](./own-copy-small.md) - Making newtypes Copy
+- [api-dont-leak-types](api-dont-leak-types.md) - Keep third-party types out of public APIs

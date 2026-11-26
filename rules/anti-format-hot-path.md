@@ -148,3 +148,4 @@ format_in_format_args = "warn"
 - [mem-avoid-format](./mem-avoid-format.md) - Avoiding format
 - [mem-write-over-format](./mem-write-over-format.md) - Using write!
 - [mem-reuse-collections](./mem-reuse-collections.md) - Buffer reuse
+- [obs-log-overhead](obs-log-overhead.md) - Keep telemetry cheap on hot paths

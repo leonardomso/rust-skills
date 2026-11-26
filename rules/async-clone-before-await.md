@@ -196,3 +196,4 @@ async fn bump(mutex: Arc<Mutex<Counter>>) -> String {
 - [own-arc-shared](own-arc-shared.md) - Arc usage patterns
 - [own-borrow-over-clone](own-borrow-over-clone.md) - Borrow instead of deep-cloning
 - [async-joinset-structured](async-joinset-structured.md) - Managing spawned tasks
+- [async-future-size](async-future-size.md) - Keep hot futures small

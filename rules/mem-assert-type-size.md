@@ -173,3 +173,4 @@ static_assertions = "1.1"
 - [mem-smaller-integers](./mem-smaller-integers.md) - Choosing appropriate integer sizes
 - [mem-box-large-variant](./mem-box-large-variant.md) - Managing enum variant sizes
 - [opt-cache-friendly](./opt-cache-friendly.md) - Cache line considerations
+- [async-future-size](async-future-size.md) - Keep hot futures small

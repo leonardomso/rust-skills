@@ -96,3 +96,4 @@ let _maybe_parent: Option<Rc<Node>> = child.parent.borrow().upgrade();
 - [own-refcell-interior](./own-refcell-interior.md) - Combining Rc with interior mutability
 - [conc-thread-local](./conc-thread-local.md) - Per-thread state in single-threaded-style code
 - [mem-drop-order](./mem-drop-order.md) - Drop order matters for cyclic/`Weak` structures
+- [api-types-send](api-types-send.md) - Make public types and futures Send

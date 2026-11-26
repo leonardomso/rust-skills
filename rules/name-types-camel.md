@@ -63,3 +63,4 @@ type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 - [name-variants-camel](./name-variants-camel.md) - Enum variant naming
 - [name-funcs-snake](./name-funcs-snake.md) - Function naming
 - [name-acronym-word](./name-acronym-word.md) - Acronym handling
+- [name-weasel-words](name-weasel-words.md) - Avoid Manager/Service/Factory names
