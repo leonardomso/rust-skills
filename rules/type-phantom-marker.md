@@ -45,13 +45,15 @@ impl<T> Handle<T> {
 struct User;
 struct Order;
 
-fn process_user(h: Handle<User>) { ... }
+fn process_user(h: Handle<User>) {}
 
-let user_handle = Handle::<User>::new(1);
-let order_handle = Handle::<Order>::new(2);
+fn main() {
+    let user_handle = Handle::<User>::new(1);
+    let order_handle = Handle::<Order>::new(2);
 
-process_user(user_handle);   // OK
-process_user(order_handle);  // Error: expected Handle<User>, found Handle<Order>
+    process_user(user_handle);   // OK
+    // process_user(order_handle);  // would not compile: expected Handle<User>, found Handle<Order>
+}
 ```
 
 ## Expressing Ownership

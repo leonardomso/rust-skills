@@ -81,9 +81,11 @@ fn demo() {
 
 - `FnMut` requires `mut f` at the call site (the parameter or binding must be `mut`).
 - `Fn: FnMut: FnOnce` — a `Fn` closure satisfies an `FnOnce` bound, not the other way around.
+- For callbacks that return a future, use the `AsyncFn`, `AsyncFnMut` and `AsyncFnOnce` bounds with `async` closures (stable since Rust 1.85) instead of `F: Fn() -> Fut`.
 - Standard library examples: `Iterator::map` uses `FnMut`; `thread::spawn` uses `FnOnce + Send + 'static`.
 
 ## See Also
 
 - [closure-static-vs-dyn](closure-static-vs-dyn.md) - generic vs dynamic dispatch for callbacks
 - [closure-move-capture](closure-move-capture.md) - when and how to use `move` closures
+- [async-async-fn-bounds](async-async-fn-bounds.md) - `AsyncFn*` bounds for async callbacks

@@ -57,7 +57,7 @@ resolver = "3"   # default for the 2024 edition; use "2" for 2021
 
 [workspace.dependencies]
 mycrate-derive = { path = "mycrate-derive", version = "0.1" }
-syn  = { version = "2", features = ["derive"] }
+syn  = { version = "3", features = ["derive"] }
 quote = "1"
 proc-macro2 = "1"
 ```

@@ -23,7 +23,7 @@ fn fetchOrder() -> Order { ... }  // Mixed conventions
 ```rust
 // snake_case for functions
 fn calculate_total() -> f64 { ... }
-fn get_user_name() -> String { ... }
+fn load_user_name() -> String { ... }
 fn fetch_order() -> Order { ... }
 
 // snake_case for methods

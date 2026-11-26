@@ -47,7 +47,7 @@ impl Name {
 
 ```rust
 // to_ methods - all allocate or compute
-let s: String = slice.to_vec();           // Allocates Vec
+let v: Vec<u8> = slice.to_vec();          // Allocates Vec
 let s: String = "hello".to_string();      // Allocates String
 let s: String = "HELLO".to_lowercase();   // Allocates new String
 let s: String = path.to_string_lossy().into_owned();  // May allocate

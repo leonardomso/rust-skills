@@ -71,6 +71,20 @@ fn effective_timeout(cfg: &Config) -> Option<u64> {
 }
 ```
 
+## `if let` Guards on Match Arms
+
+Since Rust 1.95, a `match` arm guard can also be an `if let`, so an arm can bind a second pattern without a nested `match`. Guards that use `if let` do not count toward exhaustiveness, so keep a fallback arm.
+
+```rust
+fn double_small(input: Option<&str>) -> i32 {
+    match input {
+        Some(s) if let Ok(n) = s.trim().parse::<i32>() && n < 100 => n * 2,
+        Some(_) => 0,
+        None => -1,
+    }
+}
+```
+
 ## When to Prefer `let ... else`
 
 Use `let ... else` when the goal is early return on failure; use if-let chains when you have a richer condition that combines multiple optional bindings with a positive body to execute.

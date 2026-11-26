@@ -43,19 +43,21 @@ enum Status {
 
 fn set_status(status: Status) {
     match status {
-        Status::Pending => { ... }
-        Status::Active => { ... }
-        Status::Completed => { ... }
+        Status::Pending => {}
+        Status::Active => {}
+        Status::Completed => {}
     }  // Exhaustive - compiler checks all cases
 }
 
-// Can only pass valid values
-set_status(Status::Pending);  // OK
-set_status(Status::Aktivev);  // Compile error - typo caught!
+fn main() {
+    // Can only pass valid values
+    set_status(Status::Pending);  // OK
+    // set_status(Status::Aktivev);  // would not compile: no such variant, typo caught
+}
 
-// Configuration with typed builder
+// Configuration with typed fields
 struct Config {
-    timeout: Duration,
+    timeout: std::time::Duration,
     retries: u32,
     mode: Mode,
 }

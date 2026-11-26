@@ -109,16 +109,45 @@ mod my_collection {
 ## Custom Iterator Methods
 
 ```rust
-impl Graph {
-    // Method name -> Type name
-    fn nodes(&self) -> Nodes<'_> { }        // Custom: Nodes
-    fn edges(&self) -> Edges<'_> { }        // Custom: Edges
-    fn neighbors(&self, node: NodeId) -> Neighbors<'_> { }  // Custom: Neighbors
+pub struct Graph {
+    nodes: Vec<u32>,
+    edges: Vec<(u32, u32)>,
 }
 
-pub struct Nodes<'a> { /* ... */ }
-pub struct Edges<'a> { /* ... */ }
-pub struct Neighbors<'a> { /* ... */ }
+// Method name -> Type name
+pub struct Nodes<'a> {
+    inner: std::slice::Iter<'a, u32>,
+}
+
+pub struct Edges<'a> {
+    inner: std::slice::Iter<'a, (u32, u32)>,
+}
+
+impl Graph {
+    pub fn nodes(&self) -> Nodes<'_> {
+        Nodes { inner: self.nodes.iter() }
+    }
+
+    pub fn edges(&self) -> Edges<'_> {
+        Edges { inner: self.edges.iter() }
+    }
+}
+
+impl<'a> Iterator for Nodes<'a> {
+    type Item = &'a u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a> Iterator for Edges<'a> {
+    type Item = &'a (u32, u32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
 ```
 
 ## Bad

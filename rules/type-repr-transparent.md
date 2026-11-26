@@ -13,7 +13,7 @@
 struct Handle(u64);
 
 // Passing to C code might fail
-extern "C" {
+unsafe extern "C" {
     fn process_handle(h: Handle);  // May not work correctly
 }
 
@@ -24,12 +24,14 @@ struct SafePointer(*mut c_void);
 ## Good
 
 ```rust
+use std::ffi::c_void;
+
 // Guaranteed same layout as inner type
 #[repr(transparent)]
 struct Handle(u64);
 
 // Safe for FFI
-extern "C" {
+unsafe extern "C" {
     fn process_handle(h: Handle);  // Works - same layout as u64
 }
 
@@ -64,7 +66,7 @@ assert_eq!(size_of::<Meters>(), size_of::<f64>());
 assert_eq!(align_of::<Meters>(), align_of::<f64>());
 
 // Same ABI - can pass where f64 expected
-extern "C" fn measure(distance: Meters) { ... }
+extern "C" fn measure(distance: Meters) {}
 ```
 
 ## With PhantomData
@@ -104,10 +106,13 @@ mod ffi {
     #[repr(transparent)]
     pub struct FileDescriptor(c_int);
     
-    extern "C" {
-        pub fn open(path: *const i8, flags: c_int) -> FileDescriptor;
-        pub fn close(fd: FileDescriptor) -> c_int;
-        pub fn read(fd: FileDescriptor, buf: *mut u8, len: usize) -> isize;
+    // Hypothetical C library. Avoid libc's own names (`open`, `read`): declaring them
+    // with a different signature trips the deny-by-default
+    // `invalid_runtime_symbol_definitions` lint (Rust 1.98+).
+    unsafe extern "C" {
+        pub fn device_open(path: *const std::os::raw::c_char, flags: c_int) -> FileDescriptor;
+        pub fn device_close(fd: FileDescriptor) -> c_int;
+        pub fn device_read(fd: FileDescriptor, buf: *mut u8, len: usize) -> isize;
     }
 }
 
@@ -119,12 +124,17 @@ pub struct File {
 impl File {
     pub fn open(path: &str) -> std::io::Result<Self> {
         let c_path = std::ffi::CString::new(path)?;
-        let fd = unsafe { ffi::open(c_path.as_ptr(), 0) };
+        let fd = unsafe { ffi::device_open(c_path.as_ptr(), 0) };
         // ... error handling
         Ok(File { fd })
     }
 }
 ```
+
+## Version Notes
+
+- Rust 1.98 is stricter about which fields a `repr(transparent)` type may ignore as "trivial" (zero-sized, alignment 1). `repr(C)` types, types with private fields, and `#[non_exhaustive]` types no longer count, so a wrapper whose extra field is one of those stops compiling. `PhantomData<T>` and plain `()` fields are still fine.
+- Rust 1.100 warns when the same representation is specified more than once, as in `#[repr(C)] #[repr(C)]` or `#[repr(C, C)]`. Specify each one once; combine different hints in one attribute, such as `#[repr(C, align(8))]`.
 
 ## When to Use
 

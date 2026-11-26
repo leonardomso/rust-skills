@@ -69,14 +69,9 @@ fn must_get_config() -> Config {
 ## Standard Library Examples
 
 ```rust
-// std::process::exit
-pub fn exit(code: i32) -> !
-
-// panic! macro
-// Expands to an expression of type !
-
-// std::hint::unreachable_unchecked
-pub unsafe fn unreachable_unchecked() -> !
+// std::process::exit has the signature: fn exit(code: i32) -> !
+// std::hint::unreachable_unchecked is: unsafe fn unreachable_unchecked() -> !
+// The panic! macro expands to an expression of type !
 
 // loop {} with no break
 fn forever() -> ! {
@@ -126,28 +121,37 @@ std::thread::spawn(|| -> ! {
 });
 ```
 
-## Stability Notes
+## Never Type as a Type Argument
 
-`fn f() -> !` (never type as a return type) has been **stable since Rust 1.41** — no feature gate needed.
-
-Using `!` as an *arbitrary type argument* (e.g. `Result<(), !>`) still requires the nightly feature gate:
+`fn f() -> !` has been stable since Rust 1.41. Since Rust 1.100 `!` is stable everywhere, so it can be a type argument. Use it for an error type that cannot occur, and the compiler lets you skip the impossible `Err` arm.
 
 ```rust
-// Nightly only — using ! as a type argument
-#![feature(never_type)]
+fn always_ok() -> Result<u32, !> {
+    Ok(7)
+}
 
-type NeverResult = Result<(), !>;  // Can never be Err
+fn main() {
+    // Irrefutable: an `Err(!)` arm cannot exist
+    let Ok(n) = always_ok();
+    assert_eq!(n, 7);
+}
 ```
 
-On stable Rust, use `std::convert::Infallible` as the conventional substitute:
+`std::convert::Infallible` is now a type alias for `!` (Rust 1.100), so the two are the same type and interchangeable. Existing code that names `Infallible`, such as `FromStr::Err` or `TryFrom::Error`, keeps compiling.
 
 ```rust
-// Stable: Infallible is the standard stand-in for !
-type StableNeverResult = Result<(), std::convert::Infallible>;
+use std::convert::Infallible;
+
+fn same_type(x: Infallible) -> ! {
+    x // Infallible and ! are the same type
+}
 ```
+
+Also stable in 1.100: never-type fallback is `!` on every edition (it was `()` before 2024), and `!` implements `AsRef<T>` and `AsMut<T>`. If an old closure or generic call relied on the `()` fallback, add an explicit type annotation.
 
 ## See Also
 
 - [err-result-over-panic](./err-result-over-panic.md) - When to panic vs return Result
 - [type-result-fallible](./type-result-fallible.md) - Result for errors
 - [opt-cold-unlikely](./opt-cold-unlikely.md) - Marking unlikely paths
+- [conv-tryfrom-fallible](./conv-tryfrom-fallible.md) - `Infallible` as the error of a conversion that cannot fail

@@ -102,6 +102,10 @@ fn main() {
 
 **Note:** `BinaryHeap` does not support efficient arbitrary removal or priority updates. If you need those, consider a third-party crate like `keyed_priority_queue` or restructure with lazy deletion.
 
+## Keep `Ord` Consistent
+
+A heap, `sort`, `BTreeMap` and `Iterator::max` all assume `Ord`, `PartialOrd` and `Eq` agree. Derive all three together, or hand-write `PartialOrd` as `Some(self.cmp(other))`. Recent releases lean on this: when `Ord` is derived, `derive(PartialOrd)` takes a fast path through it (Rust 1.98), and `Iterator::min`/`max` call different `Ord` methods (Rust 1.100). Types with inconsistent impls can now behave differently from before.
+
 ## See Also
 
 - [coll-seq-choice](coll-seq-choice.md) - choosing between `Vec`, `VecDeque`, and `LinkedList`
